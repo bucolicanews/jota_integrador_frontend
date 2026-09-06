@@ -1,6 +1,6 @@
 # JOTA FISCAL — Frontend
 
-Frontend (React + Vite) da plataforma JOTA FISCAL. O backend/API vive no repositório irmão [`jota_integrador`](https://github.com/bucolicanews/jota_integrador).
+Frontend (React + Vite) da plataforma JOTA FISCAL. O backend/API vive no repositório irmão [`jota_integrador_backend`](https://github.com/bucolicanews/jota_integrador_backend).
 
 Dois perfis de interface sobre a mesma base:
 
@@ -9,11 +9,11 @@ Dois perfis de interface sobre a mesma base:
 
 ## Regra de ouro
 
-Este app nunca fala diretamente com o SERPRO nem armazena certificado digital, JWT ou dado sensível em `localStorage`. Toda comunicação passa pela API do `jota_integrador`.
+Este app nunca fala diretamente com o SERPRO nem armazena certificado digital, JWT ou dado sensível em `localStorage`. Toda comunicação passa pela API do `jota_integrador_backend`.
 
 ## Documentação
 
-A documentação de segurança, arquitetura, testes e UX/UI é centralizada no repositório backend — ver [`jota_integrador/docs`](https://github.com/bucolicanews/jota_integrador/tree/main/docs) e o [`CLAUDE.md`](CLAUDE.md) deste repo.
+A documentação de segurança, arquitetura, testes e UX/UI é centralizada no repositório backend — ver [`jota_integrador_backend/docs`](https://github.com/bucolicanews/jota_integrador_backend/tree/main/docs) e o [`CLAUDE.md`](CLAUDE.md) deste repo.
 
 ## Status
 

@@ -1,6 +1,6 @@
-# jota_fiscal_frontend
+# jota_integrador_frontend
 
-Frontend (React + Vite) do **JOTA FISCAL**. O backend/API vive no repositório irmão `jota_integrador` (`C:\Users\jotac\OneDrive\Documents\DEV\jota_integrador`, GitHub `bucolicanews/jota_integrador`).
+Frontend (React + Vite) do **JOTA FISCAL** (GitHub: `jota_integrador_frontend`; pasta local ainda chamada `jota_fiscal_frontend` por questão de sincronização do OneDrive). O backend/API vive no repositório irmão `jota_integrador_backend` (GitHub `bucolicanews/jota_integrador_backend`, pasta local `C:\Users\jotac\OneDrive\Documents\DEV\jota_integrador`).
 
 ## Nomenclatura
 
@@ -8,7 +8,7 @@ Todo nome de domínio (pastas, módulos, componentes, variáveis de negócio) de
 
 ## Memória e regras — sempre consultar antes de trabalhar
 
-Este repositório **não duplica** a documentação de segurança/arquitetura/testes/UX — ela vive no repo backend `jota_integrador`:
+Este repositório **não duplica** a documentação de segurança/arquitetura/testes/UX — ela vive no repo backend `jota_integrador_backend`:
 
 - `../jota_integrador/CLAUDE.md` — visão geral do produto e regras invioláveis
 - `../jota_integrador/docs/SEGURANCA.md` — segurança (relevante ao frontend: nunca armazenar certificado/JWT/dado sensível em localStorage, nunca falar direto com SERPRO)
@@ -20,7 +20,7 @@ E a memória persistente em `C:\Users\jotac\.claude\projects\C--Users-jotac-OneD
 
 ## Regra de ouro
 
-Este frontend **nunca** chama o SERPRO/Integra Contador diretamente, e **nunca** armazena certificado digital, JWT persistente, refresh token ou dado sensível em `localStorage`/`sessionStorage`/`IndexedDB`. Toda chamada passa pela API do `jota_integrador` (NestJS), que usa `HttpOnly`/`Secure`/`SameSite=Strict` cookies para sessão.
+Este frontend **nunca** chama o SERPRO/Integra Contador diretamente, e **nunca** armazena certificado digital, JWT persistente, refresh token ou dado sensível em `localStorage`/`sessionStorage`/`IndexedDB`. Toda chamada passa pela API do `jota_integrador_backend` (NestJS), que usa `HttpOnly`/`Secure`/`SameSite=Strict` cookies para sessão.
 
 ## Stack
 
@@ -35,7 +35,7 @@ src/
 │   └── contabil/    (visão do contador — JOTA CONTÁBIL)
 ├── componentes/
 ├── hooks/
-├── servicos/        (chamadas à API do jota_integrador)
+├── servicos/        (chamadas à API do jota_integrador_backend)
 └── store/
 ```
 
