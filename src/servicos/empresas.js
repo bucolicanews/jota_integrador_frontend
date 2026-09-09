@@ -1,6 +1,9 @@
 import { api } from './api';
 
-export const listarEmpresas = () => api.get('/empresas');
+// contadorId só é necessário quando quem chama tem papel de plataforma (SUPER_ADMIN etc.)
+// consultando a carteira de UM contador específico -- contador vendo a própria carteira não precisa.
+export const listarEmpresas = (contadorId) =>
+  api.get(contadorId ? `/empresas?contadorId=${contadorId}` : '/empresas');
 export const obterEmpresa = (id) => api.get(`/empresas/${id}`);
 export const criarEmpresa = (dados) => api.post('/empresas', dados);
 export const atualizarEmpresa = (id, dados) => api.patch(`/empresas/${id}`, dados);

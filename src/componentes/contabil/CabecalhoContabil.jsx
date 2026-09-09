@@ -1,7 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from '../../servicos/supabase';
 import { limparUsuario } from '../../store/autenticacaoSlice';
+
+// Papéis de plataforma (Dev/Admin JOTA) -- veem a área administrativa, contador não vê.
+export const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
 
 const LINKS_NAV = [
   { rota: '/contabil', rotulo: 'Dashboard' },
@@ -12,10 +15,14 @@ const LINKS_NAV = [
   { rota: '/contabil/auditoria', rotulo: 'Auditoria' },
 ];
 
+const LINKS_NAV_ADMIN = [{ rota: '/contabil/contadores', rotulo: 'Contadores' }];
+
 /** Cabeçalho + navegação compartilhados entre as telas do JOTA CONTÁBIL -- perfil do contador foca em densidade/velocidade de triagem (docs/UX-UI.md), não em telas isoladas sem navegação entre si. */
 export function CabecalhoContabil() {
   const dispatch = useDispatch();
   const localizacao = useLocation();
+  const { usuario } = useSelector((state) => state.autenticacao);
+  const links = PAPEIS_PLATAFORMA.includes(usuario?.papel) ? [...LINKS_NAV, ...LINKS_NAV_ADMIN] : LINKS_NAV;
 
   async function sair() {
     await supabase.auth.signOut();
@@ -28,7 +35,7 @@ export function CabecalhoContabil() {
         <div className="flex items-center gap-8">
           <span className="text-lg font-semibold text-gray-900">JOTA CONTÁBIL</span>
           <nav className="flex gap-1">
-            {LINKS_NAV.map((link) => {
+            {links.map((link) => {
               const ativo =
                 link.rota === '/contabil'
                   ? localizacao.pathname === '/contabil'
