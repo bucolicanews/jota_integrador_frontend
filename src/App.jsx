@@ -5,6 +5,8 @@ import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
 import Contabil from './paginas/contabil';
 import Fiscal from './paginas/fiscal';
+import ContabilEmpresas from './paginas/contabil-empresas';
+import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
 
 const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
@@ -47,6 +49,22 @@ export default function App() {
           element={
             <RotaProtegida>
               <Fiscal />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contabil/empresas"
+          element={
+            <RotaProtegida>
+              <ContabilEmpresas />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contabil/empresas/:id"
+          element={
+            <RotaProtegida>
+              <ContabilEmpresaDetalhe />
             </RotaProtegida>
           }
         />
