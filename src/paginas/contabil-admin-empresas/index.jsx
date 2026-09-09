@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
+import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
 import { atualizarEmpresa, bloquearEmpresa, criarEmpresa, desbloquearEmpresa, listarEmpresas } from '../../servicos/empresas';
 
@@ -116,7 +117,14 @@ function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
-            <input {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+              <option value="">Selecione...</option>
+              {REGIMES_TRIBUTARIOS.map((regime) => (
+                <option key={regime.valor} value={regime.valor}>
+                  {regime.rotulo}
+                </option>
+              ))}
+            </select>
           </div>
 
           {!editando && (

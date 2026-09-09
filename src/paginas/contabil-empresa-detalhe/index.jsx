@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import {
   atualizarEmpresa,
   atualizarModoAcessoSerpro,
@@ -173,7 +174,14 @@ export default function ContabilEmpresaDetalhe() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
-              <input {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <option value="">Selecione...</option>
+                {REGIMES_TRIBUTARIOS.map((regime) => (
+                  <option key={regime.valor} value={regime.valor}>
+                    {regime.rotulo}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-3 pt-1">
               <button
