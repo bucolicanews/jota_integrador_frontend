@@ -212,6 +212,7 @@ export default function ContabilHonorarios() {
 
   useEffect(() => {
     if (contadorId) carregar();
+    else setCarregando(false); // papel de plataforma (ex: SUPER_ADMIN) não tem contadorId próprio -- essa tela é por contador
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contadorId]);
 
@@ -224,7 +225,11 @@ export default function ContabilHonorarios() {
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-        {carregando ? (
+        {!contadorId ? (
+          <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
+            Esta tela mostra os honorários de um contador específico -- entre com uma conta de contador para ver.
+          </p>
+        ) : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <>
