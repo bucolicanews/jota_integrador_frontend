@@ -15,7 +15,10 @@ const LINKS_NAV = [
   { rota: '/contabil/auditoria', rotulo: 'Auditoria' },
 ];
 
-const LINKS_NAV_ADMIN = [{ rota: '/contabil/contadores', rotulo: 'Contadores' }];
+const LINKS_NAV_ADMIN = [
+  { rota: '/contabil/contadores', rotulo: 'Contadores' },
+  { rota: '/contabil/empresas-todas', rotulo: 'Empresas (todas)' },
+];
 
 /** Cabeçalho + navegação compartilhados entre as telas do JOTA CONTÁBIL -- perfil do contador foca em densidade/velocidade de triagem (docs/UX-UI.md), não em telas isoladas sem navegação entre si. */
 export function CabecalhoContabil() {
