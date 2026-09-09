@@ -155,6 +155,18 @@ export default function ContabilEmpresaDetalhe() {
           >
             Caixa Postal
           </Link>
+          <Link
+            to={`/contabil/empresas/${id}/plano-contas`}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Plano de Contas
+          </Link>
+          <Link
+            to={`/contabil/empresas/${id}/lancamentos`}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Lançamentos
+          </Link>
         </nav>
 
         <div className="mb-4 rounded-lg bg-white p-6 shadow">
