@@ -7,6 +7,7 @@ const LINKS_NAV = [
   { rota: '/contabil', rotulo: 'Dashboard' },
   { rota: '/contabil/empresas', rotulo: 'Carteira de Empresas' },
   { rota: '/contabil/assinatura', rotulo: 'Assinatura' },
+  { rota: '/contabil/honorarios', rotulo: 'Honorários' },
 ];
 
 /** Cabeçalho + navegação compartilhados entre as telas do JOTA CONTÁBIL -- perfil do contador foca em densidade/velocidade de triagem (docs/UX-UI.md), não em telas isoladas sem navegação entre si. */

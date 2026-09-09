@@ -9,6 +9,7 @@ import ContabilEmpresas from './paginas/contabil-empresas';
 import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
 import ContabilEmpresaAcessoSerpro from './paginas/contabil-empresa-acesso-serpro';
 import ContabilAssinatura from './paginas/contabil-assinatura';
+import ContabilHonorarios from './paginas/contabil-honorarios';
 
 const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
@@ -83,6 +84,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <ContabilAssinatura />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contabil/honorarios"
+          element={
+            <RotaProtegida>
+              <ContabilHonorarios />
             </RotaProtegida>
           }
         />
