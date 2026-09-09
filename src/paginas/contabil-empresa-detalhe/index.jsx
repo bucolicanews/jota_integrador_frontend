@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
 import {
@@ -140,6 +140,15 @@ export default function ContabilEmpresaDetalhe() {
         </div>
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
+
+        <nav className="mb-6 flex gap-2">
+          <Link
+            to={`/contabil/empresas/${id}/acesso-serpro`}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Procuração / Certificado
+          </Link>
+        </nav>
 
         <div className="mb-4 rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-sm font-semibold text-gray-900">Dados cadastrais</h2>

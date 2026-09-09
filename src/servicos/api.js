@@ -12,10 +12,14 @@ async function requisicao(caminho, opcoes = {}) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  // FormData (upload de arquivo, ex: certificado digital) nunca leva Content-Type manual
+  // -- o browser define sozinho, com o boundary do multipart, que a gente não sabe montar.
+  const ehFormData = opcoes.body instanceof FormData;
+
   const resposta = await fetch(`${URL_BASE}${caminho}`, {
     ...opcoes,
     headers: {
-      'Content-Type': 'application/json',
+      ...(ehFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...opcoes.headers,
     },
@@ -37,4 +41,5 @@ export const api = {
   get: (caminho) => requisicao(caminho, { method: 'GET' }),
   post: (caminho, dados) => requisicao(caminho, { method: 'POST', body: JSON.stringify(dados) }),
   patch: (caminho, dados) => requisicao(caminho, { method: 'PATCH', body: JSON.stringify(dados) }),
+  postFormData: (caminho, formData) => requisicao(caminho, { method: 'POST', body: formData }),
 };
