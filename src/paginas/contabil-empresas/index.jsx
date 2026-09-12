@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { criarEmpresa, listarEmpresas } from '../../servicos/empresas';
+import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 
 const ROTULO_MODO_ACESSO = {
   procuracao: 'Procuração',
@@ -122,6 +123,7 @@ function ModalNovaEmpresa({ aoFechar, aoCriar }) {
 
 export default function ContabilEmpresas() {
   const navegar = useNavigate();
+  const { selecionarEmpresa } = useEmpresaAtiva();
   const [empresas, setEmpresas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -161,6 +163,15 @@ export default function ContabilEmpresas() {
     setModalAberto(false);
     setEmpresas((atual) => [...atual, nova]);
     navegar(`/contabil/empresas/${nova.id}`);
+  }
+
+  // Atalho pra pular direto pro painel (rotas globais /lancamentos, /plano-contas etc, com
+  // o menu lateral completo) sem passar pela tela de detalhe da empresa -- fluxo antigo
+  // exigia clicar na empresa, depois numa aba, só então chegava no painel de verdade.
+  function aoAbrirPainel(evento, empresa) {
+    evento.stopPropagation();
+    selecionarEmpresa(empresa);
+    navegar('/painel');
   }
 
   return (
@@ -209,6 +220,7 @@ export default function ContabilEmpresas() {
                   <th className="px-4 py-3">CNPJ</th>
                   <th className="px-4 py-3">Acesso SERPRO</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -230,6 +242,16 @@ export default function ContabilEmpresas() {
                     <td className="px-4 py-3 text-gray-600">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</td>
                     <td className="px-4 py-3">
                       <BadgeStatus bloqueado={empresa.bloqueado} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(evento) => aoAbrirPainel(evento, empresa)}
+                        title="Ir direto pro painel desta empresa (Lançamentos, Plano de Contas, etc.)"
+                        className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                      >
+                        Abrir Painel →
+                      </button>
                     </td>
                   </tr>
                 ))}

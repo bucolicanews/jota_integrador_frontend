@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
+import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
   atualizarEmpresa,
   atualizarModoAcessoSerpro,
@@ -23,6 +24,17 @@ export default function ContabilEmpresaDetalhe() {
   const [mensagemSalvo, setMensagemSalvo] = useState(null);
 
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm();
+  const { selecionarEmpresa } = useEmpresaAtiva();
+
+  function aoAbrirLancamentos() {
+    if (empresa) selecionarEmpresa(empresa);
+    navegar('/lancamentos');
+  }
+
+  function aoAbrirPlanoContas() {
+    if (empresa) selecionarEmpresa(empresa);
+    navegar('/plano-contas');
+  }
 
   async function carregar() {
     setCarregando(true);
@@ -155,18 +167,20 @@ export default function ContabilEmpresaDetalhe() {
           >
             Caixa Postal
           </Link>
-          <Link
-            to={`/contabil/empresas/${id}/plano-contas`}
+          <button
+            type="button"
+            onClick={aoAbrirPlanoContas}
             className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Plano de Contas
-          </Link>
-          <Link
-            to={`/contabil/empresas/${id}/lancamentos`}
+          </button>
+          <button
+            type="button"
+            onClick={aoAbrirLancamentos}
             className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Lançamentos
-          </Link>
+          </button>
         </nav>
 
         <div className="mb-4 rounded-lg bg-white p-6 shadow">

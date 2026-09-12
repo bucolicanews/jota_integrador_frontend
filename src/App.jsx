@@ -15,8 +15,36 @@ import ContabilEmpresaCaixaPostal from './paginas/contabil-empresa-caixa-postal'
 import ContabilAuditoria from './paginas/contabil-auditoria';
 import ContabilAdminContadores from './paginas/contabil-admin-contadores';
 import ContabilAdminEmpresas from './paginas/contabil-admin-empresas';
-import ContabilPlanoContas from './paginas/contabil-empresa-plano-contas';
-import ContabilLancamentos from './paginas/contabil-empresa-lancamentos';
+import PlanoContas from './pages/PlanoContas';
+import Lancamentos from './pages/Lancamentos';
+import Balancete from './pages/Balancete';
+import BalancoPatrimonial from './pages/BalancoPatrimonial';
+import DRE from './pages/DRE';
+import Razao from './pages/Razao';
+import FluxoCaixa from './pages/FluxoCaixa';
+import Conciliacao from './pages/Conciliacao';
+import Painel from './pages/Painel';
+import ContasAPagar from './pages/ContasAPagar';
+import ContasAReceber from './pages/ContasAReceber';
+import Clientes from './pages/Clientes';
+import Fornecedores from './pages/Fornecedores';
+import Historicos from './pages/Historicos';
+import Protocolos from './pages/Protocolos';
+import Bancos from './pages/Bancos';
+import PicklistsExtrato from './pages/PicklistsExtrato';
+import Mapeamento from './pages/Mapeamento';
+import Perfil from './pages/Perfil';
+import Contratos from './pages/Contratos';
+import ContratoNovo from './pages/ContratoNovo';
+import ContratoPreencher from './pages/ContratoPreencher';
+import ContratoDetalhe from './pages/ContratoDetalhe';
+import ContratoModelos from './pages/ContratoModelos';
+import AssinarContrato from './pages/AssinarContrato';
+import DocumentosSocietarios from './pages/DocumentosSocietarios';
+import DocumentosSocietariosModelos from './pages/DocumentosSocietariosModelos';
+import DocumentosSocietariosBlocos from './pages/DocumentosSocietariosBlocos';
+import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
+import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 
 const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
@@ -143,21 +171,241 @@ export default function App() {
           }
         />
         <Route
-          path="/contabil/empresas/:id/plano-contas"
+          path="/painel"
           element={
             <RotaProtegida>
-              <ContabilPlanoContas />
+              <Painel />
             </RotaProtegida>
           }
         />
         <Route
-          path="/contabil/empresas/:id/lancamentos"
+          path="/plano-contas"
           element={
             <RotaProtegida>
-              <ContabilLancamentos />
+              <PlanoContas />
             </RotaProtegida>
           }
         />
+        <Route
+          path="/lancamentos"
+          element={
+            <RotaProtegida>
+              <Lancamentos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/conciliacao-bancaria"
+          element={
+            <RotaProtegida>
+              <Conciliacao />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contas-a-pagar"
+          element={
+            <RotaProtegida>
+              <ContasAPagar />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contas-a-receber"
+          element={
+            <RotaProtegida>
+              <ContasAReceber />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/clientes"
+          element={
+            <RotaProtegida>
+              <Clientes />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/fornecedores"
+          element={
+            <RotaProtegida>
+              <Fornecedores />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/historicos"
+          element={
+            <RotaProtegida>
+              <Historicos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/protocolos"
+          element={
+            <RotaProtegida>
+              <Protocolos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/bancos"
+          element={
+            <RotaProtegida>
+              <Bancos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/sugestoes-extrato"
+          element={
+            <RotaProtegida>
+              <PicklistsExtrato />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/mapeamento"
+          element={
+            <RotaProtegida>
+              <Mapeamento />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <RotaProtegida>
+              <Perfil />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/relatorios/balancete"
+          element={
+            <RotaProtegida>
+              <Balancete />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/relatorios/balanco"
+          element={
+            <RotaProtegida>
+              <BalancoPatrimonial />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/relatorios/dre"
+          element={
+            <RotaProtegida>
+              <DRE />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/relatorios/razao"
+          element={
+            <RotaProtegida>
+              <Razao />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/relatorios/fluxo-caixa"
+          element={
+            <RotaProtegida>
+              <FluxoCaixa />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos"
+          element={
+            <RotaProtegida>
+              <Contratos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos/novo"
+          element={
+            <RotaProtegida>
+              <ContratoNovo />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos/preencher/:modeloId"
+          element={
+            <RotaProtegida>
+              <ContratoPreencher />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos/modelos"
+          element={
+            <RotaProtegida>
+              <ContratoModelos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos/:id"
+          element={
+            <RotaProtegida>
+              <ContratoDetalhe />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/documentos-societarios"
+          element={
+            <RotaProtegida>
+              <DocumentosSocietarios />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/documentos-societarios/modelos"
+          element={
+            <RotaProtegida>
+              <DocumentosSocietariosModelos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/documentos-societarios/blocos"
+          element={
+            <RotaProtegida>
+              <DocumentosSocietariosBlocos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/documentos-societarios/gerar/:modeloId"
+          element={
+            <RotaProtegida>
+              <DocumentoSocietarioGerar />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/documentos-societarios/:id"
+          element={
+            <RotaProtegida>
+              <DocumentoSocietarioDetalhe />
+            </RotaProtegida>
+          }
+        />
+        {/* Pública de propósito -- cliente final assina sem login, sem RotaProtegida nem RotaPublica. */}
+        <Route path="/assinar-contrato/:token" element={<AssinarContrato />} />
+        {/* Qualquer rota não mapeada (ex: link antigo salvo no navegador) volta pro início em vez de dar tela branca. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

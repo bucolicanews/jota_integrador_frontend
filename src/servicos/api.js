@@ -41,5 +41,7 @@ export const api = {
   get: (caminho) => requisicao(caminho, { method: 'GET' }),
   post: (caminho, dados) => requisicao(caminho, { method: 'POST', body: JSON.stringify(dados) }),
   patch: (caminho, dados) => requisicao(caminho, { method: 'PATCH', body: JSON.stringify(dados) }),
+  put: (caminho, dados) => requisicao(caminho, { method: 'PUT', body: JSON.stringify(dados) }),
+  delete: (caminho) => requisicao(caminho, { method: 'DELETE' }),
   postFormData: (caminho, formData) => requisicao(caminho, { method: 'POST', body: formData }),
 };

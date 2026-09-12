@@ -1,7 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from '../../servicos/supabase';
 import { limparUsuario } from '../../store/autenticacaoSlice';
+import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 
 // Papéis de plataforma (Dev/Admin JOTA) -- veem a área administrativa, contador não vê.
 export const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
@@ -23,8 +24,10 @@ const LINKS_NAV_ADMIN = [
 /** Cabeçalho + navegação compartilhados entre as telas do JOTA CONTÁBIL -- perfil do contador foca em densidade/velocidade de triagem (docs/UX-UI.md), não em telas isoladas sem navegação entre si. */
 export function CabecalhoContabil() {
   const dispatch = useDispatch();
+  const navegar = useNavigate();
   const localizacao = useLocation();
   const { usuario } = useSelector((state) => state.autenticacao);
+  const { empresaAtiva, ehContador } = useEmpresaAtiva();
   const links = PAPEIS_PLATAFORMA.includes(usuario?.papel) ? [...LINKS_NAV, ...LINKS_NAV_ADMIN] : LINKS_NAV;
 
   async function sair() {
@@ -57,9 +60,20 @@ export function CabecalhoContabil() {
             })}
           </nav>
         </div>
-        <button onClick={sair} className="text-sm text-gray-500 hover:text-gray-700">
-          Sair
-        </button>
+        <div className="flex items-center gap-3">
+          {ehContador && empresaAtiva && (
+            <button
+              onClick={() => navegar('/painel')}
+              title={`Ir direto para o painel de ${empresaAtiva.razaoSocial}`}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Ir para o Painel →
+            </button>
+          )}
+          <button onClick={sair} className="text-sm text-gray-500 hover:text-gray-700">
+            Sair
+          </button>
+        </div>
       </div>
     </header>
   );
