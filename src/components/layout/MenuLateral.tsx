@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, Clock, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -85,6 +85,13 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
+      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'] },
+      {
+        nome: 'Folha de Ponto',
+        caminho: '/folha-ponto',
+        icone: Clock,
+        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'EMPRESARIO_DONO'],
+      },
     ],
   },
 ];

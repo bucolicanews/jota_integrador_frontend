@@ -50,6 +50,8 @@ import AdminPacotes from './pages/AdminPacotes';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Configuracoes from './pages/Configuracoes';
 import Suporte from './pages/Suporte';
+import PontoEletronico from './pages/PontoEletronico';
+import FolhaPonto from './pages/FolhaPonto';
 
 const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
@@ -444,6 +446,22 @@ export default function App() {
           element={
             <RotaProtegida>
               <Suporte />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/ponto-eletronico"
+          element={
+            <RotaProtegida>
+              <PontoEletronico />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/folha-ponto"
+          element={
+            <RotaProtegida>
+              <FolhaPonto />
             </RotaProtegida>
           }
         />
