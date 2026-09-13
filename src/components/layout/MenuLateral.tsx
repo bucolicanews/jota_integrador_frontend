@@ -1,5 +1,6 @@
+import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, Link2, ListChecks, ListPlus, Receipt, Scale, TrendingUp, Truck, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -10,6 +11,9 @@ interface ItemMenu {
   // Ausente = núcleo, sempre visível. Presente = só aparece se a empresa ativa tiver o
   // módulo liberado (useModulosLicenciados) -- ver docs do backend em @common/modulos.
   modulo?: string;
+  // Ausente = qualquer papel autenticado. Presente = só aparece pros papéis listados
+  // (mesmo catálogo de src/auth/dominio/papel.ts do backend, que sempre revalida de novo).
+  papeis?: string[];
 }
 
 interface SecaoMenu {
@@ -73,6 +77,13 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Licenciamento',
     itens: [{ nome: 'Minhas Licenças', caminho: '/minhas-licencas', icone: KeyRound }],
   },
+  {
+    titulo: 'Administração',
+    itens: [
+      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
+      { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
+    ],
+  },
 ];
 
 interface MenuLateralProps {
@@ -82,6 +93,7 @@ interface MenuLateralProps {
 export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
   const localizacao = useLocation();
   const { temModulo } = useModulosLicenciados();
+  const { usuario } = useSelector((state: any) => state.autenticacao);
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
@@ -89,7 +101,9 @@ export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
         <span className="text-lg font-bold text-primary">JOTA CONTÁBIL</span>
       </div>
       {SECOES_MENU.map((secao) => {
-        const itensVisiveis = secao.itens.filter((item) => !item.modulo || temModulo(item.modulo));
+        const itensVisiveis = secao.itens.filter(
+          (item) => (!item.modulo || temModulo(item.modulo)) && (!item.papeis || item.papeis.includes(usuario?.papel)),
+        );
         if (itensVisiveis.length === 0) return null;
         return (
           <div key={secao.titulo} className="px-2 py-2">

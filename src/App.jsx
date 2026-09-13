@@ -47,6 +47,8 @@ import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
 import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 import MinhasLicencas from './pages/MinhasLicencas';
 import AdminPacotes from './pages/AdminPacotes';
+import GerenciarUsuarios from './pages/GerenciarUsuarios';
+import Configuracoes from './pages/Configuracoes';
 
 const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
@@ -417,6 +419,22 @@ export default function App() {
           element={
             <RotaProtegida>
               <AdminPacotes />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/admin/usuarios"
+          element={
+            <RotaProtegida>
+              <GerenciarUsuarios />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/configuracoes"
+          element={
+            <RotaProtegida>
+              <Configuracoes />
             </RotaProtegida>
           }
         />
