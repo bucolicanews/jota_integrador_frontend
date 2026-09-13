@@ -41,8 +41,8 @@ export default function Header() {
             <MenuLateral onLinkClick={() => setSheetAberto(false)} />
           </SheetContent>
         </Sheet>
-        <Link to="/contabil" className="text-xl font-bold text-primary">
-          JOTA CONTÁBIL
+        <Link to={ehContador ? '/contabil' : '/fiscal'} className="text-xl font-bold text-primary">
+          {ehContador ? 'JOTA CONTÁBIL' : 'JOTA FISCAL'}
         </Link>
       </div>
 

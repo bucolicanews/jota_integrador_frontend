@@ -28,7 +28,13 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Geral',
     itens: [
       { nome: 'Painel', caminho: '/painel', icone: Home },
-      { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard },
+      {
+        nome: 'Carteira de Empresas',
+        caminho: '/contabil/empresas',
+        icone: LayoutDashboard,
+        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'],
+      },
+      { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
     ],
   },
   {
@@ -78,7 +84,14 @@ const SECOES_MENU: SecaoMenu[] = [
   },
   {
     titulo: 'Licenciamento',
-    itens: [{ nome: 'Minhas Licenças', caminho: '/minhas-licencas', icone: KeyRound }],
+    itens: [
+      {
+        nome: 'Minhas Licenças',
+        caminho: '/minhas-licencas',
+        icone: KeyRound,
+        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'],
+      },
+    ],
   },
   {
     titulo: 'Administração',
@@ -104,11 +117,12 @@ export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
   const localizacao = useLocation();
   const { temModulo } = useModulosLicenciados();
   const { usuario } = useSelector((state: any) => state.autenticacao);
+  const ehEmpresa = usuario?.papel === 'EMPRESARIO_DONO' || usuario?.papel === 'OPERADOR_EMPRESA';
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
       <div className="px-4 pb-4">
-        <span className="text-lg font-bold text-primary">JOTA CONTÁBIL</span>
+        <span className="text-lg font-bold text-primary">{ehEmpresa ? 'JOTA FISCAL' : 'JOTA CONTÁBIL'}</span>
       </div>
       {SECOES_MENU.map((secao) => {
         const itensVisiveis = secao.itens.filter(

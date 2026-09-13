@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import DOMPurify from 'dompurify';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { api } from '../../servicos/api';
-import { supabase } from '../../servicos/supabase';
-import { limparUsuario } from '../../store/autenticacaoSlice';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao } from '../../servicos/acessoSerpro';
 import {
   listarMensagensCaixaPostal,
@@ -16,9 +15,10 @@ import {
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
 /**
- * Perfil JOTA FISCAL (empresário) -- diferente do JOTA CONTÁBIL: linguagem 100%
- * não-técnica, um dashboard único (sem navegação densa entre telas), semáforo
- * 🟢🟡🔴 como padrão visual consistente (docs/UX-UI.md).
+ * Perfil JOTA FISCAL (empresário) -- linguagem 100% não-técnica, semáforo 🟢🟡🔴 como
+ * padrão visual consistente (docs/UX-UI.md). Roda dentro do mesmo LayoutPrincipal/
+ * MenuLateral do JOTA CONTÁBIL (empresa ganha sidebar com os módulos que o contador
+ * licenciou pra ela) -- só o conteúdo desta página é o dashboard enxuto original.
  */
 
 const MENSAGEM_PROCURACAO = {
@@ -317,7 +317,6 @@ function CardCaixaPostal({ empresaId }) {
 }
 
 export default function Fiscal() {
-  const dispatch = useDispatch();
   const { usuario } = useSelector((state) => state.autenticacao);
   const [empresa, setEmpresa] = useState(null);
   const [erro, setErro] = useState(null);
@@ -334,21 +333,9 @@ export default function Fiscal() {
     if (usuario?.empresaId) carregar();
   }, [usuario]);
 
-  async function sair() {
-    await supabase.auth.signOut();
-    dispatch(limparUsuario());
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">JOTA FISCAL</h1>
-        <button onClick={sair} className="text-sm text-gray-500 hover:text-gray-700">
-          Sair
-        </button>
-      </header>
-
-      {erro && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Erro ao carregar: {erro}</p>}
+    <LayoutPrincipal>
+      {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">Erro ao carregar: {erro}</p>}
 
       {empresa && (
         <div className="mx-auto max-w-2xl space-y-4">
@@ -375,6 +362,6 @@ export default function Fiscal() {
           </div>
         </div>
       )}
-    </div>
+    </LayoutPrincipal>
   );
 }

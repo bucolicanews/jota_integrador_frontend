@@ -1,5 +1,4 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import { useAutenticacao } from './hooks/useAutenticacao';
 import { RotaProtegida } from './componentes/RotaProtegida';
 import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
@@ -53,12 +52,11 @@ import Suporte from './pages/Suporte';
 import PontoEletronico from './pages/PontoEletronico';
 import FolhaPonto from './pages/FolhaPonto';
 
-const PAPEIS_CONTADOR = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
-
 function RedirecionamentoInicial() {
-  const { usuario } = useAutenticacao();
-  const destino = PAPEIS_CONTADOR.includes(usuario?.papel) ? '/contabil' : '/fiscal';
-  return <Navigate to={destino} replace />;
+  // Todo papel entra pelo mesmo /painel (LayoutPrincipal+MenuLateral) -- cada um vê só o
+  // que o próprio papel/módulo licenciado libera. /contabil (legado) e /fiscal continuam
+  // acessíveis (link da marca no Header), mas deixam de ser o destino forçado do login.
+  return <Navigate to="/painel" replace />;
 }
 
 export default function App() {
