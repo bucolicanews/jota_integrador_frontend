@@ -49,6 +49,7 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
   const [registros, setRegistros] = useState<any[]>([]);
   const [resumo, setResumo] = useState<any | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   const [dialogFaltaAbono, setDialogFaltaAbono] = useState(false);
   const [dialogFerias, setDialogFerias] = useState(false);
@@ -57,12 +58,16 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
 
   function carregar() {
     setCarregando(true);
+    setErro(null);
     Promise.all([listarRegistros({ usuarioId: funcionario.id, ano, mes }), obterResumoMensal({ usuarioId: funcionario.id, ano, mes })])
       .then(([listaRegistros, resumoDados]) => {
         setRegistros(listaRegistros);
         setResumo(resumoDados);
       })
-      .catch((e) => showError(e.message))
+      .catch((e) => {
+        setErro(e.message ?? 'Não foi possível carregar a folha de ponto');
+        showError(e.message);
+      })
       .finally(() => setCarregando(false));
   }
   useEffect(carregar, [funcionario.id, ano, mes]);
@@ -132,10 +137,12 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
         </div>
       </div>
 
-      {carregando || !resumo ? (
+      {carregando ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : erro || !resumo ? (
+        <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">{erro ?? 'Não foi possível carregar a folha de ponto.'}</p>
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
