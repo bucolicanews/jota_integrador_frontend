@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import {
   atualizarContador,
@@ -229,6 +230,7 @@ function ListaEmpresasDoContador({ empresas }) {
 }
 
 export default function ContabilAdminContadores() {
+  const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
   const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
 
@@ -317,6 +319,15 @@ export default function ContabilAdminContadores() {
         >
           Editar
         </button>
+        <button
+          onClick={() =>
+            navegar(`/contabil/creditos?contadorId=${contador.id}`, { state: { nomeContador: contador.nome } })
+          }
+          title="Ver saldo e extrato de créditos deste contador (inclui a própria Jota)"
+          className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+        >
+          Créditos
+        </button>
         {ehSuperAdmin &&
           (contador.bloqueado ? (
             <button
@@ -339,10 +350,8 @@ export default function ContabilAdminContadores() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900">Contadores</h1>
           {ehSuperAdmin && (
@@ -483,7 +492,7 @@ export default function ContabilAdminContadores() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {modalContador && (
         <ModalContador
@@ -506,6 +515,6 @@ export default function ContabilAdminContadores() {
           }}
         />
       )}
-    </div>
+    </LayoutPrincipal>
   );
 }

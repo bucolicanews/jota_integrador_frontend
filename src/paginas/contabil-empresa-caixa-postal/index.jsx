@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { obterEmpresa } from '../../servicos/empresas';
 import {
   listarMensagensCaixaPostal,
@@ -125,10 +125,8 @@ export default function ContabilEmpresaCaixaPostal() {
   const naoLidas = mensagens.filter((m) => m.status === 'nao_lida').length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-3xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-3xl">
         <button
           onClick={() => navegar(`/contabil/empresas/${id}`)}
           className="mb-4 text-sm text-gray-500 hover:text-gray-700"
@@ -188,7 +186,7 @@ export default function ContabilEmpresaCaixaPostal() {
             ))}
           </ul>
         )}
-      </main>
+      </div>
 
       {mensagemSelecionada && (
         <ModalMensagem
@@ -198,6 +196,6 @@ export default function ContabilEmpresaCaixaPostal() {
           aoMarcarLida={aoMarcarLidaLocal}
         />
       )}
-    </div>
+    </LayoutPrincipal>
   );
 }

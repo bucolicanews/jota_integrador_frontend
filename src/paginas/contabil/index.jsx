@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { api } from '../../servicos/api';
 import { listarEmpresas } from '../../servicos/empresas';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 
 export default function Contabil() {
   const { usuario } = useSelector((state) => state.autenticacao);
@@ -40,10 +40,8 @@ export default function Contabil() {
   const totalBloqueadas = empresas ? empresas.length - totalAtivas : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-6xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">Dashboard</h1>
 
         {!usuario?.contadorId ? (
@@ -77,7 +75,7 @@ export default function Contabil() {
         </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </LayoutPrincipal>
   );
 }

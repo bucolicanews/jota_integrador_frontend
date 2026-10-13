@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { listarLogsAuditoria } from '../../servicos/auditoria';
 
 const LIMITE_POR_PAGINA = 20;
@@ -92,10 +92,8 @@ export default function ContabilAuditoria() {
   const totalPaginas = Math.max(1, Math.ceil(total / LIMITE_POR_PAGINA));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-5xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-5xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">Logs de auditoria</h1>
 
         <form onSubmit={aoFiltrar} className="mb-4 flex flex-wrap items-end gap-2">
@@ -175,7 +173,7 @@ export default function ContabilAuditoria() {
             </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </LayoutPrincipal>
   );
 }

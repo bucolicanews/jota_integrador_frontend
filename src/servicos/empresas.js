@@ -5,6 +5,9 @@ import { api } from './api';
 export const listarEmpresas = (contadorId) =>
   api.get(contadorId ? `/empresas?contadorId=${contadorId}` : '/empresas');
 export const obterEmpresa = (id) => api.get(`/empresas/${id}`);
+// Workspace fixo de quem não navega por carteira (plataforma ou contador dono/operador) --
+// sem parâmetros, o backend resolve pelo papel/vínculo do token.
+export const obterEmpresaInterna = () => api.get('/empresas/interna');
 export const criarEmpresa = (dados) => api.post('/empresas', dados);
 export const atualizarEmpresa = (id, dados) => api.patch(`/empresas/${id}`, dados);
 export const atualizarModoAcessoSerpro = (id, modoAcessoSerpro) =>

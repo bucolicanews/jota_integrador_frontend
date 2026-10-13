@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
@@ -317,10 +317,8 @@ export default function ContabilAdminEmpresas() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-900">Empresas (todas)</h1>
           {ehSuperAdmin && (
@@ -450,7 +448,7 @@ export default function ContabilAdminEmpresas() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {modalEmpresa && (
         <ModalEmpresa
@@ -474,6 +472,6 @@ export default function ContabilAdminEmpresas() {
           }}
         />
       )}
-    </div>
+    </LayoutPrincipal>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { listarEmpresas } from '../../servicos/empresas';
 import {
   criarCobrancaHonorario,
@@ -217,10 +217,8 @@ export default function ContabilHonorarios() {
   }, [contadorId]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-4xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-4xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">Honorários</h1>
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
@@ -282,7 +280,7 @@ export default function ContabilHonorarios() {
             )}
           </>
         )}
-      </main>
+      </div>
 
       {modalAberto && (
         <ModalNovaCobranca
@@ -294,6 +292,6 @@ export default function ContabilHonorarios() {
           }}
         />
       )}
-    </div>
+    </LayoutPrincipal>
   );
 }

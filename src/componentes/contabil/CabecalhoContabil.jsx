@@ -29,7 +29,15 @@ export function CabecalhoContabil() {
   const localizacao = useLocation();
   const { usuario } = useSelector((state) => state.autenticacao);
   const { empresaAtiva, ehContador } = useEmpresaAtiva();
-  const links = PAPEIS_PLATAFORMA.includes(usuario?.papel) ? [...LINKS_NAV, ...LINKS_NAV_ADMIN] : LINKS_NAV;
+  // "Carteira de Empresas" (/contabil/empresas) só lista a carteira do PRÓPRIO contador
+  // (listarEmpresas() sem contadorId) -- pra plataforma isso sempre dá 400 ("contadorId é
+  // obrigatório"), porque ela não tem carteira própria. O equivalente de plataforma é
+  // "Empresas (todas)" (/contabil/empresas-todas, em LINKS_NAV_ADMIN), que já agrega por
+  // contador corretamente -- por isso o link errado é removido daqui, não corrigido lá.
+  const ehPlataforma = PAPEIS_PLATAFORMA.includes(usuario?.papel);
+  const links = ehPlataforma
+    ? [...LINKS_NAV.filter((link) => link.rota !== '/contabil/empresas'), ...LINKS_NAV_ADMIN]
+    : LINKS_NAV;
 
   async function sair() {
     await supabase.auth.signOut();

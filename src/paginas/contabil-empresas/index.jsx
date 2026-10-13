@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import { PAPEIS_PLATAFORMA } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { criarEmpresa, listarEmpresas } from '../../servicos/empresas';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
@@ -123,6 +125,8 @@ function ModalNovaEmpresa({ aoFechar, aoCriar }) {
 
 export default function ContabilEmpresas() {
   const navegar = useNavigate();
+  const { usuario } = useSelector((state) => state.autenticacao);
+  const ehPlataforma = PAPEIS_PLATAFORMA.includes(usuario?.papel);
   const { selecionarEmpresa } = useEmpresaAtiva();
   const [empresas, setEmpresas] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -143,9 +147,18 @@ export default function ContabilEmpresas() {
     }
   }
 
+  // Esta tela só existe pra "a carteira do próprio contador" (listarEmpresas() sem
+  // contadorId) -- plataforma não tem carteira própria, o equivalente dela é "Empresas
+  // (todas)". Redireciona em vez de deixar o 400 do backend estourar na tela.
   useEffect(() => {
+    if (ehPlataforma) {
+      navegar('/contabil/empresas-todas', { replace: true });
+      return;
+    }
     carregar();
-  }, []);
+  }, [ehPlataforma]);
+
+  if (ehPlataforma) return null;
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -175,10 +188,8 @@ export default function ContabilEmpresas() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-6xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Carteira de Empresas</h1>
@@ -259,9 +270,9 @@ export default function ContabilEmpresas() {
             </table>
           </div>
         )}
-      </main>
+      </div>
 
       {modalAberto && <ModalNovaEmpresa aoFechar={() => setModalAberto(false)} aoCriar={aoCriarEmpresa} />}
-    </div>
+    </LayoutPrincipal>
   );
 }

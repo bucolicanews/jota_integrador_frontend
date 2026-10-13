@@ -15,7 +15,7 @@ import MenuLateral from './MenuLateral';
 export default function Header() {
   const [sheetAberto, setSheetAberto] = useState(false);
   const { usuario } = useAutenticacao();
-  const { empresaAtiva, carteira, carregandoCarteira, ehContador, selecionarEmpresa } = useEmpresaAtiva();
+  const { empresaAtiva, carteira, carregandoCarteira, ehContador, ehPlataforma, selecionarEmpresa } = useEmpresaAtiva();
   const dispatch = useDispatch();
 
   async function sair() {
@@ -41,8 +41,8 @@ export default function Header() {
             <MenuLateral onLinkClick={() => setSheetAberto(false)} />
           </SheetContent>
         </Sheet>
-        <Link to={ehContador ? '/contabil' : '/fiscal'} className="text-xl font-bold text-primary">
-          {ehContador ? 'JOTA CONTÁBIL' : 'JOTA FISCAL'}
+        <Link to={ehContador || ehPlataforma ? '/contabil' : '/fiscal'} className="text-xl font-bold text-primary">
+          {ehContador || ehPlataforma ? 'JOTA CONTÁBIL' : 'JOTA FISCAL'}
         </Link>
       </div>
 
@@ -62,7 +62,7 @@ export default function Header() {
             </option>
             {carteira.map((empresa) => (
               <option key={empresa.id} value={empresa.id}>
-                {empresa.razaoSocial}
+                {empresa.ehPropria ? `${empresa.razaoSocial} (minha contabilidade)` : empresa.razaoSocial}
               </option>
             ))}
           </select>

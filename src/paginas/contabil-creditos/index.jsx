@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { creditarManualmente, listarMovimentosCreditos, obterSaldoCreditos } from '../../servicos/creditos';
 
 const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
@@ -73,7 +74,15 @@ function FormularioCreditoManual({ contadorId, aoConcluir }) {
 
 export default function ContabilCreditos() {
   const { usuario } = useSelector((state) => state.autenticacao);
-  const contadorId = usuario?.contadorId;
+  const localizacao = useLocation();
+  const [searchParams] = useSearchParams();
+  const ehPlataforma = PAPEIS_PLATAFORMA.includes(usuario?.papel);
+  // Plataforma não tem contadorId próprio -- só alcança créditos de um contador (incluindo
+  // o "interno_jota" da própria Jota) vindo de algum lugar que informe qual, ex: o botão
+  // "Créditos" na tela de Contadores (/contabil/contadores). Contador nunca usa esse override
+  // (ignorado mesmo se alguém editar a URL à mão -- o backend bloqueia de qualquer forma).
+  const contadorId = ehPlataforma ? searchParams.get('contadorId') : usuario?.contadorId;
+  const nomeContador = localizacao.state?.nomeContador;
   const [saldo, setSaldo] = useState(null);
   const [movimentos, setMovimentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -103,17 +112,19 @@ export default function ContabilCreditos() {
   }, [contadorId]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-3xl px-6 py-6">
-        <h1 className="mb-6 text-xl font-semibold text-gray-900">Créditos</h1>
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-3xl">
+        <h1 className="mb-6 text-xl font-semibold text-gray-900">
+          Créditos{nomeContador ? ` — ${nomeContador}` : ''}
+        </h1>
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
         {!contadorId ? (
           <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
-            Esta tela mostra os créditos de um contador específico -- entre com uma conta de contador para ver.
+            {ehPlataforma
+              ? 'Esta tela mostra os créditos de um contador específico -- abra a partir do botão "Créditos" na tela de Contadores.'
+              : 'Esta tela mostra os créditos de um contador específico -- entre com uma conta de contador para ver.'}
           </p>
         ) : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
@@ -163,7 +174,7 @@ export default function ContabilCreditos() {
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </LayoutPrincipal>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -109,27 +109,23 @@ export default function ContabilEmpresaDetalhe() {
 
   if (carregando) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <CabecalhoContabil />
-        <p className="p-6 text-sm text-gray-500">Carregando...</p>
-      </div>
+      <LayoutPrincipal>
+        <p className="text-sm text-gray-500">Carregando...</p>
+      </LayoutPrincipal>
     );
   }
 
   if (erro && !empresa) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <CabecalhoContabil />
-        <p className="m-6 rounded-md bg-red-50 p-3 text-sm text-red-700">Erro ao carregar: {erro}</p>
-      </div>
+      <LayoutPrincipal>
+        <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Erro ao carregar: {erro}</p>
+      </LayoutPrincipal>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-3xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-3xl">
         <button onClick={() => navegar('/contabil/empresas')} className="mb-4 text-sm text-gray-500 hover:text-gray-700">
           ← Voltar pra carteira
         </button>
@@ -237,7 +233,7 @@ export default function ContabilEmpresaDetalhe() {
             <option value="certificado_proprio">Certificado próprio</option>
           </select>
         </div>
-      </main>
-    </div>
+      </div>
+    </LayoutPrincipal>
   );
 }

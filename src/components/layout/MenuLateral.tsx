@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, Clock, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -21,6 +21,12 @@ interface SecaoMenu {
   itens: ItemMenu[];
 }
 
+// Papéis que navegam a carteira (contador de verdade + plataforma, que usa o workspace fixo
+// da própria Jota) -- mesmo grupo que antes só existia espalhado no CabecalhoContabil (shell
+// legado dos /contabil/* substituído por este MenuLateral).
+const PAPEIS_CARTEIRA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
+const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
+
 // Cresce módulo a módulo conforme cada tela do jotaCaixa é portada -- não lista links
 // pra telas que ainda não existem (evita link morto).
 const SECOES_MENU: SecaoMenu[] = [
@@ -28,13 +34,17 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Geral',
     itens: [
       { nome: 'Painel', caminho: '/painel', icone: Home },
-      {
-        nome: 'Carteira de Empresas',
-        caminho: '/contabil/empresas',
-        icone: LayoutDashboard,
-        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'],
-      },
+      { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
+    ],
+  },
+  {
+    titulo: 'Escritório',
+    itens: [
+      { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA },
     ],
   },
   {
@@ -96,6 +106,8 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Administração',
     itens: [
+      { nome: 'Contadores', caminho: '/contabil/contadores', icone: Users, papeis: PAPEIS_PLATAFORMA },
+      { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'] },

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { CabecalhoContabil } from '../../componentes/contabil/CabecalhoContabil';
+import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import {
   cancelarAssinatura,
   iniciarCheckout,
@@ -119,10 +119,8 @@ export default function ContabilAssinatura() {
   const statusInfo = assinatura ? STATUS_ASSINATURA[assinatura.status] : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CabecalhoContabil />
-
-      <main className="mx-auto max-w-4xl px-6 py-6">
+    <LayoutPrincipal>
+      <div className="mx-auto max-w-4xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">Assinatura & Faturas</h1>
 
         {checkoutStatus === 'sucesso' && (
@@ -223,7 +221,7 @@ export default function ContabilAssinatura() {
             )}
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </LayoutPrincipal>
   );
 }
