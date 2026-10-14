@@ -17,6 +17,7 @@ import { listarPacotesModulos } from '../servicos/pacotesModulos';
 import { ativarLicenca, desativarLicenca, iniciarCheckoutLicenca, listarLicencasModulo } from '../servicos/licencasModulo';
 import { criarPlanoRevenda, listarPlanosRevenda } from '../servicos/planosRevendaPacote';
 import { atualizarPagbankConta, iniciarPagamentoAtivacao, obterStatusPagbankConta } from '../servicos/pagbankLicencas';
+import { criarPlanoRevendaCredito, listarPlanos, listarPlanosRevendaCreditos } from '../servicos/assinatura';
 import { showError, showSuccess } from '../utils/toast';
 
 const formatarMoeda = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -232,6 +233,132 @@ function CardPlanosRevenda({
   );
 }
 
+interface DadosFormPlanoRevendaCredito {
+  planoId: string;
+  valorVenda: number;
+}
+
+/** "Meu plano de revenda" de créditos SERPRO -- mesmo conceito de CardPlanosRevenda (pacotes de módulos), aqui pra planos de créditos. */
+function CardPlanosRevendaCreditos({
+  contadorId,
+  planosCreditos,
+  planosRevendaCreditos,
+  onSalvo,
+}: {
+  contadorId: string;
+  planosCreditos: any[];
+  planosRevendaCreditos: any[];
+  onSalvo: () => void;
+}) {
+  const [dialogAberto, setDialogAberto] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<DadosFormPlanoRevendaCredito>({ defaultValues: { planoId: '', valorVenda: 0 } });
+
+  const planoId = watch('planoId');
+  const planoSelecionado = planosCreditos.find((p) => p.id === planoId);
+
+  async function aoSubmeter(dados: DadosFormPlanoRevendaCredito) {
+    try {
+      await criarPlanoRevendaCredito(contadorId, { planoId: dados.planoId, nome: null, valorVenda: Number(dados.valorVenda) });
+      showSuccess('Plano de revenda salvo.');
+      setDialogAberto(false);
+      reset({ planoId: '', valorVenda: 0 });
+      onSalvo();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível salvar o plano de revenda');
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-base">Meus planos de revenda — Créditos SERPRO</CardTitle>
+          <CardDescription>Seu preço final pra cada plano de créditos -- a margem sobre o repasse da plataforma. Use em Assinatura, na empresa selecionada.</CardDescription>
+        </div>
+        <Button size="sm" onClick={() => setDialogAberto(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Novo plano
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {planosRevendaCreditos.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum plano de revenda cadastrado ainda.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Plano</TableHead>
+                <TableHead className="text-right">Repasse plataforma</TableHead>
+                <TableHead className="text-right">Meu preço de venda</TableHead>
+                <TableHead className="text-right">Minha margem</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {planosRevendaCreditos.map((plano) => {
+                const planoCredito = planosCreditos.find((p) => p.id === plano.planoId);
+                return (
+                  <TableRow key={plano.id}>
+                    <TableCell className="font-medium">{planoCredito?.nome ?? plano.planoId}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{planoCredito ? formatarMoeda(planoCredito.preco) : '—'}</TableCell>
+                    <TableCell className="text-right">{formatarMoeda(plano.valorVenda)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      {planoCredito ? formatarMoeda(plano.valorVenda - planoCredito.preco) : '—'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Novo plano de revenda de créditos</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Plano de créditos *</Label>
+              <select {...register('planoId', { required: true })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="">Selecione...</option>
+                {planosCreditos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} ({formatarMoeda(p.preco)})
+                  </option>
+                ))}
+              </select>
+              {errors.planoId && <p className="text-xs text-destructive">Obrigatório</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Meu preço de venda (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min={planoSelecionado?.preco ?? 0.01}
+                {...register('valorVenda', { required: true, valueAsNumber: true, min: planoSelecionado?.preco ?? 0.01 })}
+              />
+              {planoSelecionado && (
+                <p className="text-xs text-muted-foreground">Não pode ser menor que {formatarMoeda(planoSelecionado.preco)}.</p>
+              )}
+              {errors.valorVenda && <p className="text-xs text-destructive">Valor abaixo do repasse da plataforma</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function DialogAtivar({
   licenca,
   empresas,
@@ -412,6 +539,8 @@ export default function MinhasLicencas() {
   const [licencas, setLicencas] = useState<any[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [planosRevenda, setPlanosRevenda] = useState<any[]>([]);
+  const [planosCreditos, setPlanosCreditos] = useState<any[]>([]);
+  const [planosRevendaCreditos, setPlanosRevendaCreditos] = useState<any[]>([]);
   const [pagbankStatus, setPagbankStatus] = useState<{ temContaCadastrada: boolean; splitHabilitado: boolean } | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [licencaParaAtivar, setLicencaParaAtivar] = useState<any | null>(null);
@@ -426,13 +555,17 @@ export default function MinhasLicencas() {
       listarEmpresas(),
       listarPlanosRevenda(contadorId),
       obterStatusPagbankConta(contadorId),
+      listarPlanos(),
+      listarPlanosRevendaCreditos(contadorId),
     ])
-      .then(([listaPacotes, listaLicencas, listaEmpresas, listaPlanosRevenda, statusPagbank]) => {
+      .then(([listaPacotes, listaLicencas, listaEmpresas, listaPlanosRevenda, statusPagbank, listaPlanosCreditos, listaPlanosRevendaCreditos]) => {
         setPacotes(listaPacotes);
         setLicencas(listaLicencas);
         setEmpresas(listaEmpresas);
         setPlanosRevenda(listaPlanosRevenda);
         setPagbankStatus(statusPagbank);
+        setPlanosCreditos(listaPlanosCreditos);
+        setPlanosRevendaCreditos(listaPlanosRevendaCreditos);
       })
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
@@ -498,6 +631,7 @@ export default function MinhasLicencas() {
         <>
           <CardConfiguracaoRecebimento contadorId={contadorId} onAtualizado={carregar} />
           <CardPlanosRevenda contadorId={contadorId} pacotes={pacotes} planosRevenda={planosRevenda} onSalvo={carregar} />
+          <CardPlanosRevendaCreditos contadorId={contadorId} planosCreditos={planosCreditos} planosRevendaCreditos={planosRevendaCreditos} onSalvo={carregar} />
 
           {mostrarComprarAtacado && (
             <Card className="mb-6">

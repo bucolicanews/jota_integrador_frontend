@@ -1,9 +1,25 @@
 import { api } from './api';
 
+// Assinatura de créditos SERPRO é por EMPRESA-CLIENTE agora (mudança de 2026-10-14) --
+// Stripe/checkout/faturas removidos, pagamento passou a ser PIX com split PagBank
+// (mesmo mecanismo de licencasModulo.js).
 export const listarPlanos = () => api.get('/planos');
-export const obterAssinaturaAtual = (contadorId) => api.get(`/contadores/${contadorId}/assinatura`);
-export const listarFaturas = (contadorId) => api.get(`/contadores/${contadorId}/faturas`);
-export const cancelarAssinatura = (contadorId) => api.post(`/contadores/${contadorId}/assinatura/cancelar`);
+export const obterAssinatura = (contadorId, empresaId) =>
+  api.get(`/contadores/${contadorId}/empresas/${empresaId}/assinatura`);
+export const ativarAssinaturaManual = (contadorId, empresaId, { planoId, planoRevendaId }) =>
+  api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/ativar-manual`, { planoId, planoRevendaId });
+export const bloquearAssinatura = (contadorId, empresaId) =>
+  api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/bloquear`);
+export const iniciarPagamentoAssinatura = (contadorId, empresaId, { planoId, metodo, customerEmail, customerTelefoneE164 }) =>
+  api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/iniciar-pagamento`, {
+    planoId,
+    metodo,
+    customerEmail,
+    customerTelefoneE164,
+  });
 
-export const iniciarCheckout = (contadorId, { planoId, successUrl, cancelUrl }) =>
-  api.post(`/contadores/${contadorId}/assinatura/checkout`, { planoId, successUrl, cancelUrl });
+export const listarPlanosRevendaCreditos = (contadorId) => api.get(`/contadores/${contadorId}/planos-revenda-creditos`);
+export const criarPlanoRevendaCredito = (contadorId, { planoId, nome, valorVenda }) =>
+  api.post(`/contadores/${contadorId}/planos-revenda-creditos`, { planoId, nome, valorVenda });
+export const atualizarPlanoRevendaCredito = (contadorId, id, dados) =>
+  api.patch(`/contadores/${contadorId}/planos-revenda-creditos/${id}`, dados);

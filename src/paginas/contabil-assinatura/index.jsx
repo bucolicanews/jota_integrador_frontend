@@ -1,88 +1,145 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
+import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
+import { obterEmpresa } from '../../servicos/empresas';
 import {
-  cancelarAssinatura,
-  iniciarCheckout,
-  listarFaturas,
+  ativarAssinaturaManual,
+  bloquearAssinatura,
+  iniciarPagamentoAssinatura,
   listarPlanos,
-  obterAssinaturaAtual,
+  listarPlanosRevendaCreditos,
+  obterAssinatura,
 } from '../../servicos/assinatura';
 
 const STATUS_ASSINATURA = {
   ativa: { rotulo: 'Ativa', cor: 'bg-green-50 text-green-700', icone: '🟢' },
-  inadimplente: { rotulo: 'Inadimplente', cor: 'bg-red-50 text-red-700', icone: '🔴' },
-  cancelada: { rotulo: 'Cancelada', cor: 'bg-gray-100 text-gray-600', icone: '⚪' },
-};
-
-const STATUS_FATURA = {
-  pendente: { rotulo: 'Pendente', cor: 'bg-amber-50 text-amber-700', icone: '🟡' },
-  paga: { rotulo: 'Paga', cor: 'bg-green-50 text-green-700', icone: '🟢' },
-  atrasada: { rotulo: 'Atrasada', cor: 'bg-red-50 text-red-700', icone: '🔴' },
+  bloqueada: { rotulo: 'Bloqueada', cor: 'bg-amber-50 text-amber-700', icone: '🟡' },
   cancelada: { rotulo: 'Cancelada', cor: 'bg-gray-100 text-gray-600', icone: '⚪' },
 };
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
-function CardPlano({ plano, aoAssinar, assinando }) {
+/** Formulário mínimo pra iniciar a cobrança PIX -- só o e-mail do cliente é obrigatório (exigido pela PagBank). */
+function FormularioCobrarPix({ onConfirmar, onCancelar, enviando }) {
+  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { customerEmail: '' } });
+
+  return (
+    <form onSubmit={handleSubmit(onConfirmar)} className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+      <div className="flex-1">
+        <label className="mb-1 block text-xs font-medium text-gray-700">E-mail do responsável pela empresa (pra receber o PIX)</label>
+        <input
+          type="email"
+          {...register('customerEmail', { required: true })}
+          className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+        />
+        {errors.customerEmail && <p className="text-xs text-red-600">Obrigatório</p>}
+      </div>
+      <button type="submit" disabled={enviando} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+        {enviando ? 'Gerando PIX...' : 'Gerar PIX'}
+      </button>
+      <button type="button" onClick={onCancelar} className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">
+        Cancelar
+      </button>
+    </form>
+  );
+}
+
+function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobrarPix, processando, resultadoPix }) {
   const expirado = plano.dataValidade && plano.dataValidade < new Date().toISOString().slice(0, 10);
+  const [mostrandoFormPix, setMostrandoFormPix] = useState(false);
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h3 className="text-base font-semibold text-gray-900">{plano.nome}</h3>
       {plano.descricao && <p className="mt-1 text-sm text-gray-500">{plano.descricao}</p>}
       <p className="mt-1 text-2xl font-bold text-gray-900">
-        {plano.gratuito ? (
-          'Grátis'
-        ) : (
-          <>
-            {formatarMoeda(plano.preco)}
-            <span className="text-sm font-normal text-gray-500">/{plano.periodicidade === 'anual' ? 'ano' : 'mês'}</span>
-          </>
-        )}
+        {plano.gratuito ? 'Grátis' : `${formatarMoeda(plano.preco)}/${plano.periodicidade === 'anual' ? 'ano' : 'mês'} (custo da Jota)`}
       </p>
-      <p className="mt-2 text-sm text-gray-600">{plano.operacoesIncluidas} operações fiscais incluídas</p>
-      {plano.modulos?.length > 0 && <p className="mt-1 text-xs text-gray-500">Módulos: {plano.modulos.join(', ')}</p>}
-      {plano.dataValidade && (
-        <p className="mt-1 text-xs text-gray-500">Válido até {formatarData(plano.dataValidade)}</p>
+      {planoRevenda && (
+        <p className="mt-1 text-sm font-medium text-blue-700">Seu preço de venda: {formatarMoeda(planoRevenda.valorVenda)}</p>
       )}
-      <button
-        onClick={() => aoAssinar(plano.id)}
-        disabled={assinando || expirado}
-        className="mt-4 w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
-        {expirado ? 'Plano expirado' : assinando ? 'Redirecionando...' : 'Assinar este plano'}
-      </button>
+      <p className="mt-2 text-sm text-gray-600">{plano.operacoesIncluidas} operações fiscais incluídas</p>
+      {plano.dataValidade && <p className="mt-1 text-xs text-gray-500">Válido até {formatarData(plano.dataValidade)}</p>}
+
+      {podeGerenciar && !expirado && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => onAtivarManual(plano, planoRevenda)}
+            disabled={processando}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Ativar sem cobrar
+          </button>
+          {planoRevenda ? (
+            <button
+              onClick={() => setMostrandoFormPix(true)}
+              disabled={processando}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              Cobrar via PIX
+            </button>
+          ) : (
+            <p className="text-xs text-gray-400">Cadastre seu preço de venda (Minhas Licenças) pra cobrar via PIX.</p>
+          )}
+        </div>
+      )}
+      {expirado && <p className="mt-4 text-xs text-red-600">Plano expirado.</p>}
+
+      {mostrandoFormPix && (
+        <FormularioCobrarPix
+          enviando={processando}
+          onCancelar={() => setMostrandoFormPix(false)}
+          onConfirmar={(dados) => onCobrarPix(plano, dados.customerEmail)}
+        />
+      )}
+
+      {resultadoPix && (
+        <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-center">
+          <p className="mb-2 text-xs font-medium text-blue-800">PIX gerado -- envie pra empresa pagar:</p>
+          {resultadoPix.pixQrUrl && <img src={resultadoPix.pixQrUrl} alt="QR Code PIX" className="mx-auto mb-2 h-32 w-32" />}
+          {resultadoPix.pixCode && (
+            <textarea
+              readOnly
+              value={resultadoPix.pixCode}
+              onClick={(e) => e.target.select()}
+              className="w-full rounded-md border border-gray-300 bg-white p-2 text-xs"
+              rows={3}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 export default function ContabilAssinatura() {
-  const { usuario } = useSelector((state) => state.autenticacao);
-  const [searchParams] = useSearchParams();
+  const { empresaId, empresaAtiva, ehContador, precisaSelecionarEmpresa } = useEmpresaAtiva();
+  const [contadorId, setContadorId] = useState(null);
   const [assinatura, setAssinatura] = useState(null);
   const [planos, setPlanos] = useState([]);
-  const [faturas, setFaturas] = useState([]);
+  const [planosRevenda, setPlanosRevenda] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
-  const [assinandoPlanoId, setAssinandoPlanoId] = useState(null);
-  const [cancelando, setCancelando] = useState(false);
-
-  const contadorId = usuario?.contadorId;
-  const checkoutStatus = searchParams.get('checkout');
+  const [processandoPlanoId, setProcessandoPlanoId] = useState(null);
+  const [bloqueando, setBloqueando] = useState(false);
+  const [resultadosPix, setResultadosPix] = useState({}); // { [planoId]: { pixCode, pixQrUrl } }
 
   async function carregar() {
     setCarregando(true);
     try {
-      const [dadosAssinatura, dadosPlanos, dadosFaturas] = await Promise.all([
-        obterAssinaturaAtual(contadorId),
+      const empresa = await obterEmpresa(empresaId);
+      setContadorId(empresa.contadorId);
+
+      const [dadosAssinatura, dadosPlanos, dadosPlanosRevenda] = await Promise.all([
+        obterAssinatura(empresa.contadorId, empresaId),
         listarPlanos(),
-        listarFaturas(contadorId),
+        listarPlanosRevendaCreditos(empresa.contadorId).catch(() => []),
       ]);
       setAssinatura(dadosAssinatura);
       setPlanos(dadosPlanos);
-      setFaturas(dadosFaturas);
+      setPlanosRevenda(dadosPlanosRevenda);
       setErro(null);
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
@@ -92,146 +149,122 @@ export default function ContabilAssinatura() {
   }
 
   useEffect(() => {
-    if (contadorId) carregar();
-    else setCarregando(false); // papel de plataforma (ex: SUPER_ADMIN) não tem contadorId próprio -- essa tela é por contador
+    if (empresaId) carregar();
+    else setCarregando(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contadorId]);
+  }, [empresaId]);
 
-  async function aoAssinar(planoId) {
-    setAssinandoPlanoId(planoId);
+  async function aoAtivarManual(plano, planoRevenda) {
+    setProcessandoPlanoId(plano.id);
     setErro(null);
     try {
-      const origem = window.location.origin;
-      const { url } = await iniciarCheckout(contadorId, {
-        planoId,
-        successUrl: `${origem}/contabil/assinatura?checkout=sucesso`,
-        cancelUrl: `${origem}/contabil/assinatura?checkout=cancelado`,
-      });
-      window.location.href = url;
-    } catch (erroRequisicao) {
-      setErro(erroRequisicao.message);
-      setAssinandoPlanoId(null);
-    }
-  }
-
-  async function aoCancelar() {
-    if (!window.confirm('Cancelar a renovação automática? O acesso continua até o fim do período já pago.')) return;
-    setCancelando(true);
-    try {
-      await cancelarAssinatura(contadorId);
+      await ativarAssinaturaManual(contadorId, empresaId, { planoId: plano.id, planoRevendaId: planoRevenda?.id ?? null });
       await carregar();
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
     } finally {
-      setCancelando(false);
+      setProcessandoPlanoId(null);
+    }
+  }
+
+  async function aoCobrarPix(plano, customerEmail) {
+    setProcessandoPlanoId(plano.id);
+    setErro(null);
+    try {
+      const resultado = await iniciarPagamentoAssinatura(contadorId, empresaId, { planoId: plano.id, metodo: 'pix', customerEmail });
+      setResultadosPix((atual) => ({ ...atual, [plano.id]: resultado }));
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setProcessandoPlanoId(null);
+    }
+  }
+
+  async function aoBloquear() {
+    if (!window.confirm('Bloquear o acesso desta empresa ao SERPRO? O saldo de créditos não é apagado -- você pode reativar depois.')) return;
+    setBloqueando(true);
+    try {
+      await bloquearAssinatura(contadorId, empresaId);
+      await carregar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setBloqueando(false);
     }
   }
 
   const planoAtual = assinatura ? planos.find((p) => p.id === assinatura.planoId) : null;
   const statusInfo = assinatura ? STATUS_ASSINATURA[assinatura.status] : null;
+  const planoRevendaPorPlano = (planoId) => planosRevenda.find((pr) => pr.planoId === planoId && pr.ativo);
 
   return (
     <LayoutPrincipal>
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 text-xl font-semibold text-gray-900">Assinatura & Faturas</h1>
+        <h1 className="mb-6 text-xl font-semibold text-gray-900">
+          Assinatura de Créditos{empresaAtiva?.razaoSocial ? ` — ${empresaAtiva.razaoSocial}` : ''}
+        </h1>
 
-        {checkoutStatus === 'sucesso' && (
-          <p className="mb-4 rounded-md bg-blue-50 p-3 text-sm text-blue-700">
-            Pagamento em processamento — pode levar alguns instantes até a assinatura ser confirmada aqui.
-          </p>
-        )}
-        {checkoutStatus === 'cancelado' && (
-          <p className="mb-4 rounded-md bg-gray-100 p-3 text-sm text-gray-600">Checkout cancelado.</p>
-        )}
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-        {!contadorId ? (
+        {precisaSelecionarEmpresa || !empresaId ? (
           <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
-            Esta tela mostra a assinatura de um contador específico -- entre com uma conta de contador para ver.
+            Selecione uma empresa no topo da tela pra ver a assinatura dela.
           </p>
         ) : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
-        ) : assinatura ? (
-          <div className="mb-8 rounded-lg bg-white p-6 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-900">Plano atual</h2>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusInfo.cor}`}>
-                {statusInfo.icone} {statusInfo.rotulo}
-              </span>
-            </div>
-            <p className="text-lg font-semibold text-gray-900">{planoAtual?.nome ?? 'Plano'}</p>
-            {planoAtual && (
-              <p className="text-sm text-gray-600">
-                {formatarMoeda(planoAtual.preco)}/{planoAtual.periodicidade === 'anual' ? 'ano' : 'mês'} ·{' '}
-                {planoAtual.operacoesIncluidas} operações incluídas
-              </p>
-            )}
-            <p className="mt-2 text-xs text-gray-500">
-              {assinatura.renovacaoAutomatica ? 'Renovação automática ativada' : 'Renovação automática cancelada — o acesso termina no fim do período já pago'}
-            </p>
-
-            {assinatura.status === 'ativa' && assinatura.renovacaoAutomatica && (
-              <button
-                onClick={aoCancelar}
-                disabled={cancelando}
-                className="mt-4 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-              >
-                {cancelando ? 'Cancelando...' : 'Cancelar renovação'}
-              </button>
-            )}
-          </div>
         ) : (
-          <div className="mb-8">
-            <p className="mb-4 text-sm text-gray-600">Nenhuma assinatura ativa ainda. Escolha um plano para começar:</p>
-            {planos.length === 0 ? (
-              <p className="text-sm text-gray-500">Nenhum plano disponível no momento.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {planos.map((plano) => (
-                  <CardPlano key={plano.id} plano={plano} aoAssinar={aoAssinar} assinando={assinandoPlanoId === plano.id} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          <>
+            {assinatura && (
+              <div className="mb-8 rounded-lg bg-white p-6 shadow">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-900">Plano atual</h2>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusInfo.cor}`}>
+                    {statusInfo.icone} {statusInfo.rotulo}
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-gray-900">{planoAtual?.nome ?? 'Plano'}</p>
+                {planoAtual && (
+                  <p className="text-sm text-gray-600">
+                    {planoAtual.operacoesIncluidas} operações incluídas por ciclo
+                  </p>
+                )}
 
-        {!carregando && (
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">Faturas</h2>
-            {faturas.length === 0 ? (
-              <p className="rounded-lg bg-white p-6 text-center text-sm text-gray-500 shadow">Nenhuma fatura ainda.</p>
-            ) : (
-              <div className="overflow-hidden rounded-lg bg-white shadow">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3">Competência</th>
-                      <th className="px-4 py-3">Vencimento</th>
-                      <th className="px-4 py-3">Valor</th>
-                      <th className="px-4 py-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {faturas.map((fatura) => {
-                      const info = STATUS_FATURA[fatura.status];
-                      return (
-                        <tr key={fatura.id}>
-                          <td className="px-4 py-3 text-gray-600">{formatarData(fatura.competencia)}</td>
-                          <td className="px-4 py-3 text-gray-600">{formatarData(fatura.vencimento)}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{formatarMoeda(fatura.valor)}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${info.cor}`}>
-                              {info.icone} {info.rotulo}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {ehContador && assinatura.status === 'ativa' && (
+                  <button
+                    onClick={aoBloquear}
+                    disabled={bloqueando}
+                    className="mt-4 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {bloqueando ? 'Bloqueando...' : 'Bloquear acesso'}
+                  </button>
+                )}
               </div>
             )}
-          </div>
+
+            <div>
+              <p className="mb-4 text-sm text-gray-600">
+                {assinatura ? 'Trocar ou renovar o plano:' : 'Nenhuma assinatura ainda -- escolha um plano pra ativar:'}
+              </p>
+              {planos.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhum plano disponível no momento.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {planos.map((plano) => (
+                    <CardPlano
+                      key={plano.id}
+                      plano={plano}
+                      planoRevenda={planoRevendaPorPlano(plano.id)}
+                      podeGerenciar={ehContador}
+                      onAtivarManual={aoAtivarManual}
+                      onCobrarPix={aoCobrarPix}
+                      processando={processandoPlanoId === plano.id}
+                      resultadoPix={resultadosPix[plano.id]}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </LayoutPrincipal>

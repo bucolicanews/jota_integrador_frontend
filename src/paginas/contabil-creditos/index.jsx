@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
-import { creditarManualmente, listarMovimentosCreditos, obterSaldoCreditos } from '../../servicos/creditos';
-
-const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
+import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
+import { creditarManualmente, debitarManualmente, listarMovimentosCreditos, obterSaldoCreditos } from '../../servicos/creditos';
 
 const formatarData = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -14,7 +11,8 @@ const formatarData = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle:
 // (docs/UX-UI.md: não expor custo por operação de forma granular).
 const ROTULO_TIPO_OPERACAO = {
   AJUSTE_MANUAL: 'Ajuste manual',
-  RENOVACAO_ASSINATURA: 'Renovação de assinatura',
+  ATIVACAO_MANUAL: 'Ativação manual',
+  RENOVACAO_ASSINATURA: 'Pagamento via PIX',
   CCMEI: 'Consulta CCMEI',
   CAIXA_POSTAL: 'Caixa Postal',
 };
@@ -23,23 +21,29 @@ function rotularTipoOperacao(tipo) {
   return ROTULO_TIPO_OPERACAO[tipo] ?? tipo.replaceAll('_', ' ').toLowerCase();
 }
 
-function FormularioCreditoManual({ contadorId, aoConcluir }) {
+/** Inserir/retirar créditos manualmente -- hoje o contador faz isso diretamente pra qualquer empresa da própria carteira (2026-10-14), não é mais exclusivo da plataforma. */
+function FormularioAjusteCreditoManual({ empresaId, aoConcluir }) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError, reset } = useForm({
     defaultValues: { quantidade: '', motivo: '' },
   });
+  const [acaoEmCurso, setAcaoEmCurso] = useState(null); // 'creditar' | 'debitar' | null
 
-  async function aoSubmeter(dados) {
+  async function aoSubmeter(dados, acao) {
+    setAcaoEmCurso(acao);
     try {
-      await creditarManualmente(contadorId, { quantidade: Number(dados.quantidade), motivo: dados.motivo });
+      const fn = acao === 'creditar' ? creditarManualmente : debitarManualmente;
+      await fn(empresaId, { quantidade: Number(dados.quantidade), motivo: dados.motivo });
       reset();
       aoConcluir();
     } catch (erro) {
-      setError('root', { message: erro.message ?? 'Não foi possível creditar' });
+      setError('root', { message: erro.message ?? 'Não foi possível ajustar o saldo' });
+    } finally {
+      setAcaoEmCurso(null);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(aoSubmeter)} className="mt-4 flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
+    <form className="mt-4 flex flex-wrap items-end gap-2 border-t border-gray-100 pt-4">
       <div>
         <label className="mb-1 block text-xs font-medium text-gray-700">Quantidade</label>
         <input
@@ -57,11 +61,20 @@ function FormularioCreditoManual({ contadorId, aoConcluir }) {
         />
       </div>
       <button
-        type="submit"
+        type="button"
         disabled={isSubmitting}
+        onClick={handleSubmit((dados) => aoSubmeter(dados, 'creditar'))}
         className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {isSubmitting ? 'Creditando...' : 'Creditar'}
+        {acaoEmCurso === 'creditar' ? 'Inserindo...' : 'Inserir créditos'}
+      </button>
+      <button
+        type="button"
+        disabled={isSubmitting}
+        onClick={handleSubmit((dados) => aoSubmeter(dados, 'debitar'))}
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        {acaoEmCurso === 'debitar' ? 'Retirando...' : 'Retirar créditos'}
       </button>
       {(errors.quantidade || errors.motivo || errors.root) && (
         <p className="w-full text-xs text-red-600">
@@ -73,16 +86,7 @@ function FormularioCreditoManual({ contadorId, aoConcluir }) {
 }
 
 export default function ContabilCreditos() {
-  const { usuario } = useSelector((state) => state.autenticacao);
-  const localizacao = useLocation();
-  const [searchParams] = useSearchParams();
-  const ehPlataforma = PAPEIS_PLATAFORMA.includes(usuario?.papel);
-  // Plataforma não tem contadorId próprio -- só alcança créditos de um contador (incluindo
-  // o "interno_jota" da própria Jota) vindo de algum lugar que informe qual, ex: o botão
-  // "Créditos" na tela de Contadores (/contabil/contadores). Contador nunca usa esse override
-  // (ignorado mesmo se alguém editar a URL à mão -- o backend bloqueia de qualquer forma).
-  const contadorId = ehPlataforma ? searchParams.get('contadorId') : usuario?.contadorId;
-  const nomeContador = localizacao.state?.nomeContador;
+  const { empresaId, empresaAtiva, ehContador, ehPlataforma, precisaSelecionarEmpresa } = useEmpresaAtiva();
   const [saldo, setSaldo] = useState(null);
   const [movimentos, setMovimentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -92,8 +96,8 @@ export default function ContabilCreditos() {
     setCarregando(true);
     try {
       const [dadosSaldo, dadosMovimentos] = await Promise.all([
-        obterSaldoCreditos(contadorId),
-        listarMovimentosCreditos(contadorId),
+        obterSaldoCreditos(empresaId),
+        listarMovimentosCreditos(empresaId),
       ]);
       setSaldo(dadosSaldo.saldo);
       setMovimentos(dadosMovimentos);
@@ -106,25 +110,23 @@ export default function ContabilCreditos() {
   }
 
   useEffect(() => {
-    if (contadorId) carregar();
-    else setCarregando(false); // papel de plataforma (ex: SUPER_ADMIN) não tem contadorId próprio -- essa tela é por contador
+    if (empresaId) carregar();
+    else setCarregando(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contadorId]);
+  }, [empresaId]);
 
   return (
     <LayoutPrincipal>
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">
-          Créditos{nomeContador ? ` — ${nomeContador}` : ''}
+          Créditos{empresaAtiva?.razaoSocial ? ` — ${empresaAtiva.razaoSocial}` : ''}
         </h1>
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-        {!contadorId ? (
+        {precisaSelecionarEmpresa || !empresaId ? (
           <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
-            {ehPlataforma
-              ? 'Esta tela mostra os créditos de um contador específico -- abra a partir do botão "Créditos" na tela de Contadores.'
-              : 'Esta tela mostra os créditos de um contador específico -- entre com uma conta de contador para ver.'}
+            Selecione uma empresa no topo da tela pra ver os créditos dela.
           </p>
         ) : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
@@ -135,8 +137,8 @@ export default function ContabilCreditos() {
               <p className="text-3xl font-bold text-blue-600">{saldo}</p>
               <p className="mt-1 text-xs text-gray-500">operações fiscais incluídas no plano</p>
 
-              {PAPEIS_PLATAFORMA.includes(usuario?.papel) && (
-                <FormularioCreditoManual contadorId={contadorId} aoConcluir={carregar} />
+              {(ehContador || ehPlataforma) && (
+                <FormularioAjusteCreditoManual empresaId={empresaId} aoConcluir={carregar} />
               )}
             </div>
 
