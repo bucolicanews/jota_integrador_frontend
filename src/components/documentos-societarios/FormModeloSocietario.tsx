@@ -7,6 +7,24 @@ import EditorTemplateTags from '../contratos/EditorTemplateTags';
 import { criarModeloSocietario, atualizarModeloSocietario } from '../../servicos/documentosSocietarios';
 import { showSuccess } from '../../utils/toast';
 
+// Documento societário não tem catálogo de tags próprio no backend (diferente de
+// contratos/, que busca em GET /tags por ter tags customizadas por empresa) -- mesmo
+// conjunto de tags de pessoa/empresa que CriarDocumentoSocietarioUseCase já aceita em
+// valoresTags (renderizarTags não valida contra lista fixa, só substitui o que achar).
+// Omite VALOR_TOTAL/QUANTIDADE_PARCELAS (específicas de contrato financeiro).
+const TAGS_SOCIETARIO = [
+  'CLIENTE_NOME',
+  'CLIENTE_RAZAO_SOCIAL',
+  'CLIENTE_DOCUMENTO',
+  'CLIENTE_EMAIL',
+  'CLIENTE_TELEFONE',
+  'CLIENTE_ENDERECO',
+  'EMPRESA_RAZAO_SOCIAL',
+  'EMPRESA_NOME_FANTASIA',
+  'EMPRESA_CNPJ',
+  'DATA_HOJE',
+];
+
 interface FormModeloSocietarioProps {
   empresaId: string;
   modeloInicial?: any | null;
@@ -58,7 +76,7 @@ export default function FormModeloSocietario({ empresaId, modeloInicial, onSaveC
         </div>
       </div>
 
-      <EditorTemplateTags conteudo={conteudoTemplate} onConteudoChange={setConteudoTemplate} tipoConteudo={tipoConteudo} onTipoConteudoChange={setTipoConteudo} tags={[]} />
+      <EditorTemplateTags conteudo={conteudoTemplate} onConteudoChange={setConteudoTemplate} tipoConteudo={tipoConteudo} onTipoConteudoChange={setTipoConteudo} tags={TAGS_SOCIETARIO} />
 
       {erro && <p className="text-sm text-destructive">{erro}</p>}
 

@@ -1,8 +1,17 @@
 import { useRef } from 'react';
+import { Tag } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface EditorTemplateTagsProps {
   conteudo: string;
@@ -13,9 +22,11 @@ interface EditorTemplateTagsProps {
 }
 
 /**
- * Sem editor rich-text (Quill) -- textarea simples + toggle HTML/texto + painel de tags
- * clicáveis que inserem {{TAG}} na posição do cursor. Mesmo conceito do jotaCaixa, sem a
- * dependência de rich-text (simplificação deliberada, documentada no plano da Fase 6).
+ * Sem editor rich-text (Quill) -- textarea simples + toggle HTML/texto + dropdown de tags
+ * que insere {{TAG}} na posição do cursor. Mesmo conceito do jotaCaixa, sem a dependência
+ * de rich-text (simplificação deliberada, documentada no plano da Fase 6). Tags viram
+ * dropdown (em vez de uma lista de botões sempre visível) pra não competir em largura com
+ * o toggle HTML/texto no mobile -- os dois ficam lado a lado e quebram juntos como unidade.
  */
 export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoConteudo, onTipoConteudoChange, tags }: EditorTemplateTagsProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -40,12 +51,31 @@ export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoCon
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Label>Conteúdo do modelo</Label>
-        <ToggleGroup type="single" size="sm" value={tipoConteudo} onValueChange={(v) => v && onTipoConteudoChange(v as 'html' | 'texto')}>
-          <ToggleGroupItem value="texto">Texto simples</ToggleGroupItem>
-          <ToggleGroupItem value="html">HTML</ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 px-2.5" disabled={tags.length === 0}>
+                <Tag className="h-3.5 w-3.5" />
+                Inserir tag
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Clique numa tag pra inserir no cursor</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {tags.map((tag) => (
+                <DropdownMenuItem key={tag} onSelect={() => inserirTag(tag)} className="font-mono text-xs">
+                  {`{{${tag}}}`}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ToggleGroup type="single" size="sm" value={tipoConteudo} onValueChange={(v) => v && onTipoConteudoChange(v as 'html' | 'texto')}>
+            <ToggleGroupItem value="texto">Texto simples</ToggleGroupItem>
+            <ToggleGroupItem value="html">HTML</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
       <Textarea
         ref={textareaRef}
@@ -55,16 +85,6 @@ export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoCon
         className="font-mono text-sm"
         placeholder={tipoConteudo === 'html' ? '<p>Contrato entre {{EMPRESA_RAZAO_SOCIAL}} e {{CLIENTE_NOME}}...</p>' : 'Contrato entre {{EMPRESA_RAZAO_SOCIAL}} e {{CLIENTE_NOME}}...'}
       />
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Clique numa tag pra inserir no cursor</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <Button key={tag} type="button" variant="outline" size="sm" className="h-7 font-mono text-xs" onClick={() => inserirTag(tag)}>
-              {`{{${tag}}}`}
-            </Button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
