@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -36,6 +36,12 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Painel', caminho: '/painel', icone: Home },
       { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
+      {
+        nome: 'Pendências de Pagamento',
+        caminho: '/pendencias-ativacao-modulo',
+        icone: QrCode,
+        papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'],
+      },
     ],
   },
   {
@@ -108,6 +114,8 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'Contadores', caminho: '/contabil/contadores', icone: Users, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA },
+      { nome: 'Pacotes de Módulos', caminho: '/admin/pacotes', icone: Package, papeis: PAPEIS_PLATAFORMA },
+      { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'] },

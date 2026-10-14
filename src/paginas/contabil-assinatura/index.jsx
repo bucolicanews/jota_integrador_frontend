@@ -27,20 +27,32 @@ const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'curren
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
 function CardPlano({ plano, aoAssinar, assinando }) {
+  const expirado = plano.dataValidade && plano.dataValidade < new Date().toISOString().slice(0, 10);
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h3 className="text-base font-semibold text-gray-900">{plano.nome}</h3>
+      {plano.descricao && <p className="mt-1 text-sm text-gray-500">{plano.descricao}</p>}
       <p className="mt-1 text-2xl font-bold text-gray-900">
-        {formatarMoeda(plano.preco)}
-        <span className="text-sm font-normal text-gray-500">/{plano.periodicidade === 'anual' ? 'ano' : 'mês'}</span>
+        {plano.gratuito ? (
+          'Grátis'
+        ) : (
+          <>
+            {formatarMoeda(plano.preco)}
+            <span className="text-sm font-normal text-gray-500">/{plano.periodicidade === 'anual' ? 'ano' : 'mês'}</span>
+          </>
+        )}
       </p>
       <p className="mt-2 text-sm text-gray-600">{plano.operacoesIncluidas} operações fiscais incluídas</p>
+      {plano.modulos?.length > 0 && <p className="mt-1 text-xs text-gray-500">Módulos: {plano.modulos.join(', ')}</p>}
+      {plano.dataValidade && (
+        <p className="mt-1 text-xs text-gray-500">Válido até {formatarData(plano.dataValidade)}</p>
+      )}
       <button
         onClick={() => aoAssinar(plano.id)}
-        disabled={assinando}
+        disabled={assinando || expirado}
         className="mt-4 w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {assinando ? 'Redirecionando...' : 'Assinar este plano'}
+        {expirado ? 'Plano expirado' : assinando ? 'Redirecionando...' : 'Assinar este plano'}
       </button>
     </div>
   );

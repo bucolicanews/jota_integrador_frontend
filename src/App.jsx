@@ -4,6 +4,7 @@ import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
 import Contabil from './paginas/contabil';
 import Fiscal from './paginas/fiscal';
+import PendenciasAtivacaoModulo from './pages/PendenciasAtivacaoModulo';
 import ContabilEmpresas from './paginas/contabil-empresas';
 import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
 import ContabilEmpresaAcessoSerpro from './paginas/contabil-empresa-acesso-serpro';
@@ -46,6 +47,7 @@ import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
 import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 import MinhasLicencas from './pages/MinhasLicencas';
 import AdminPacotes from './pages/AdminPacotes';
+import AdminPlanos from './pages/AdminPlanos';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Configuracoes from './pages/Configuracoes';
 import Suporte from './pages/Suporte';
@@ -92,6 +94,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Fiscal />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/pendencias-ativacao-modulo"
+          element={
+            <RotaProtegida>
+              <PendenciasAtivacaoModulo />
             </RotaProtegida>
           }
         />
@@ -420,6 +430,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <AdminPacotes />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/admin/planos"
+          element={
+            <RotaProtegida>
+              <AdminPlanos />
             </RotaProtegida>
           }
         />

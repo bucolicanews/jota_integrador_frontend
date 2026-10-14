@@ -11,24 +11,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { alternarAtivoPacoteModulos, atualizarPacoteModulos, criarPacoteModulos, listarPacotesModulos } from '../servicos/pacotesModulos';
+import { MODULOS_DISPONIVEIS } from '../constantes/modulosLicenciaveis';
 import { showError, showSuccess } from '../utils/toast';
-
-// Mesmo catálogo de MODULOS_LICENCIAVEIS do backend (src/pacotes-modulos/dominio/pacote-modulos.ts)
-const MODULOS_DISPONIVEIS = [
-  { valor: 'contratos', rotulo: 'Contratos' },
-  { valor: 'documentos_societarios', rotulo: 'Documentos Societários' },
-  { valor: 'conciliacao_bancaria', rotulo: 'Conciliação Bancária' },
-  { valor: 'protocolos', rotulo: 'Protocolos' },
-  { valor: 'bancos', rotulo: 'Bancos' },
-  { valor: 'relatorios', rotulo: 'Relatórios' },
-];
 
 interface DadosFormulario {
   nome: string;
+  descricao: string;
   modulos: string[];
   preco: number;
   periodicidade: 'mensal' | 'anual';
+  dataValidade: string;
+  gratuito: boolean;
 }
 
 function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | null; onSaveComplete: () => void }) {
@@ -39,15 +34,21 @@ function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | n
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<DadosFormulario>({
     defaultValues: {
       nome: pacoteInicial?.nome ?? '',
+      descricao: pacoteInicial?.descricao ?? '',
       modulos: pacoteInicial?.modulos ?? [],
       preco: pacoteInicial?.preco ?? 0,
       periodicidade: pacoteInicial?.periodicidade ?? 'mensal',
+      dataValidade: pacoteInicial?.dataValidade ?? '',
+      gratuito: pacoteInicial?.gratuito ?? false,
     },
   });
+
+  const gratuito = watch('gratuito');
 
   async function aoSubmeter(dados: DadosFormulario) {
     setErroGeral(null);
@@ -55,11 +56,20 @@ function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | n
       setErroGeral('Selecione ao menos um módulo.');
       return;
     }
+    const payload = {
+      nome: dados.nome,
+      descricao: dados.descricao || null,
+      modulos: dados.modulos,
+      preco: dados.gratuito ? 0 : dados.preco,
+      periodicidade: dados.periodicidade,
+      dataValidade: dados.dataValidade || null,
+      gratuito: dados.gratuito,
+    };
     try {
       if (isEditing) {
-        await atualizarPacoteModulos(pacoteInicial.id, dados);
+        await atualizarPacoteModulos(pacoteInicial.id, payload);
       } else {
-        await criarPacoteModulos(dados);
+        await criarPacoteModulos(payload);
       }
       showSuccess(`Pacote ${isEditing ? 'atualizado' : 'criado'} com sucesso.`);
       onSaveComplete();
@@ -74,6 +84,11 @@ function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | n
         <Label>Nome *</Label>
         <Input placeholder="Ex: Integrador + Fluxo de Caixa" {...register('nome', { required: true, minLength: 1 })} />
         {errors.nome && <p className="text-xs text-destructive">Obrigatório</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Descrição</Label>
+        <Textarea placeholder="Descrição do pacote (opcional)" rows={2} {...register('descricao')} />
       </div>
 
       <div className="space-y-1.5">
@@ -100,12 +115,27 @@ function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | n
         />
       </div>
 
+      <div className="flex items-center gap-2">
+        <Controller
+          control={control}
+          name="gratuito"
+          render={({ field }) => (
+            <Checkbox checked={field.value} onCheckedChange={(marcado) => field.onChange(Boolean(marcado))} id="pacote-gratuito" />
+          )}
+        />
+        <Label htmlFor="pacote-gratuito" className="cursor-pointer font-normal">
+          Pacote grátis
+        </Label>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Preço (R$) *</Label>
-          <Input type="number" step="0.01" min="0" {...register('preco', { required: true, valueAsNumber: true, min: 0.01 })} />
-          {errors.preco && <p className="text-xs text-destructive">Informe um valor válido</p>}
-        </div>
+        {!gratuito && (
+          <div className="space-y-1.5">
+            <Label>Preço (R$) *</Label>
+            <Input type="number" step="0.01" min="0.01" {...register('preco', { required: !gratuito, valueAsNumber: true, min: 0.01 })} />
+            {errors.preco && <p className="text-xs text-destructive">Informe um valor válido</p>}
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label>Periodicidade *</Label>
           <Controller
@@ -124,6 +154,12 @@ function FormPacote({ pacoteInicial, onSaveComplete }: { pacoteInicial?: any | n
             )}
           />
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Data de validade</Label>
+        <Input type="date" {...register('dataValidade')} />
+        <p className="text-xs text-muted-foreground">Vazio = sem expiração. Só bloqueia novas compras/ativações.</p>
       </div>
 
       {erroGeral && <p className="text-sm text-destructive">{erroGeral}</p>}
@@ -195,6 +231,7 @@ export default function AdminPacotes() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Módulos</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
+                    <TableHead>Validade</TableHead>
                     <TableHead className="w-[90px]">Status</TableHead>
                     <TableHead className="w-[140px] text-right">Ações</TableHead>
                   </TableRow>
@@ -202,7 +239,7 @@ export default function AdminPacotes() {
                 <TableBody>
                   {pacotes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         Nenhum pacote cadastrado.
                       </TableCell>
                     </TableRow>
@@ -212,7 +249,16 @@ export default function AdminPacotes() {
                         <TableCell className="font-medium">{p.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{p.modulos.join(', ')}</TableCell>
                         <TableCell className="text-right">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.preco)}/{p.periodicidade === 'mensal' ? 'mês' : 'ano'}
+                          {p.gratuito ? (
+                            <Badge variant="secondary">Grátis</Badge>
+                          ) : (
+                            <>
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.preco)}/{p.periodicidade === 'mensal' ? 'mês' : 'ano'}
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {p.dataValidade ? new Date(`${p.dataValidade}T00:00:00`).toLocaleDateString('pt-BR') : '—'}
                         </TableCell>
                         <TableCell>
                           <Badge variant={p.ativo ? 'success' : 'secondary'}>{p.ativo ? 'Ativo' : 'Inativo'}</Badge>
