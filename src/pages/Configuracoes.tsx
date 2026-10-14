@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { Loader2, Search, Settings, Trash2 } from 'lucide-react';
+import { CreditCard, Loader2, Search, Settings, Trash2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { atualizarComissaoHonorarios, obterComissaoHonorarios } from '../servicos/configuracoesPlataforma';
+import { Switch } from '@/components/ui/switch';
+import {
+  atualizarComissaoHonorarios,
+  atualizarConfiguracaoPagbank,
+  obterComissaoHonorarios,
+  obterConfiguracaoPagbank,
+} from '../servicos/configuracoesPlataforma';
 import {
   definirCustoConsultaSerpro,
   listarCustosConsultasSerpro,
@@ -83,6 +89,92 @@ function CardComissaoHonorarios() {
             </div>
             <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface DadosPagbank {
+  accountId: string;
+  sandbox: boolean;
+  splitHabilitado: boolean;
+}
+
+/**
+ * Conta PagBank da própria plataforma (lado "casa" do split) -- diferente da conta que
+ * cada contador cadastra em Minhas Licenças (CardConfiguracaoRecebimento), que é a conta
+ * dele. O token de autenticação da API nunca fica aqui, só em PAGBANK_TOKEN/
+ * PAGBANK_PLATFORM_TOKEN no .env do backend (ver PagbankConfigService) -- igual já é
+ * tratado pra STRIPE_SECRET_KEY neste projeto.
+ */
+function CardConfiguracaoPagbank() {
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const { register, handleSubmit, reset, watch, setValue } = useForm<DadosPagbank>({
+    defaultValues: { accountId: '', sandbox: true, splitHabilitado: false },
+  });
+
+  function carregar() {
+    setCarregando(true);
+    obterConfiguracaoPagbank()
+      .then((dados: any) => reset({ accountId: dados.accountId ?? '', sandbox: dados.sandbox, splitHabilitado: dados.splitHabilitado }))
+      .catch((e) => showError(e.message))
+      .finally(() => setCarregando(false));
+  }
+  useEffect(carregar, []);
+
+  async function aoSalvar(dados: DadosPagbank) {
+    setSalvando(true);
+    try {
+      await atualizarConfiguracaoPagbank({
+        accountId: dados.accountId.trim() || null,
+        sandbox: dados.sandbox,
+        splitHabilitado: dados.splitHabilitado,
+      });
+      showSuccess('Configuração do PagBank atualizada.');
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível atualizar a configuração do PagBank');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center text-base">
+          <CreditCard className="mr-2 h-4 w-4" /> Conta PagBank da Plataforma
+        </CardTitle>
+        <CardDescription>
+          Conta da própria Jota, lado "casa" do split quando um contador vende pacote com split automático. O token
+          de autenticação da API fica só no servidor (.env), nunca aqui.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {carregando ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit(aoSalvar)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>ID da conta PagBank</Label>
+              <Input placeholder="Encontrado no painel da própria PagBank" {...register('accountId')} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-normal">Modo sandbox (testes)</Label>
+              <Switch checked={watch('sandbox')} onCheckedChange={(v) => setValue('sandbox', v)} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-normal">Split habilitado</Label>
+              <Switch checked={watch('splitHabilitado')} onCheckedChange={(v) => setValue('splitHabilitado', v)} />
+            </div>
+            <Button type="submit" disabled={salvando} className="w-full">
+              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar
             </Button>
           </form>
@@ -349,6 +441,7 @@ export default function Configuracoes() {
 
       <div className="space-y-6">
         <CardComissaoHonorarios />
+        <CardConfiguracaoPagbank />
         <CardCustosConsultasSerpro />
         <CardRelatorioConsultasSerpro />
       </div>
