@@ -10,6 +10,8 @@ export const ativarAssinaturaManual = (contadorId, empresaId, { planoId, planoRe
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/ativar-manual`, { planoId, planoRevendaId });
 export const bloquearAssinatura = (contadorId, empresaId) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/bloquear`);
+export const cancelarAssinatura = (contadorId, empresaId) =>
+  api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/cancelar`);
 export const iniciarPagamentoAssinatura = (contadorId, empresaId, { planoId, metodo, customerEmail, customerTelefoneE164 }) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/iniciar-pagamento`, {
     planoId,

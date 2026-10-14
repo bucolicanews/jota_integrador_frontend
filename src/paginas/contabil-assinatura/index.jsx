@@ -6,6 +6,7 @@ import { obterEmpresa } from '../../servicos/empresas';
 import {
   ativarAssinaturaManual,
   bloquearAssinatura,
+  cancelarAssinatura,
   iniciarPagamentoAssinatura,
   listarPlanos,
   listarPlanosRevendaCreditos,
@@ -124,6 +125,7 @@ export default function ContabilAssinatura() {
   const [erro, setErro] = useState(null);
   const [processandoPlanoId, setProcessandoPlanoId] = useState(null);
   const [bloqueando, setBloqueando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
   const [resultadosPix, setResultadosPix] = useState({}); // { [planoId]: { pixCode, pixQrUrl } }
 
   async function carregar() {
@@ -181,7 +183,7 @@ export default function ContabilAssinatura() {
   }
 
   async function aoBloquear() {
-    if (!window.confirm('Bloquear o acesso desta empresa ao SERPRO? O saldo de créditos não é apagado -- você pode reativar depois.')) return;
+    if (!window.confirm('Bloquear o acesso desta empresa à plataforma inteira (não só SERPRO)? O saldo de créditos não é apagado -- você pode reativar depois.')) return;
     setBloqueando(true);
     try {
       await bloquearAssinatura(contadorId, empresaId);
@@ -190,6 +192,19 @@ export default function ContabilAssinatura() {
       setErro(erroRequisicao.message);
     } finally {
       setBloqueando(false);
+    }
+  }
+
+  async function aoCancelar() {
+    if (!window.confirm('Cancelar esta assinatura de vez? O vínculo com o plano é apagado (saldo de créditos permanece) -- pra voltar a ter acesso, a empresa precisa ser ativada/pagar de novo.')) return;
+    setCancelando(true);
+    try {
+      await cancelarAssinatura(contadorId, empresaId);
+      await carregar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setCancelando(false);
     }
   }
 
@@ -229,14 +244,25 @@ export default function ContabilAssinatura() {
                   </p>
                 )}
 
-                {ehContador && assinatura.status === 'ativa' && (
-                  <button
-                    onClick={aoBloquear}
-                    disabled={bloqueando}
-                    className="mt-4 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {bloqueando ? 'Bloqueando...' : 'Bloquear acesso'}
-                  </button>
+                {ehContador && assinatura.status !== 'cancelada' && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {assinatura.status === 'ativa' && (
+                      <button
+                        onClick={aoBloquear}
+                        disabled={bloqueando}
+                        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {bloqueando ? 'Bloqueando...' : 'Bloquear acesso'}
+                      </button>
+                    )}
+                    <button
+                      onClick={aoCancelar}
+                      disabled={cancelando}
+                      className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {cancelando ? 'Cancelando...' : 'Cancelar assinatura'}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
