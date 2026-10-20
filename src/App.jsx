@@ -29,6 +29,7 @@ import ContasAReceber from './pages/ContasAReceber';
 import Clientes from './pages/Clientes';
 import Fornecedores from './pages/Fornecedores';
 import Historicos from './pages/Historicos';
+import Das from './pages/Das';
 import Protocolos from './pages/Protocolos';
 import Bancos from './pages/Bancos';
 import PicklistsExtrato from './pages/PicklistsExtrato';
@@ -254,6 +255,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Historicos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/das"
+          element={
+            <RotaProtegida>
+              <Das />
             </RotaProtegida>
           }
         />

@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -64,6 +64,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins },
       { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen },
+      { nome: 'DAS', caminho: '/das', icone: ReceiptText },
     ],
   },
   {
