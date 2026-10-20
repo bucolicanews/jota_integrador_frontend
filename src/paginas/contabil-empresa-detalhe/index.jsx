@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
+import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -232,6 +233,12 @@ export default function ContabilEmpresaDetalhe() {
             <option value="procuracao">Procuração eletrônica</option>
             <option value="certificado_proprio">Certificado próprio</option>
           </select>
+
+          {empresa.modoAcessoSerpro === 'certificado_proprio' && (
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <SecaoCertificadoSerpro empresaId={id} />
+            </div>
+          )}
         </div>
       </div>
     </LayoutPrincipal>
