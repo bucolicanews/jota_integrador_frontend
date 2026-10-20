@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -79,6 +79,7 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Atendimento',
     itens: [
       { nome: 'Protocolos', caminho: '/protocolos', icone: FileStack, modulo: 'protocolos' },
+      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox },
       { nome: 'Suporte', caminho: '/suporte', icone: LifeBuoy },
     ],
   },

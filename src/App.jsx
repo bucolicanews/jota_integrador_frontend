@@ -30,6 +30,7 @@ import Clientes from './pages/Clientes';
 import Fornecedores from './pages/Fornecedores';
 import Historicos from './pages/Historicos';
 import Das from './pages/Das';
+import CaixaPostal from './pages/CaixaPostal';
 import Protocolos from './pages/Protocolos';
 import Bancos from './pages/Bancos';
 import PicklistsExtrato from './pages/PicklistsExtrato';
@@ -263,6 +264,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Das />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/caixa-postal"
+          element={
+            <RotaProtegida>
+              <CaixaPostal />
             </RotaProtegida>
           }
         />
