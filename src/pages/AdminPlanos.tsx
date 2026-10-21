@@ -21,12 +21,12 @@ import {
   removerConsultaIncluida,
 } from '../servicos/planos';
 import { MODULOS_DISPONIVEIS } from '../constantes/modulosLicenciaveis';
+import { SISTEMAS_SERPRO } from '../constantes/sistemasSerpro';
 import { showError, showSuccess } from '../utils/toast';
 
 interface DadosFormulario {
   nome: string;
   descricao: string;
-  operacoesIncluidas: number;
   modulos: string[];
   preco: number;
   periodicidade: 'mensal' | 'anual';
@@ -48,7 +48,6 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
     defaultValues: {
       nome: planoInicial?.nome ?? '',
       descricao: planoInicial?.descricao ?? '',
-      operacoesIncluidas: planoInicial?.operacoesIncluidas ?? 0,
       modulos: planoInicial?.modulos ?? [],
       preco: planoInicial?.preco ?? 0,
       periodicidade: planoInicial?.periodicidade ?? 'mensal',
@@ -64,7 +63,6 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
     const payload = {
       nome: dados.nome,
       descricao: dados.descricao || null,
-      operacoesIncluidas: dados.operacoesIncluidas,
       modulos: dados.modulos ?? [],
       preco: dados.gratuito ? 0 : dados.preco,
       periodicidade: dados.periodicidade,
@@ -95,12 +93,6 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
       <div className="space-y-1.5">
         <Label>Descrição</Label>
         <Textarea placeholder="Descrição do plano (opcional)" rows={2} {...register('descricao')} />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>Operações SERPRO incluídas *</Label>
-        <Input type="number" step="1" min="0" {...register('operacoesIncluidas', { required: true, valueAsNumber: true, min: 0 })} />
-        {errors.operacoesIncluidas && <p className="text-xs text-destructive">Informe um valor válido</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -191,7 +183,15 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
 interface DadosNovaConsultaIncluida {
   idSistema: string;
   quantidadePorPeriodo: number;
+  periodo: 'semanal' | 'mensal' | 'trimestral' | 'anual';
 }
+
+const ROTULOS_PERIODO: Record<DadosNovaConsultaIncluida['periodo'], string> = {
+  semanal: 'semana',
+  mensal: 'mês',
+  trimestral: 'trimestre',
+  anual: 'ano',
+};
 
 /**
  * Cota de consultas SERPRO incluída "de graça" no plano, por id_sistema (ex: 1x PGDASD/mês)
@@ -205,9 +205,10 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
   const {
     register,
     handleSubmit,
+    control,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<DadosNovaConsultaIncluida>({ defaultValues: { idSistema: '', quantidadePorPeriodo: 1 } });
+  } = useForm<DadosNovaConsultaIncluida>({ defaultValues: { idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal' } });
 
   function carregar() {
     setCarregando(true);
@@ -220,9 +221,9 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
 
   async function aoSalvar(dados: DadosNovaConsultaIncluida) {
     try {
-      await definirConsultaIncluida(planoId, dados.idSistema.trim().toUpperCase(), Number(dados.quantidadePorPeriodo));
+      await definirConsultaIncluida(planoId, dados.idSistema.trim().toUpperCase(), Number(dados.quantidadePorPeriodo), dados.periodo);
       showSuccess('Cota incluída salva com sucesso.');
-      reset({ idSistema: '', quantidadePorPeriodo: 1 });
+      reset({ idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal' });
       carregar();
     } catch (e: any) {
       showError(e.message ?? 'Não foi possível salvar a cota incluída');
@@ -247,28 +248,68 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
       <div>
         <Label className="text-sm font-medium">Consultas incluídas no plano</Label>
         <p className="text-xs text-muted-foreground">
-          Quantas consultas de cada sistema do SERPRO (ex: PGDASD) o cliente usa sem gastar crédito, por período
-          (mensal) -- além disso, consome crédito normalmente.
+          Quantas consultas de cada sistema do SERPRO (ex: PGDASD) o cliente usa sem gastar crédito, a cada período
+          -- além disso, consome crédito normalmente.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(aoSalvar)} className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs">id_sistema</Label>
-          <Input placeholder="Ex: PGDASD" className="w-32" {...register('idSistema', { required: true, minLength: 1 })} />
-          {errors.idSistema && <p className="text-xs text-destructive">Obrigatório</p>}
+      <form onSubmit={handleSubmit(aoSalvar)} className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">id_sistema</Label>
+            <Controller
+              control={control}
+              name="idSistema"
+              rules={{ required: true }}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SISTEMAS_SERPRO.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.idSistema && <p className="text-xs text-destructive">Obrigatório</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Quantidade</Label>
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              {...register('quantidadePorPeriodo', { required: true, valueAsNumber: true, min: 1 })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Período</Label>
+            <Controller
+              control={control}
+              name="periodo"
+              rules={{ required: true }}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="mensal">Mensal</SelectItem>
+                    <SelectItem value="trimestral">Trimestral</SelectItem>
+                    <SelectItem value="anual">Anual</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Qtd./período</Label>
-          <Input
-            type="number"
-            step="1"
-            min="1"
-            className="w-24"
-            {...register('quantidadePorPeriodo', { required: true, valueAsNumber: true, min: 1 })}
-          />
-        </div>
-        <Button type="submit" size="sm" disabled={isSubmitting}>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="w-full sm:w-auto">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar
         </Button>
@@ -285,7 +326,7 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
           {itens.map((item) => (
             <li key={item.idSistema} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
               <span>
-                <span className="font-mono">{item.idSistema}</span> -- {item.quantidadePorPeriodo}x por período
+                <span className="font-mono">{item.idSistema}</span> -- {item.quantidadePorPeriodo}x por {ROTULOS_PERIODO[item.periodo as DadosNovaConsultaIncluida['periodo']] ?? item.periodo}
               </span>
               <Button
                 size="sm"
@@ -361,7 +402,6 @@ export default function AdminPlanos() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Operações</TableHead>
                     <TableHead>Módulos</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
                     <TableHead>Validade</TableHead>
@@ -372,7 +412,7 @@ export default function AdminPlanos() {
                 <TableBody>
                   {planos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         Nenhum plano cadastrado.
                       </TableCell>
                     </TableRow>
@@ -380,7 +420,6 @@ export default function AdminPlanos() {
                     planos.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.nome}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{p.operacoesIncluidas}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {p.modulos?.length > 0 ? p.modulos.join(', ') : '—'}
                         </TableCell>

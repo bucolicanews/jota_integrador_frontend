@@ -61,7 +61,6 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobra
       {planoRevenda && (
         <p className="mt-1 text-sm font-medium text-blue-700">Seu preço de venda: {formatarMoeda(planoRevenda.valorVenda)}</p>
       )}
-      <p className="mt-2 text-sm text-gray-600">{plano.operacoesIncluidas} operações fiscais incluídas</p>
       {plano.dataValidade && <p className="mt-1 text-xs text-gray-500">Válido até {formatarData(plano.dataValidade)}</p>}
 
       {podeGerenciar && !expirado && (
@@ -238,11 +237,6 @@ export default function ContabilAssinatura() {
                   </span>
                 </div>
                 <p className="text-lg font-semibold text-gray-900">{planoAtual?.nome ?? 'Plano'}</p>
-                {planoAtual && (
-                  <p className="text-sm text-gray-600">
-                    {planoAtual.operacoesIncluidas} operações incluídas por ciclo
-                  </p>
-                )}
 
                 {ehContador && assinatura.status !== 'cancelada' && (
                   <div className="mt-4 flex flex-wrap gap-2">
