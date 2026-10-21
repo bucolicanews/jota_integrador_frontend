@@ -50,6 +50,7 @@ import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 import MinhasLicencas from './pages/MinhasLicencas';
 import AdminPacotes from './pages/AdminPacotes';
 import AdminPlanos from './pages/AdminPlanos';
+import AdminCreditosAvulsos from './pages/AdminCreditosAvulsos';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Configuracoes from './pages/Configuracoes';
 import Suporte from './pages/Suporte';
@@ -456,6 +457,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <AdminPlanos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/admin/creditos-avulsos"
+          element={
+            <RotaProtegida>
+              <AdminCreditosAvulsos />
             </RotaProtegida>
           }
         />

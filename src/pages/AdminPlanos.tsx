@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { CreditCard, Loader2, Power, PowerOff, PlusCircle } from 'lucide-react';
+import { CreditCard, Loader2, Power, PowerOff, PlusCircle, Trash2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,7 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { atualizarPlano, criarPlano, listarPlanos } from '../servicos/planos';
+import {
+  atualizarPlano,
+  criarPlano,
+  definirConsultaIncluida,
+  listarConsultasIncluidas,
+  listarPlanos,
+  removerConsultaIncluida,
+} from '../servicos/planos';
 import { MODULOS_DISPONIVEIS } from '../constantes/modulosLicenciaveis';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -181,6 +188,122 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
   );
 }
 
+interface DadosNovaConsultaIncluida {
+  idSistema: string;
+  quantidadePorPeriodo: number;
+}
+
+/**
+ * Cota de consultas SERPRO incluída "de graça" no plano, por id_sistema (ex: 1x PGDASD/mês)
+ * -- dentro dela o sync não debita do pool de créditos (ver VerificarCotaIncluidaUseCase no
+ * backend). Só existe pra plano já salvo (precisa de planoId).
+ */
+function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
+  const [itens, setItens] = useState<any[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [removendo, setRemovendo] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<DadosNovaConsultaIncluida>({ defaultValues: { idSistema: '', quantidadePorPeriodo: 1 } });
+
+  function carregar() {
+    setCarregando(true);
+    listarConsultasIncluidas(planoId)
+      .then(setItens)
+      .catch((e) => showError(e.message))
+      .finally(() => setCarregando(false));
+  }
+  useEffect(carregar, [planoId]);
+
+  async function aoSalvar(dados: DadosNovaConsultaIncluida) {
+    try {
+      await definirConsultaIncluida(planoId, dados.idSistema.trim().toUpperCase(), Number(dados.quantidadePorPeriodo));
+      showSuccess('Cota incluída salva com sucesso.');
+      reset({ idSistema: '', quantidadePorPeriodo: 1 });
+      carregar();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível salvar a cota incluída');
+    }
+  }
+
+  async function aoRemover(idSistema: string) {
+    if (!window.confirm(`Remover a cota incluída de "${idSistema}" deste plano?`)) return;
+    setRemovendo(idSistema);
+    try {
+      await removerConsultaIncluida(planoId, idSistema);
+      carregar();
+    } catch (e: any) {
+      showError(e.message);
+    } finally {
+      setRemovendo(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3 border-t pt-4">
+      <div>
+        <Label className="text-sm font-medium">Consultas incluídas no plano</Label>
+        <p className="text-xs text-muted-foreground">
+          Quantas consultas de cada sistema do SERPRO (ex: PGDASD) o cliente usa sem gastar crédito, por período
+          (mensal) -- além disso, consome crédito normalmente.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(aoSalvar)} className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs">id_sistema</Label>
+          <Input placeholder="Ex: PGDASD" className="w-32" {...register('idSistema', { required: true, minLength: 1 })} />
+          {errors.idSistema && <p className="text-xs text-destructive">Obrigatório</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Qtd./período</Label>
+          <Input
+            type="number"
+            step="1"
+            min="1"
+            className="w-24"
+            {...register('quantidadePorPeriodo', { required: true, valueAsNumber: true, min: 1 })}
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar
+        </Button>
+      </form>
+
+      {carregando ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : itens.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma cota incluída configurada ainda.</p>
+      ) : (
+        <ul className="space-y-1">
+          {itens.map((item) => (
+            <li key={item.idSistema} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
+              <span>
+                <span className="font-mono">{item.idSistema}</span> -- {item.quantidadePorPeriodo}x por período
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                onClick={() => aoRemover(item.idSistema)}
+                disabled={removendo === item.idSistema}
+              >
+                {removendo === item.idSistema ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPlanos() {
   const [planos, setPlanos] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -304,7 +427,7 @@ export default function AdminPlanos() {
       </Card>
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto md:max-w-[70%]">
           <DialogHeader>
             <DialogTitle>{planoParaEditar ? 'Editar plano' : 'Novo plano'}</DialogTitle>
           </DialogHeader>
@@ -315,6 +438,7 @@ export default function AdminPlanos() {
               carregar();
             }}
           />
+          {planoParaEditar && <SecaoConsultasIncluidas planoId={planoParaEditar.id} />}
         </DialogContent>
       </Dialog>
     </LayoutPrincipal>

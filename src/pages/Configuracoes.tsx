@@ -30,6 +30,7 @@ interface DadosComissao {
 interface DadosNovoCusto {
   idSistema: string;
   custoReais: number;
+  precoVendaReais?: number;
 }
 
 const formatarMoeda = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(v ?? 0);
@@ -198,7 +199,7 @@ function CardCustosConsultasSerpro() {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors },
-  } = useForm<DadosNovoCusto>({ defaultValues: { idSistema: '', custoReais: 0 } });
+  } = useForm<DadosNovoCusto>({ defaultValues: { idSistema: '', custoReais: 0, precoVendaReais: undefined } });
 
   function carregar() {
     setCarregando(true);
@@ -211,9 +212,10 @@ function CardCustosConsultasSerpro() {
 
   async function aoSalvar(dados: DadosNovoCusto) {
     try {
-      await definirCustoConsultaSerpro(dados.idSistema.trim().toUpperCase(), Number(dados.custoReais));
+      const precoVenda = dados.precoVendaReais === undefined || Number.isNaN(dados.precoVendaReais) ? undefined : Number(dados.precoVendaReais);
+      await definirCustoConsultaSerpro(dados.idSistema.trim().toUpperCase(), Number(dados.custoReais), precoVenda);
       showSuccess('Custo salvo com sucesso.');
-      reset({ idSistema: '', custoReais: 0 });
+      reset({ idSistema: '', custoReais: 0, precoVendaReais: undefined });
       carregar();
     } catch (e: any) {
       showError(e.message ?? 'Não foi possível salvar o custo');
@@ -234,12 +236,13 @@ function CardCustosConsultasSerpro() {
   }
 
   return (
-    <Card className="max-w-2xl">
+    <Card className="max-w-3xl">
       <CardHeader>
         <CardTitle className="text-base">Custo por tipo de consulta SERPRO</CardTitle>
         <CardDescription>
           Custo real (R$) que a Jota paga por chamada bem-sucedida a cada sistema do SERPRO (ex: CCMEI, CAIXAPOSTAL)
-          -- uso interno pra acompanhar margem, nunca mostrado ao contador.
+          -- uso interno pra acompanhar margem, nunca mostrado ao contador. O preço de venda é o valor cobrado do
+          cliente por consulta fora da cota incluída no plano dele.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -252,6 +255,17 @@ function CardCustosConsultasSerpro() {
           <div className="space-y-1.5">
             <Label className="text-xs">Custo (R$)</Label>
             <Input type="number" step="0.01" min="0" className="w-32" {...register('custoReais', { required: true, valueAsNumber: true, min: 0 })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Preço de venda (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Opcional"
+              className="w-32"
+              {...register('precoVendaReais', { valueAsNumber: true, min: 0 })}
+            />
           </div>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -269,13 +283,14 @@ function CardCustosConsultasSerpro() {
               <TableRow>
                 <TableHead>id_sistema</TableHead>
                 <TableHead className="text-right">Custo (R$)</TableHead>
+                <TableHead className="text-right">Preço de venda (R$)</TableHead>
                 <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {custos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="h-16 text-center text-muted-foreground">
                     Nenhum custo configurado ainda.
                   </TableCell>
                 </TableRow>
@@ -284,6 +299,7 @@ function CardCustosConsultasSerpro() {
                   <TableRow key={c.idSistema}>
                     <TableCell className="font-mono text-sm">{c.idSistema}</TableCell>
                     <TableCell className="text-right">{formatarMoeda(c.custoReais)}</TableCell>
+                    <TableCell className="text-right">{c.precoVendaReais === null || c.precoVendaReais === undefined ? '—' : formatarMoeda(c.precoVendaReais)}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"

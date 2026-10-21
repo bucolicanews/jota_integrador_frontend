@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
+import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -286,6 +287,11 @@ export default function ContabilEmpresaDetalhe() {
               <SecaoCertificadoSerpro empresaId={id} />
             </div>
           )}
+        </div>
+
+        <div className="mt-4 rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Comprar créditos</h2>
+          <CardComprarCreditosAvulsos empresaId={id} />
         </div>
       </div>
     </LayoutPrincipal>

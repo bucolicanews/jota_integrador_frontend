@@ -291,7 +291,7 @@ export default function AdminPacotes() {
       </Card>
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto md:max-w-[70%]">
           <DialogHeader>
             <DialogTitle>{pacoteParaEditar ? 'Editar pacote' : 'Novo pacote'}</DialogTitle>
           </DialogHeader>

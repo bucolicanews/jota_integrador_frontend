@@ -6,6 +6,7 @@ import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { api } from '../../servicos/api';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
 import { atualizarEmpresa } from '../../servicos/empresas';
+import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 
@@ -517,6 +518,11 @@ export default function Fiscal() {
           <div className="rounded-lg bg-white p-6 shadow">
             <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Caixa Postal</h2>
             <CardCaixaPostal empresaId={empresa.id} />
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Comprar créditos</h2>
+            <CardComprarCreditosAvulsos empresaId={empresa.id} />
           </div>
         </div>
       )}

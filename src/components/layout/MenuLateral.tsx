@@ -26,6 +26,11 @@ interface SecaoMenu {
 // legado dos /contabil/* substituído por este MenuLateral).
 const PAPEIS_CARTEIRA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
+// Autoatendimento do PRÓPRIO escritório do contador -- não faz sentido pra admin (não é
+// um contador, não tem assinatura/honorários/créditos próprios pra gerenciar aqui; a
+// visão dele sobre o que cada contador comprou/deve já existe via o botão "Créditos" na
+// tela "Contadores", não precisa deste link de autoatendimento no menu).
+const PAPEIS_ESCRITORIO_CONTADOR = ['CONTADOR_DONO', 'OPERADOR_CONTADOR'];
 
 // Cresce módulo a módulo conforme cada tela do jotaCaixa é portada -- não lista links
 // pra telas que ainda não existem (evita link morto).
@@ -47,9 +52,9 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Escritório',
     itens: [
-      { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_CARTEIRA },
-      { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_CARTEIRA },
-      { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_ESCRITORIO_CONTADOR },
+      { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_ESCRITORIO_CONTADOR },
+      { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_ESCRITORIO_CONTADOR },
       { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA },
     ],
   },
@@ -64,7 +69,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins },
       { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen },
-      { nome: 'DAS', caminho: '/das', icone: ReceiptText },
+      { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal' },
     ],
   },
   {
@@ -79,7 +84,7 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Atendimento',
     itens: [
       { nome: 'Protocolos', caminho: '/protocolos', icone: FileStack, modulo: 'protocolos' },
-      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox },
+      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal' },
       { nome: 'Suporte', caminho: '/suporte', icone: LifeBuoy },
     ],
   },
@@ -107,7 +112,7 @@ const SECOES_MENU: SecaoMenu[] = [
         nome: 'Minhas Licenças',
         caminho: '/minhas-licencas',
         icone: KeyRound,
-        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'OPERADOR_CONTADOR'],
+        papeis: PAPEIS_ESCRITORIO_CONTADOR,
       },
     ],
   },
@@ -118,6 +123,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Pacotes de Módulos', caminho: '/admin/pacotes', icone: Package, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA },
+      { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'] },

@@ -1,8 +1,11 @@
 import { api } from './api';
 
 export const listarCustosConsultasSerpro = () => api.get('/custos-consultas-serpro');
-export const definirCustoConsultaSerpro = (idSistema, custoReais) =>
-  api.put(`/custos-consultas-serpro/${idSistema}`, { custoReais });
+export const definirCustoConsultaSerpro = (idSistema, custoReais, precoVendaReais) =>
+  api.put(`/custos-consultas-serpro/${idSistema}`, {
+    custoReais,
+    ...(precoVendaReais !== undefined && precoVendaReais !== null && precoVendaReais !== '' ? { precoVendaReais } : {}),
+  });
 export const removerCustoConsultaSerpro = (idSistema) => api.delete(`/custos-consultas-serpro/${idSistema}`);
 
 // api.get() é um wrapper fetch simples (não aceita {params} estilo axios) -- monta a

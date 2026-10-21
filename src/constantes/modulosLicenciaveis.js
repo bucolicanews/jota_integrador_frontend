@@ -7,4 +7,7 @@ export const MODULOS_DISPONIVEIS = [
   { valor: 'protocolos', rotulo: 'Protocolos' },
   { valor: 'bancos', rotulo: 'Bancos' },
   { valor: 'relatorios', rotulo: 'Relatórios' },
+  // Separado de "contabilidade" (núcleo, nunca entra aqui) -- cobre tudo que fala com
+  // o SERPRO em nome da empresa: DAS, Caixa Postal, CCMEI, Procuração/Certificado.
+  { valor: 'fiscal', rotulo: 'Fiscal' },
 ];
