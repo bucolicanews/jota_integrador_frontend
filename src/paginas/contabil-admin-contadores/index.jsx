@@ -7,11 +7,13 @@ import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisual
 import {
   atualizarContador,
   bloquearContador,
+  corrigirCnpjCpfContador,
   criarContador,
   desbloquearContador,
   listarContadores,
 } from '../../servicos/contadores';
 import { listarEmpresas } from '../../servicos/empresas';
+import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
 const ROTULO_TIPO = { humano: 'Escritório/Pessoa física', interno_jota: 'Interno JOTA' };
 
@@ -37,6 +39,7 @@ function BadgeStatus({ bloqueado }) {
 /** Modal de criação/edição -- cnpjCpf só é editável na criação (backend não aceita alterar depois). */
 function ModalContador({ contador, aoFechar, aoSalvar }) {
   const editando = Boolean(contador);
+  const [corrigindoDoc, setCorrigindoDoc] = useState(false);
   const {
     register,
     handleSubmit,
@@ -51,9 +54,19 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
     },
   });
 
+  function aoClicarCorrigirDoc() {
+    const confirmado = window.confirm(
+      'Corrigir o CPF/CNPJ muda a identidade legal deste contador. Só faça isso se foi cadastrado errado. Continuar?',
+    );
+    if (confirmado) setCorrigindoDoc(true);
+  }
+
   async function aoSubmeter(dados) {
     try {
       if (editando) {
+        if (corrigindoDoc && dados.cnpjCpf.replace(/\D/g, '') !== contador.cnpjCpf) {
+          await corrigirCnpjCpfContador(contador.id, dados.cnpjCpf);
+        }
         await atualizarContador(contador.id, {
           nome: dados.nome,
           email: dados.email,
@@ -90,14 +103,25 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">CPF ou CNPJ *</label>
+            <div className="flex items-center justify-between">
+              <label className="mb-1 block text-sm font-medium text-gray-700">CPF ou CNPJ *</label>
+              {editando && !corrigindoDoc && (
+                <button type="button" onClick={aoClicarCorrigirDoc} className="text-xs font-medium text-blue-700 hover:underline">
+                  Corrigir CPF/CNPJ
+                </button>
+              )}
+            </div>
             <input
               {...register('cnpjCpf', { required: 'Obrigatório', minLength: { value: 11, message: 'Documento inválido' } })}
-              disabled={editando}
+              disabled={editando && !corrigindoDoc}
               placeholder="Só números ou com máscara"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             />
-            {editando && <p className="mt-1 text-xs text-gray-400">CPF/CNPJ não pode ser alterado depois de criado.</p>}
+            {editando && !corrigindoDoc && <p className="mt-1 text-xs text-gray-400">CPF/CNPJ não pode ser alterado depois de criado.</p>}
+            {editando && !corrigindoDoc && !validarCpfOuCnpj(contador.cnpjCpf) && (
+              <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este documento não passa na validação de formato -- considere corrigir.</p>
+            )}
+            {corrigindoDoc && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
             {errors.cnpjCpf && <p className="mt-1 text-xs text-red-600">{errors.cnpjCpf.message}</p>}
           </div>
 
@@ -437,7 +461,14 @@ export default function ContabilAdminContadores() {
                         </button>
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{contador.nome}</td>
-                      <td className="px-4 py-3 text-gray-600">{formatarCnpjCpf(contador.cnpjCpf)}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {formatarCnpjCpf(contador.cnpjCpf)}
+                        {!validarCpfOuCnpj(contador.cnpjCpf) && (
+                          <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            ⚠️ inválido
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{contador.email}</td>
                       <td className="px-4 py-3 text-gray-600">{contador.telefone || '—'}</td>
                       <td className="px-4 py-3 text-gray-600">{ROTULO_TIPO[contador.tipo] ?? contador.tipo}</td>
@@ -468,7 +499,10 @@ export default function ContabilAdminContadores() {
                   <p className="font-semibold text-gray-900">{contador.nome}</p>
                   <BadgeStatus bloqueado={contador.bloqueado} />
                 </div>
-                <p className="text-sm text-gray-600">{formatarCnpjCpf(contador.cnpjCpf)}</p>
+                <p className="text-sm text-gray-600">
+                  {formatarCnpjCpf(contador.cnpjCpf)}
+                  {!validarCpfOuCnpj(contador.cnpjCpf) && <span className="ml-1.5 text-xs font-medium text-red-700">⚠️ inválido</span>}
+                </p>
                 <p className="text-sm text-gray-600">{contador.email}</p>
                 <p className="text-sm text-gray-600">{contador.telefone || '—'}</p>
                 <p className="mb-3 text-xs text-gray-400">{ROTULO_TIPO[contador.tipo] ?? contador.tipo}</p>

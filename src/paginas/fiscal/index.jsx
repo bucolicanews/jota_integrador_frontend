@@ -5,7 +5,14 @@ import DOMPurify from 'dompurify';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { api } from '../../servicos/api';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
+import { atualizarEmpresa } from '../../servicos/empresas';
 import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
+import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
+
+const formatarCnpj = (valor) => {
+  const digitos = (valor ?? '').replace(/\D/g, '');
+  return digitos.length === 14 ? digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : valor ?? '';
+};
 import {
   listarMensagensCaixaPostal,
   marcarMensagemComoLida,
@@ -380,21 +387,103 @@ function CardCaixaPostal({ empresaId }) {
   );
 }
 
+/**
+ * CNPJ é sempre read-only aqui (mesma regra do backend -- `AtualizarEmpresaDto` nem tem
+ * esse campo) -- é o identificador legal da empresa junto à Receita, nunca editável por
+ * ninguém depois do cadastro (mesmo critério já aplicado nas telas de admin/contador).
+ */
+function CardDadosCadastrais({ empresa, aoAtualizar }) {
+  const { register, handleSubmit, reset, formState: { errors, isDirty, isSubmitting }, setError } = useForm({
+    defaultValues: {
+      razaoSocial: empresa.razaoSocial,
+      nomeFantasia: empresa.nomeFantasia ?? '',
+      regimeTributario: empresa.regimeTributario ?? '',
+    },
+  });
+  const [mensagemSalvo, setMensagemSalvo] = useState(null);
+
+  async function aoSubmeter(dados) {
+    setMensagemSalvo(null);
+    try {
+      await atualizarEmpresa(empresa.id, {
+        razaoSocial: dados.razaoSocial,
+        nomeFantasia: dados.nomeFantasia || null,
+        regimeTributario: dados.regimeTributario || null,
+      });
+      reset(dados); // volta isDirty pra false com o que acabou de ser salvo
+      setMensagemSalvo('Dados salvos.');
+      aoAtualizar();
+    } catch (erro) {
+      setError('root', { message: erro.message ?? 'Não conseguimos salvar seus dados agora' });
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Razão social</label>
+        <input
+          {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        />
+        {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
+        <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ</label>
+        <input
+          value={formatarCnpj(empresa.cnpj)}
+          disabled
+          className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-500"
+        />
+        <p className="mt-1 text-xs text-gray-400">O CNPJ não pode ser alterado -- é o identificador legal da empresa junto à Receita.</p>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
+        <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <option value="">Selecione...</option>
+          {REGIMES_TRIBUTARIOS.map((regime) => (
+            <option key={regime.valor} value={regime.valor}>
+              {regime.rotulo}
+            </option>
+          ))}
+        </select>
+      </div>
+      {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          type="submit"
+          disabled={isSubmitting || !isDirty}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isSubmitting ? 'Salvando...' : 'Salvar alterações'}
+        </button>
+        {mensagemSalvo && <span className="text-sm text-green-700">{mensagemSalvo}</span>}
+      </div>
+    </form>
+  );
+}
+
 export default function Fiscal() {
   const { usuario } = useSelector((state) => state.autenticacao);
   const [empresa, setEmpresa] = useState(null);
   const [erro, setErro] = useState(null);
 
-  useEffect(() => {
-    async function carregar() {
-      try {
-        const dados = await api.get(`/empresas/${usuario.empresaId}`);
-        setEmpresa(dados);
-      } catch (erroRequisicao) {
-        setErro(erroRequisicao.message);
-      }
+  async function carregar() {
+    try {
+      const dados = await api.get(`/empresas/${usuario.empresaId}`);
+      setEmpresa(dados);
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
     }
+  }
+
+  useEffect(() => {
     if (usuario?.empresaId) carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario]);
 
   return (
@@ -409,6 +498,11 @@ export default function Fiscal() {
             <p className={`text-lg font-medium ${empresa.bloqueado ? 'text-red-600' : 'text-green-600'}`}>
               {empresa.bloqueado ? '🔴 Bloqueada' : '🟢 Regular'}
             </p>
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Dados cadastrais</h2>
+            <CardDadosCadastrais empresa={empresa} aoAtualizar={carregar} />
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">

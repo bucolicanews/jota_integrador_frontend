@@ -10,6 +10,11 @@ export const obterEmpresa = (id) => api.get(`/empresas/${id}`);
 export const obterEmpresaInterna = () => api.get('/empresas/interna');
 export const criarEmpresa = (dados) => api.post('/empresas', dados);
 export const atualizarEmpresa = (id, dados) => api.patch(`/empresas/${id}`, dados);
+// Correção pontual de CNPJ errado -- endpoint separado de propósito (ação sensível, só
+// admin/contador da carteira, sempre auditada no backend).
+export const corrigirCnpjEmpresa = (id, cnpj) => api.patch(`/empresas/${id}/cnpj`, { cnpj });
+// Mover empresa pra outra carteira -- só SUPER_ADMIN, sempre auditada no backend.
+export const transferirCarteiraEmpresa = (id, contadorId) => api.patch(`/empresas/${id}/contador`, { contadorId });
 export const atualizarModoAcessoSerpro = (id, modoAcessoSerpro) =>
   api.patch(`/empresas/${id}/modo-acesso-serpro`, { modoAcessoSerpro });
 export const bloquearEmpresa = (id, motivo) => api.post(`/empresas/${id}/bloquear`, { motivo });

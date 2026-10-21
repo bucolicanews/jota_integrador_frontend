@@ -5,7 +5,16 @@ import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
-import { atualizarEmpresa, bloquearEmpresa, criarEmpresa, desbloquearEmpresa, listarEmpresas } from '../../servicos/empresas';
+import {
+  atualizarEmpresa,
+  bloquearEmpresa,
+  corrigirCnpjEmpresa,
+  criarEmpresa,
+  desbloquearEmpresa,
+  listarEmpresas,
+  transferirCarteiraEmpresa,
+} from '../../servicos/empresas';
+import { validarCnpj } from '../../utils/validarCnpj';
 
 const ROTULO_MODO_ACESSO = { procuracao: 'Procuração', certificado_proprio: 'Certificado próprio' };
 
@@ -26,9 +35,11 @@ function BadgeStatus({ bloqueado }) {
   );
 }
 
-/** Criar/editar num modal só -- contador só aparece na criação (backend não tem endpoint de transferência entre carteiras). */
-function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
+/** Criar/editar num modal só -- transferir carteira (trocar contadorId numa empresa existente) só pra SUPER_ADMIN. */
+function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar }) {
   const editando = Boolean(empresa);
+  const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
+  const [transferindoCarteira, setTransferindoCarteira] = useState(false);
   const {
     register,
     handleSubmit,
@@ -45,9 +56,31 @@ function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
     },
   });
 
+  function aoClicarCorrigirCnpj() {
+    const confirmado = window.confirm(
+      'Corrigir o CNPJ muda a identidade legal desta empresa perante a Receita/SERPRO. ' +
+        'Só faça isso se o CNPJ foi cadastrado errado -- qualquer certificado, procuração ou consulta SERPRO já sincronizada continua associada ao CNPJ antigo. Continuar?',
+    );
+    if (confirmado) setCorrigindoCnpj(true);
+  }
+
+  function aoClicarTransferirCarteira() {
+    const confirmado = window.confirm(
+      'Transferir a carteira muda qual contador é responsável por esta empresa. ' +
+        'O contador atual perde acesso imediatamente; honorários e licenças futuras passam a ser do novo contador. Continuar?',
+    );
+    if (confirmado) setTransferindoCarteira(true);
+  }
+
   async function aoSubmeter(dados) {
     try {
       if (editando) {
+        if (transferindoCarteira && dados.contadorId !== empresa.contadorId) {
+          await transferirCarteiraEmpresa(empresa.id, dados.contadorId);
+        }
+        if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
+          await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
+        }
         await atualizarEmpresa(empresa.id, {
           razaoSocial: dados.razaoSocial,
           nomeFantasia: dados.nomeFantasia || null,
@@ -75,10 +108,17 @@ function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">{editando ? 'Editar empresa' : 'Nova empresa'}</h2>
         <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Contador da carteira *</label>
+            <div className="flex items-center justify-between">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Contador da carteira *</label>
+              {editando && ehSuperAdmin && !transferindoCarteira && (
+                <button type="button" onClick={aoClicarTransferirCarteira} className="text-xs font-medium text-blue-700 hover:underline">
+                  Transferir carteira
+                </button>
+              )}
+            </div>
             <select
               {...register('contadorId', { required: true })}
-              disabled={editando}
+              disabled={editando && !transferindoCarteira}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             >
               {contadores.map((contador) => (
@@ -87,7 +127,10 @@ function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
                 </option>
               ))}
             </select>
-            {editando && <p className="mt-1 text-xs text-gray-400">Mover uma empresa entre carteiras não é suportado hoje.</p>}
+            {editando && !transferindoCarteira && !ehSuperAdmin && (
+              <p className="mt-1 text-xs text-gray-400">Só o admin pode transferir uma empresa entre carteiras.</p>
+            )}
+            {transferindoCarteira && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa transferência é registrada em auditoria.</p>}
           </div>
 
           <div>
@@ -105,14 +148,25 @@ function ModalEmpresa({ empresa, contadores, aoFechar, aoSalvar }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
+            <div className="flex items-center justify-between">
+              <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
+              {editando && !corrigindoCnpj && (
+                <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
+                  Corrigir CNPJ
+                </button>
+              )}
+            </div>
             <input
               {...register('cnpj', { required: 'Obrigatório' })}
-              disabled={editando}
+              disabled={editando && !corrigindoCnpj}
               placeholder="00.000.000/0000-00"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             />
             {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
+            {editando && !corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
+              <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
+            )}
+            {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
           </div>
 
           <div>
@@ -412,7 +466,14 @@ export default function ContabilAdminEmpresas() {
                       <p className="font-medium text-gray-900">{empresa.razaoSocial}</p>
                       {empresa.nomeFantasia && <p className="text-xs text-gray-500">{empresa.nomeFantasia}</p>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{formatarCnpj(empresa.cnpj)}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {formatarCnpj(empresa.cnpj)}
+                      {!validarCnpj(empresa.cnpj) && (
+                        <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                          ⚠️ CNPJ inválido
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{mapaContadorNome[empresa.contadorId] ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</td>
                     <td className="px-4 py-3">
@@ -435,7 +496,10 @@ export default function ContabilAdminEmpresas() {
                   <BadgeStatus bloqueado={empresa.bloqueado} />
                 </div>
                 {empresa.nomeFantasia && <p className="text-xs text-gray-500">{empresa.nomeFantasia}</p>}
-                <p className="mt-1 text-sm text-gray-600">{formatarCnpj(empresa.cnpj)}</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {formatarCnpj(empresa.cnpj)}
+                  {!validarCnpj(empresa.cnpj) && <span className="ml-1.5 text-xs font-medium text-red-700">⚠️ inválido</span>}
+                </p>
                 <p className="text-sm text-gray-600">
                   Contador: <span className="font-medium">{mapaContadorNome[empresa.contadorId] ?? '—'}</span>
                 </p>
@@ -454,6 +518,7 @@ export default function ContabilAdminEmpresas() {
         <ModalEmpresa
           empresa={modalEmpresa.empresa}
           contadores={contadores}
+          ehSuperAdmin={ehSuperAdmin}
           aoFechar={() => setModalEmpresa(null)}
           aoSalvar={() => {
             setModalEmpresa(null);

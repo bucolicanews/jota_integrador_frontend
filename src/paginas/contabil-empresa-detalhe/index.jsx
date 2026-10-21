@@ -9,9 +9,16 @@ import {
   atualizarEmpresa,
   atualizarModoAcessoSerpro,
   bloquearEmpresa,
+  corrigirCnpjEmpresa,
   desbloquearEmpresa,
   obterEmpresa,
 } from '../../servicos/empresas';
+import { validarCnpj } from '../../utils/validarCnpj';
+
+const formatarCnpj = (valor) => {
+  const digitos = (valor ?? '').replace(/\D/g, '');
+  return digitos.length === 14 ? digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : valor ?? '';
+};
 
 export default function ContabilEmpresaDetalhe() {
   const { id } = useParams();
@@ -23,6 +30,7 @@ export default function ContabilEmpresaDetalhe() {
   const [salvandoModo, setSalvandoModo] = useState(false);
   const [processandoBloqueio, setProcessandoBloqueio] = useState(false);
   const [mensagemSalvo, setMensagemSalvo] = useState(null);
+  const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm();
   const { selecionarEmpresa } = useEmpresaAtiva();
@@ -46,7 +54,9 @@ export default function ContabilEmpresaDetalhe() {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia ?? '',
         regimeTributario: dados.regimeTributario ?? '',
+        cnpj: dados.cnpj,
       });
+      setCorrigindoCnpj(false);
       setErro(null);
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
@@ -60,10 +70,21 @@ export default function ContabilEmpresaDetalhe() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  function aoClicarCorrigirCnpj() {
+    const confirmado = window.confirm(
+      'Corrigir o CNPJ muda a identidade legal desta empresa perante a Receita/SERPRO. ' +
+        'Só faça isso se o CNPJ foi cadastrado errado -- qualquer certificado, procuração ou consulta SERPRO já sincronizada continua associada ao CNPJ antigo. Continuar?',
+    );
+    if (confirmado) setCorrigindoCnpj(true);
+  }
+
   async function aoSalvarDados(dados) {
     setSalvandoDados(true);
     setMensagemSalvo(null);
     try {
+      if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
+        await corrigirCnpjEmpresa(id, dados.cnpj);
+      }
       await atualizarEmpresa(id, {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia || null,
@@ -134,7 +155,14 @@ export default function ContabilEmpresaDetalhe() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">{empresa.razaoSocial}</h1>
-            <p className="text-sm text-gray-500">{empresa.cnpj}</p>
+            <p className="text-sm text-gray-500">
+              {formatarCnpj(empresa.cnpj)}
+              {!validarCnpj(empresa.cnpj) && (
+                <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                  ⚠️ CNPJ inválido
+                </span>
+              )}
+            </p>
           </div>
           <button
             onClick={aoAlternarBloqueio}
@@ -194,6 +222,25 @@ export default function ContabilEmpresaDetalhe() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
               <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ</label>
+                {!corrigindoCnpj && (
+                  <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
+                    Corrigir CNPJ
+                  </button>
+                )}
+              </div>
+              <input
+                {...register('cnpj', { required: 'Obrigatório' })}
+                disabled={!corrigindoCnpj}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              {!corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
+                <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
+              )}
+              {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>

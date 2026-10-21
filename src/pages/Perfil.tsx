@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { KeyRound, Loader2, UserCog } from 'lucide-react';
+import { Building2, KeyRound, Loader2, UserCog } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '../servicos/supabase';
 import { obterMeuPerfil, atualizarMeuNome } from '../servicos/perfil';
+import { atualizarContador, corrigirCnpjCpfContador, obterMeuContador } from '../servicos/contadores';
+import { validarCpfOuCnpj } from '../utils/validarCpfOuCnpj';
 import { showError, showSuccess } from '../utils/toast';
+
+const formatarCnpjCpf = (valor: string) => {
+  const digitos = (valor ?? '').replace(/\D/g, '');
+  if (digitos.length === 11) return digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if (digitos.length === 14) return digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return valor ?? '';
+};
 
 const ROTULO_PAPEL: Record<string, string> = {
   SUPER_ADMIN: 'Administrador da plataforma',
@@ -30,10 +39,25 @@ interface DadosSenha {
   confirmarSenha: string;
 }
 
-/** Auto-serviço do usuário logado -- equivalente ao `/perfil` do jotaCaixa, mas bem mais enxuto: nesta plataforma RBAC/permissões vivem em tabela própria (não no perfil) e não existe ainda geração de contrato com tags cadastrais (Fase 6), então não há CPF/endereço/assinatura pra editar aqui. Só o que existe de verdade hoje: nome (tabela `usuarios`) e senha (Supabase Auth, chamado direto pelo frontend -- mesmo padrão já usado no login). */
+interface DadosEscritorio {
+  nome: string;
+  email: string;
+  telefone: string;
+  cnpjCpf: string;
+}
+
+/**
+ * Auto-serviço do usuário logado -- equivalente ao `/perfil` do jotaCaixa, mas enxuto:
+ * nome (tabela `usuarios`) e senha (Supabase Auth). Pra CONTADOR_DONO/OPERADOR_CONTADOR,
+ * ganha também "Dados do escritório" (a entidade `contadores`, diferente do usuário) --
+ * só lugar onde o próprio contador consegue ver/editar isso, já que a tela de admin é
+ * restrita a papel de plataforma.
+ */
 export default function Perfil() {
   const [perfil, setPerfil] = useState<any | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [escritorio, setEscritorio] = useState<any | null>(null);
+  const [corrigindoDoc, setCorrigindoDoc] = useState(false);
 
   const {
     register: registrarNome,
@@ -49,6 +73,45 @@ export default function Perfil() {
     formState: { isSubmitting: salvandoSenha },
   } = useForm<DadosSenha>({ defaultValues: { novaSenha: '', confirmarSenha: '' } });
 
+  const {
+    register: registrarEscritorio,
+    handleSubmit: handleSubmitEscritorio,
+    reset: resetEscritorio,
+    formState: { errors: errosEscritorio, isSubmitting: salvandoEscritorio },
+  } = useForm<DadosEscritorio>();
+
+  const ehContador = perfil?.papel === 'CONTADOR_DONO' || perfil?.papel === 'OPERADOR_CONTADOR';
+
+  function carregarEscritorio() {
+    obterMeuContador()
+      .then((dados) => {
+        setEscritorio(dados);
+        resetEscritorio({ nome: dados.nome, email: dados.email, telefone: dados.telefone ?? '', cnpjCpf: dados.cnpjCpf });
+      })
+      .catch((erro) => showError(erro.message));
+  }
+
+  function aoClicarCorrigirDoc() {
+    const confirmado = window.confirm(
+      'Corrigir o CPF/CNPJ muda a identidade legal do seu escritório. Só faça isso se foi cadastrado errado. Continuar?',
+    );
+    if (confirmado) setCorrigindoDoc(true);
+  }
+
+  async function aoSalvarEscritorio(dados: DadosEscritorio) {
+    try {
+      if (corrigindoDoc && dados.cnpjCpf.replace(/\D/g, '') !== escritorio.cnpjCpf) {
+        await corrigirCnpjCpfContador(escritorio.id, dados.cnpjCpf);
+      }
+      await atualizarContador(escritorio.id, { nome: dados.nome, email: dados.email, telefone: dados.telefone || null });
+      setCorrigindoDoc(false);
+      carregarEscritorio();
+      showSuccess('Dados do escritório atualizados.');
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível salvar os dados do escritório');
+    }
+  }
+
   function carregarPerfil() {
     setCarregando(true);
     obterMeuPerfil()
@@ -60,6 +123,11 @@ export default function Perfil() {
       .finally(() => setCarregando(false));
   }
   useEffect(carregarPerfil, []);
+
+  useEffect(() => {
+    if (ehContador) carregarEscritorio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ehContador]);
 
   async function aoSalvarNome(dados: DadosNome) {
     try {
@@ -154,6 +222,59 @@ export default function Perfil() {
           </CardContent>
         </Card>
       </div>
+
+      {ehContador && escritorio && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center text-base">
+              <Building2 className="mr-2 h-4 w-4" /> Dados do escritório
+            </CardTitle>
+            <CardDescription>Dados cadastrais do seu escritório contábil junto à Jota.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmitEscritorio(aoSalvarEscritorio)} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Nome / Nome do escritório</Label>
+                <Input {...registrarEscritorio('nome', { required: true, minLength: 2 })} />
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <Label>CPF ou CNPJ</Label>
+                  {!corrigindoDoc && (
+                    <button type="button" onClick={aoClicarCorrigirDoc} className="text-xs font-medium text-primary hover:underline">
+                      Corrigir CPF/CNPJ
+                    </button>
+                  )}
+                </div>
+                <Input {...registrarEscritorio('cnpjCpf', { required: true })} disabled={!corrigindoDoc} />
+                {!corrigindoDoc && !validarCpfOuCnpj(escritorio.cnpjCpf) && (
+                  <p className="text-xs font-medium text-destructive">⚠️ Este documento não passa na validação de formato -- considere corrigir.</p>
+                )}
+                {corrigindoDoc && <p className="text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>E-mail</Label>
+                <Input type="email" {...registrarEscritorio('email', { required: true })} />
+                {errosEscritorio.email && <p className="text-xs text-destructive">Obrigatório</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Telefone</Label>
+                <Input {...registrarEscritorio('telefone')} />
+              </div>
+
+              <div className="md:col-span-2">
+                <Button type="submit" disabled={salvandoEscritorio}>
+                  {salvandoEscritorio && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar dados do escritório
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </LayoutPrincipal>
   );
 }
