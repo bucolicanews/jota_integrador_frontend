@@ -9,6 +9,7 @@ import {
   bloquearContador,
   corrigirCnpjCpfContador,
   criarContador,
+  deletarContador,
   desbloquearContador,
   listarContadores,
 } from '../../servicos/contadores';
@@ -321,6 +322,20 @@ export default function ContabilAdminContadores() {
     }
   }
 
+  /** Exclusão definitiva -- só funciona se o backend confirmar que não tem nenhum rastro de uso real (carteira vazia, sem login, sem crédito/consulta); senão devolve 409 com o que resolver primeiro. */
+  async function aoExcluir(contador) {
+    if (!window.confirm(`Excluir "${contador.nome}" definitivamente? Isso só funciona se ele nunca teve uso real (sem empresas, login ou créditos) -- não dá pra desfazer.`)) return;
+    setAcaoEmAndamento(contador.id);
+    try {
+      await deletarContador(contador.id);
+      await carregar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setAcaoEmAndamento(null);
+    }
+  }
+
   const contadoresFiltrados = useMemo(() => {
     if (!contadores) return [];
     const nomeBusca = filtroNome.trim().toLowerCase();
@@ -369,6 +384,16 @@ export default function ContabilAdminContadores() {
               Bloquear
             </button>
           ))}
+        {ehSuperAdmin && contador.tipo === 'humano' && (
+          <button
+            onClick={() => aoExcluir(contador)}
+            disabled={acaoEmAndamento === contador.id}
+            title="Só funciona se este contador nunca teve uso real (sem empresas, login ou créditos)"
+            className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+          >
+            Excluir
+          </button>
+        )}
       </div>
     );
   }

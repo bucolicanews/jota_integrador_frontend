@@ -11,11 +11,27 @@ function carregarPersistida() {
   }
 }
 
+function salvarPersistida(usuarioId, empresa) {
+  try {
+    localStorage.setItem(CHAVE_LOCAL_STORAGE, JSON.stringify({ usuarioId, empresa }));
+  } catch {
+    // localStorage indisponível (modo privado etc.) -- segue só em memória.
+  }
+}
+
+const bruto = carregarPersistida();
+
 const estadoInicial = {
-  // Só é relevante pra papéis de contador (CONTADOR_DONO/OPERADOR_CONTADOR), que têm
-  // N empresas na carteira -- papéis de empresa já têm empresaId fixo vindo do JWT
-  // (usuario.empresaId), não usam isto. { id, razaoSocial, cnpj } | null.
-  empresa: carregarPersistida(),
+  // Só é relevante pra papéis de contador (CONTADOR_DONO/OPERADOR_CONTADOR) e plataforma,
+  // que resolvem empresaId dinamicamente -- papéis de empresa já têm empresaId fixo vindo
+  // do JWT (usuario.empresaId), não usam isto.
+  //
+  // `usuarioId` junto do valor persistido -- sem isso, um segundo usuário logando no MESMO
+  // navegador (outro contador, ou o admin) herdava a empresa selecionada pelo usuário
+  // anterior (bug real: admin aparecia com o saldo de crédito da empresa que o último
+  // contador tinha selecionado). Validado/limpo em useEmpresaAtiva a cada troca de usuário.
+  empresa: bruto?.empresa ?? null,
+  usuarioId: bruto?.usuarioId ?? null,
 };
 
 const empresaAtivaSlice = createSlice({
@@ -23,15 +39,14 @@ const empresaAtivaSlice = createSlice({
   initialState: estadoInicial,
   reducers: {
     definirEmpresaAtiva(state, action) {
-      state.empresa = action.payload;
-      try {
-        localStorage.setItem(CHAVE_LOCAL_STORAGE, JSON.stringify(action.payload));
-      } catch {
-        // localStorage indisponível (modo privado etc.) -- segue só em memória.
-      }
+      const { usuarioId, empresa } = action.payload;
+      state.empresa = empresa;
+      state.usuarioId = usuarioId;
+      salvarPersistida(usuarioId, empresa);
     },
     limparEmpresaAtiva(state) {
       state.empresa = null;
+      state.usuarioId = null;
       try {
         localStorage.removeItem(CHAVE_LOCAL_STORAGE);
       } catch {

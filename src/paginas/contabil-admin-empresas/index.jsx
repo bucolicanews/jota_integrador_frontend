@@ -5,6 +5,7 @@ import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
+import { creditarManualmente, debitarManualmente, obterSaldoCreditos } from '../../servicos/creditos';
 import {
   atualizarEmpresa,
   bloquearEmpresa,
@@ -268,6 +269,119 @@ function ModalBloqueio({ empresa, aoFechar, aoConfirmar }) {
   );
 }
 
+/** Ajuste manual de créditos avulsos -- exclusivo do admin (plataforma); nem contador nem empresa têm essa ação (backend já impõe isso em creditos.controller.ts). */
+function ModalCreditos({ empresa, aoFechar }) {
+  const [saldo, setSaldo] = useState(null);
+  const [carregandoSaldo, setCarregandoSaldo] = useState(true);
+  const [erroSaldo, setErroSaldo] = useState(null);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+    reset,
+  } = useForm({ defaultValues: { quantidade: '', motivo: '' } });
+  const [acaoEmCurso, setAcaoEmCurso] = useState(null); // 'creditar' | 'debitar' | null
+
+  async function carregarSaldo() {
+    setCarregandoSaldo(true);
+    try {
+      const dados = await obterSaldoCreditos(empresa.id);
+      setSaldo(dados.saldo);
+      setErroSaldo(null);
+    } catch (erro) {
+      setErroSaldo(erro.message ?? 'Não foi possível carregar o saldo');
+    } finally {
+      setCarregandoSaldo(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarSaldo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function aoSubmeter(dados, acao) {
+    setAcaoEmCurso(acao);
+    try {
+      const fn = acao === 'creditar' ? creditarManualmente : debitarManualmente;
+      await fn(empresa.id, { quantidade: Number(dados.quantidade), motivo: dados.motivo });
+      reset();
+      await carregarSaldo();
+    } catch (erro) {
+      setError('root', { message: erro.message ?? 'Não foi possível ajustar o saldo' });
+    } finally {
+      setAcaoEmCurso(null);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">Créditos -- {empresa.razaoSocial}</h2>
+        <p className="mb-4 text-xs text-gray-500">Ajuste avulso restrito ao admin -- fica registrado no extrato da empresa.</p>
+
+        {erroSaldo ? (
+          <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erroSaldo}</p>
+        ) : (
+          <div className="mb-4 rounded-lg bg-gray-50 p-4">
+            <p className="text-xs text-gray-500">Saldo disponível</p>
+            <p className="text-2xl font-bold text-blue-600">{carregandoSaldo ? '...' : saldo}</p>
+          </div>
+        )}
+
+        <form className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Quantidade</label>
+            <input
+              type="number"
+              min="1"
+              {...register('quantidade', { required: true, min: { value: 1, message: 'Precisa ser positivo' } })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            {errors.quantidade && <p className="mt-1 text-xs text-red-600">{errors.quantidade.message}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Motivo</label>
+            <input
+              {...register('motivo', { required: 'Obrigatório' })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            {errors.motivo && <p className="mt-1 text-xs text-red-600">{errors.motivo.message}</p>}
+          </div>
+          {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleSubmit((dados) => aoSubmeter(dados, 'creditar'))}
+              className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {acaoEmCurso === 'creditar' ? 'Inserindo...' : 'Inserir créditos'}
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleSubmit((dados) => aoSubmeter(dados, 'debitar'))}
+              className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {acaoEmCurso === 'debitar' ? 'Retirando...' : 'Retirar créditos'}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={aoFechar}
+            className="w-full rounded-md border border-gray-200 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50"
+          >
+            Fechar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ContabilAdminEmpresas() {
   const { usuario } = useSelector((state) => state.autenticacao);
   const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
@@ -283,6 +397,7 @@ export default function ContabilAdminEmpresas() {
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [modalEmpresa, setModalEmpresa] = useState(null); // null | { empresa?: Empresa } (empresa ausente = criar)
   const [modalBloqueio, setModalBloqueio] = useState(null);
+  const [modalCreditos, setModalCreditos] = useState(null);
   const [acaoEmAndamento, setAcaoEmAndamento] = useState(null);
 
   const mapaContadorNome = useMemo(
@@ -348,6 +463,12 @@ export default function ContabilAdminEmpresas() {
           className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           Editar
+        </button>
+        <button
+          onClick={() => setModalCreditos(empresa)}
+          className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+        >
+          Créditos
         </button>
         {ehSuperAdmin &&
           (empresa.bloqueado ? (
@@ -537,6 +658,8 @@ export default function ContabilAdminEmpresas() {
           }}
         />
       )}
+
+      {modalCreditos && <ModalCreditos empresa={modalCreditos} aoFechar={() => setModalCreditos(null)} />}
     </LayoutPrincipal>
   );
 }

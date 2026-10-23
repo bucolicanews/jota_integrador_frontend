@@ -7,6 +7,8 @@ import { api } from '../../servicos/api';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
 import { atualizarEmpresa } from '../../servicos/empresas';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
+import CardMinhaAssinatura from '../../components/empresas/CardMinhaAssinatura';
+import CardLicencasDisponiveis from '../../components/empresas/CardLicencasDisponiveis';
 import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 
@@ -521,8 +523,18 @@ export default function Fiscal() {
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Minha assinatura</h2>
+            <CardMinhaAssinatura empresaId={empresa.id} />
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Módulos disponíveis</h2>
+            <CardLicencasDisponiveis empresaId={empresa.id} />
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
             <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Comprar créditos</h2>
-            <CardComprarCreditosAvulsos empresaId={empresa.id} />
+            <CardComprarCreditosAvulsos empresaId={empresa.id} permitirRevenda />
           </div>
         </div>
       )}

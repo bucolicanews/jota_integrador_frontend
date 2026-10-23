@@ -21,7 +21,7 @@ function rotularTipoOperacao(tipo) {
   return ROTULO_TIPO_OPERACAO[tipo] ?? tipo.replaceAll('_', ' ').toLowerCase();
 }
 
-/** Inserir/retirar créditos manualmente -- hoje o contador faz isso diretamente pra qualquer empresa da própria carteira (2026-10-14), não é mais exclusivo da plataforma. */
+/** Inserir/retirar créditos manualmente de forma avulsa -- exclusivo da plataforma (admin); contador e empresa nunca ajustam saldo direto (revertido em 2026-10-21 o acesso que o contador tinha desde 2026-10-14). */
 function FormularioAjusteCreditoManual({ empresaId, aoConcluir }) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError, reset } = useForm({
     defaultValues: { quantidade: '', motivo: '' },
@@ -86,7 +86,7 @@ function FormularioAjusteCreditoManual({ empresaId, aoConcluir }) {
 }
 
 export default function ContabilCreditos() {
-  const { empresaId, empresaAtiva, ehContador, ehPlataforma, precisaSelecionarEmpresa } = useEmpresaAtiva();
+  const { empresaId, empresaAtiva, ehPlataforma, precisaSelecionarEmpresa } = useEmpresaAtiva();
   const [saldo, setSaldo] = useState(null);
   const [movimentos, setMovimentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -137,7 +137,7 @@ export default function ContabilCreditos() {
               <p className="text-3xl font-bold text-blue-600">{saldo}</p>
               <p className="mt-1 text-xs text-gray-500">operações fiscais incluídas no plano</p>
 
-              {(ehContador || ehPlataforma) && (
+              {ehPlataforma && (
                 <FormularioAjusteCreditoManual empresaId={empresaId} aoConcluir={carregar} />
               )}
             </div>

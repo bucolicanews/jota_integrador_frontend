@@ -18,6 +18,8 @@ import { ativarLicenca, desativarLicenca, iniciarCheckoutLicenca, listarLicencas
 import { criarPlanoRevenda, listarPlanosRevenda } from '../servicos/planosRevendaPacote';
 import { atualizarPagbankConta, iniciarPagamentoAtivacao, obterStatusPagbankConta } from '../servicos/pagbankLicencas';
 import { criarPlanoRevendaCredito, listarPlanos, listarPlanosRevendaCreditos } from '../servicos/assinatura';
+import { listarPacotesCreditosAvulsos } from '../servicos/creditosAvulsos';
+import { criarPlanoRevendaCreditoAvulso, listarPlanosRevendaCreditosAvulsos } from '../servicos/planosRevendaCreditosAvulsos';
 import { showError, showSuccess } from '../utils/toast';
 
 const formatarMoeda = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -359,6 +361,134 @@ function CardPlanosRevendaCreditos({
   );
 }
 
+interface DadosFormPlanoRevendaCreditoAvulso {
+  pacoteId: string;
+  valorVenda: number;
+}
+
+/** "Meu plano de revenda" de crédito avulso (top-up pontual) -- mesmo conceito de CardPlanosRevendaCreditos, aqui pra pacotes avulsos. */
+function CardPlanosRevendaCreditosAvulsos({
+  contadorId,
+  pacotesAvulsos,
+  planosRevendaAvulsos,
+  onSalvo,
+}: {
+  contadorId: string;
+  pacotesAvulsos: any[];
+  planosRevendaAvulsos: any[];
+  onSalvo: () => void;
+}) {
+  const [dialogAberto, setDialogAberto] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<DadosFormPlanoRevendaCreditoAvulso>({ defaultValues: { pacoteId: '', valorVenda: 0 } });
+
+  const pacoteId = watch('pacoteId');
+  const pacoteSelecionado = pacotesAvulsos.find((p) => p.id === pacoteId);
+
+  async function aoSubmeter(dados: DadosFormPlanoRevendaCreditoAvulso) {
+    try {
+      await criarPlanoRevendaCreditoAvulso(contadorId, { pacoteId: dados.pacoteId, nome: null, valorVenda: Number(dados.valorVenda) });
+      showSuccess('Plano de revenda salvo.');
+      setDialogAberto(false);
+      reset({ pacoteId: '', valorVenda: 0 });
+      onSalvo();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível salvar o plano de revenda');
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-base">Meus planos de revenda — Crédito avulso</CardTitle>
+          <CardDescription>Seu preço final pra cada pacote de top-up pontual -- a margem sobre o repasse da plataforma. A empresa vê e compra isso direto na própria tela de créditos.</CardDescription>
+        </div>
+        <Button size="sm" onClick={() => setDialogAberto(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Novo plano
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {planosRevendaAvulsos.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum plano de revenda cadastrado ainda.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pacote</TableHead>
+                <TableHead className="text-right">Repasse plataforma</TableHead>
+                <TableHead className="text-right">Meu preço de venda</TableHead>
+                <TableHead className="text-right">Minha margem</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {planosRevendaAvulsos.map((plano) => {
+                const pacote = pacotesAvulsos.find((p) => p.id === plano.pacoteId);
+                return (
+                  <TableRow key={plano.id}>
+                    <TableCell className="font-medium">
+                      {pacote ? `${pacote.nome} (${pacote.quantidadeCreditos} créditos)` : plano.pacoteId}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">{pacote ? formatarMoeda(pacote.precoReais) : '—'}</TableCell>
+                    <TableCell className="text-right">{formatarMoeda(plano.valorVenda)}</TableCell>
+                    <TableCell className="text-right text-green-600">
+                      {pacote ? formatarMoeda(plano.valorVenda - pacote.precoReais) : '—'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Novo plano de revenda de crédito avulso</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Pacote *</Label>
+              <select {...register('pacoteId', { required: true })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="">Selecione...</option>
+                {pacotesAvulsos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} -- {p.quantidadeCreditos} créditos ({formatarMoeda(p.precoReais)})
+                  </option>
+                ))}
+              </select>
+              {errors.pacoteId && <p className="text-xs text-destructive">Obrigatório</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Meu preço de venda (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min={pacoteSelecionado?.precoReais ?? 0.01}
+                {...register('valorVenda', { required: true, valueAsNumber: true, min: pacoteSelecionado?.precoReais ?? 0.01 })}
+              />
+              {pacoteSelecionado && (
+                <p className="text-xs text-muted-foreground">Não pode ser menor que {formatarMoeda(pacoteSelecionado.precoReais)}.</p>
+              )}
+              {errors.valorVenda && <p className="text-xs text-destructive">Valor abaixo do repasse da plataforma</p>}
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 function DialogAtivar({
   licenca,
   empresas,
@@ -541,6 +671,8 @@ export default function MinhasLicencas() {
   const [planosRevenda, setPlanosRevenda] = useState<any[]>([]);
   const [planosCreditos, setPlanosCreditos] = useState<any[]>([]);
   const [planosRevendaCreditos, setPlanosRevendaCreditos] = useState<any[]>([]);
+  const [pacotesAvulsos, setPacotesAvulsos] = useState<any[]>([]);
+  const [planosRevendaAvulsos, setPlanosRevendaAvulsos] = useState<any[]>([]);
   const [pagbankStatus, setPagbankStatus] = useState<{ temContaCadastrada: boolean; splitHabilitado: boolean } | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [licencaParaAtivar, setLicencaParaAtivar] = useState<any | null>(null);
@@ -557,8 +689,10 @@ export default function MinhasLicencas() {
       obterStatusPagbankConta(contadorId),
       listarPlanos(),
       listarPlanosRevendaCreditos(contadorId),
+      listarPacotesCreditosAvulsos(),
+      listarPlanosRevendaCreditosAvulsos(contadorId),
     ])
-      .then(([listaPacotes, listaLicencas, listaEmpresas, listaPlanosRevenda, statusPagbank, listaPlanosCreditos, listaPlanosRevendaCreditos]) => {
+      .then(([listaPacotes, listaLicencas, listaEmpresas, listaPlanosRevenda, statusPagbank, listaPlanosCreditos, listaPlanosRevendaCreditos, listaPacotesAvulsos, listaPlanosRevendaAvulsos]) => {
         setPacotes(listaPacotes);
         setLicencas(listaLicencas);
         setEmpresas(listaEmpresas);
@@ -566,6 +700,8 @@ export default function MinhasLicencas() {
         setPagbankStatus(statusPagbank);
         setPlanosCreditos(listaPlanosCreditos);
         setPlanosRevendaCreditos(listaPlanosRevendaCreditos);
+        setPacotesAvulsos(listaPacotesAvulsos);
+        setPlanosRevendaAvulsos(listaPlanosRevendaAvulsos);
       })
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
@@ -632,6 +768,7 @@ export default function MinhasLicencas() {
           <CardConfiguracaoRecebimento contadorId={contadorId} onAtualizado={carregar} />
           <CardPlanosRevenda contadorId={contadorId} pacotes={pacotes} planosRevenda={planosRevenda} onSalvo={carregar} />
           <CardPlanosRevendaCreditos contadorId={contadorId} planosCreditos={planosCreditos} planosRevendaCreditos={planosRevendaCreditos} onSalvo={carregar} />
+          <CardPlanosRevendaCreditosAvulsos contadorId={contadorId} pacotesAvulsos={pacotesAvulsos} planosRevendaAvulsos={planosRevendaAvulsos} onSalvo={carregar} />
 
           {mostrarComprarAtacado && (
             <Card className="mb-6">

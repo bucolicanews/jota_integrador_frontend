@@ -1,4 +1,5 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Toaster } from './components/ui/sonner';
 import { RotaProtegida } from './componentes/RotaProtegida';
 import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
@@ -513,6 +514,7 @@ export default function App() {
         {/* Qualquer rota não mapeada (ex: link antigo salvo no navegador) volta pro início em vez de dar tela branca. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster richColors closeButton />
     </Router>
   );
 }

@@ -11,3 +11,7 @@ export const atualizarContador = (id, dados) => api.patch(`/contadores/${id}`, d
 export const corrigirCnpjCpfContador = (id, cnpjCpf) => api.patch(`/contadores/${id}/cnpj-cpf`, { cnpjCpf });
 export const bloquearContador = (id, motivo) => api.post(`/contadores/${id}/bloquear`, { motivo });
 export const desbloquearContador = (id) => api.post(`/contadores/${id}/desbloquear`);
+// Exclusão definitiva -- só funciona se o contador não tiver nenhum rastro de uso real
+// (carteira vazia, sem login, sem assinatura/crédito/consulta) -- backend bloqueia com
+// 409 e uma lista do que resolver antes, senão.
+export const deletarContador = (id) => api.delete(`/contadores/${id}`);

@@ -9,8 +9,78 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { atualizarPacoteCreditoAvulso, criarPacoteCreditoAvulso, listarPacotesCreditosAvulsos } from '../servicos/creditosAvulsos';
+import {
+  atualizarPacoteCreditoAvulso,
+  atualizarValorPorCredito,
+  criarPacoteCreditoAvulso,
+  listarPacotesCreditosAvulsos,
+  obterConfiguracaoCreditosAvulsos,
+} from '../servicos/creditosAvulsos';
 import { showError, showSuccess } from '../utils/toast';
+
+/** Base pra compra em quantidade livre (quantidade * valorPorCredito) -- empresa/contador digita quantos créditos quer, sem depender de um pacote fixo. */
+function CardValorPorCredito() {
+  const [valorAtual, setValorAtual] = useState<number | null>(null);
+  const [valorInput, setValorInput] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  function carregar() {
+    setCarregando(true);
+    obterConfiguracaoCreditosAvulsos()
+      .then((dados) => {
+        setValorAtual(dados.valorPorCredito);
+        setValorInput(String(dados.valorPorCredito));
+      })
+      .catch((e) => showError(e.message))
+      .finally(() => setCarregando(false));
+  }
+  useEffect(carregar, []);
+
+  async function salvar() {
+    const valor = Number(valorInput);
+    if (!Number.isFinite(valor) || valor <= 0) {
+      showError('Informe um valor válido maior que zero.');
+      return;
+    }
+    setSalvando(true);
+    try {
+      await atualizarValorPorCredito(valor);
+      showSuccess('Valor por crédito atualizado.');
+      carregar();
+    } catch (e: any) {
+      showError(e.message);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="p-4">
+        <h2 className="mb-1 text-sm font-semibold">Valor por crédito (quantidade livre)</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Base pra empresa/contador comprar uma quantidade qualquer de créditos (ex: 37 créditos = 37 × esse valor), sem
+          depender de um pacote fixo do catálogo abaixo.
+        </p>
+        {carregando ? (
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        ) : (
+          <div className="flex items-end gap-2">
+            <div className="space-y-1.5">
+              <Label>Valor por crédito (R$)</Label>
+              <Input type="number" step="0.0001" min="0.0001" value={valorInput} onChange={(e) => setValorInput(e.target.value)} className="w-40" />
+            </div>
+            <Button onClick={salvar} disabled={salvando || Number(valorInput) === valorAtual}>
+              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 interface DadosFormulario {
   nome: string;
@@ -138,6 +208,8 @@ export default function AdminCreditosAvulsos() {
         Top-up pontual que a empresa-cliente (ou o contador em nome dela) compra direto da plataforma, fora de
         qualquer plano/assinatura -- sem split, 100% Jota.
       </p>
+
+      <CardValorPorCredito />
 
       <Card>
         <CardContent className="p-0">

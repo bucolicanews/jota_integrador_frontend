@@ -25,3 +25,11 @@ export const criarPlanoRevendaCredito = (contadorId, { planoId, nome, valorVenda
   api.post(`/contadores/${contadorId}/planos-revenda-creditos`, { planoId, nome, valorVenda });
 export const atualizarPlanoRevendaCredito = (contadorId, id, dados) =>
   api.patch(`/contadores/${contadorId}/planos-revenda-creditos/${id}`, dados);
+
+// Self-service da empresa: ela assina o plano de revenda do PRÓPRIO contador sozinha
+// (resolve contadorId internamente) -- sem esperar ele iniciar a cobrança (ver
+// AssinaturaEmpresaController no backend).
+export const obterMinhaAssinatura = (empresaId) => api.get(`/empresas/${empresaId}/assinatura`);
+export const listarMeusPlanosRevendaCreditos = (empresaId) => api.get(`/empresas/${empresaId}/assinatura/planos-revenda`);
+export const iniciarMinhaAssinatura = (empresaId, { planoId, metodo, customerEmail, customerTelefoneE164 }) =>
+  api.post(`/empresas/${empresaId}/assinatura/iniciar-pagamento`, { planoId, metodo, customerEmail, customerTelefoneE164 });
