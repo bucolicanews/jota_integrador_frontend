@@ -15,5 +15,17 @@ export const listarPacotesRevendaDisponiveis = (empresaId) => api.get(`/empresas
 export const obterConfiguracaoCreditosAvulsos = () => api.get('/pacotes-creditos-avulsos/configuracao');
 export const atualizarValorPorCredito = (valorPorCredito) => api.patch('/pacotes-creditos-avulsos/configuracao', { valorPorCredito });
 
-export const comprarCreditoAvulso = (empresaId, { pacoteId, planoRevendaId, quantidade, customerEmail, customerTelefoneE164 }) =>
-  api.post(`/empresas/${empresaId}/creditos-avulsos/comprar`, { pacoteId, planoRevendaId, quantidade, customerEmail, customerTelefoneE164 });
+export const comprarCreditoAvulso = (
+  empresaId,
+  { pacoteId, planoRevendaId, quantidade, metodo, cardEncrypted, installments, customerEmail, customerTelefoneE164 },
+) =>
+  api.post(`/empresas/${empresaId}/creditos-avulsos/comprar`, {
+    pacoteId,
+    planoRevendaId,
+    quantidade,
+    metodo,
+    cardEncrypted,
+    installments,
+    customerEmail,
+    customerTelefoneE164,
+  });

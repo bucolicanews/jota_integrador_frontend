@@ -109,8 +109,8 @@ interface DadosPagbank {
  * Conta PagBank da própria plataforma (lado "casa" do split) -- diferente da conta que
  * cada contador cadastra em Minhas Licenças (CardConfiguracaoRecebimento), que é a conta
  * dele. O token de autenticação da API nunca fica aqui, só em PAGBANK_TOKEN/
- * PAGBANK_PLATFORM_TOKEN no .env do backend (ver PagbankConfigService) -- igual já é
- * tratado pra STRIPE_SECRET_KEY neste projeto.
+ * PAGBANK_PLATFORM_TOKEN no .env do backend (ver PagbankConfigService) -- único gateway
+ * de pagamento do sistema, mesmo tratamento de credencial sensível de qualquer outro.
  */
 function CardConfiguracaoPagbank() {
   const [carregando, setCarregando] = useState(true);

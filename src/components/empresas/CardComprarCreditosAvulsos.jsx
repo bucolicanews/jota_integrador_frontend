@@ -1,38 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import {
   comprarCreditoAvulso,
   listarPacotesCreditosAvulsos,
   listarPacotesRevendaDisponiveis,
   obterConfiguracaoCreditosAvulsos,
 } from '../../servicos/creditosAvulsos';
+import FormularioCheckoutPagbank from '../pagbank/FormularioCheckoutPagbank';
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
-
-/** Formulário mínimo pra gerar o PIX -- só o e-mail é obrigatório (exigido pela PagBank), mesmo padrão de FormularioCobrarPix em contabil-assinatura/. */
-function FormularioComprarCredito({ onConfirmar, onCancelar, enviando }) {
-  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { customerEmail: '' } });
-
-  return (
-    <form onSubmit={handleSubmit(onConfirmar)} className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-      <div className="flex-1">
-        <label className="mb-1 block text-xs font-medium text-gray-700">E-mail pra receber o PIX</label>
-        <input
-          type="email"
-          {...register('customerEmail', { required: true })}
-          className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-        />
-        {errors.customerEmail && <p className="text-xs text-red-600">Obrigatório</p>}
-      </div>
-      <button type="submit" disabled={enviando} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-        {enviando ? 'Gerando PIX...' : 'Gerar PIX'}
-      </button>
-      <button type="button" onClick={onCancelar} className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">
-        Cancelar
-      </button>
-    </form>
-  );
-}
 
 /**
  * Top-up pontual de créditos SERPRO -- dois catálogos possíveis: pacote direto da
@@ -53,6 +28,7 @@ export default function CardComprarCreditosAvulsos({ empresaId, permitirRevenda 
   const [selecionado, setSelecionado] = useState(null); // { origem: 'direto'|'revenda'|'livre', id, nome, quantidadeCreditos, preco }
   const [processando, setProcessando] = useState(false);
   const [resultadoPix, setResultadoPix] = useState(null);
+  const [erroCompra, setErroCompra] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -71,16 +47,20 @@ export default function CardComprarCreditosAvulsos({ empresaId, permitirRevenda 
 
   async function aoComprar(dados) {
     setProcessando(true);
+    setErroCompra(null);
     try {
       const resultado = await comprarCreditoAvulso(empresaId, {
         pacoteId: selecionado.origem === 'direto' ? selecionado.id : undefined,
         planoRevendaId: selecionado.origem === 'revenda' ? selecionado.id : undefined,
         quantidade: selecionado.origem === 'livre' ? selecionado.quantidadeCreditos : undefined,
+        metodo: dados.metodo,
+        cardEncrypted: dados.cardEncrypted,
+        installments: dados.installments,
         customerEmail: dados.customerEmail,
       });
       setResultadoPix(resultado);
     } catch (e) {
-      setErro(e.message);
+      setErroCompra(e.message);
     } finally {
       setProcessando(false);
     }
@@ -91,6 +71,7 @@ export default function CardComprarCreditosAvulsos({ empresaId, permitirRevenda 
     if (!Number.isInteger(quantidade) || quantidade <= 0) return;
     setSelecionado({ origem: 'livre', id: null, nome: `${quantidade} créditos`, quantidadeCreditos: quantidade, preco: quantidade * valorPorCredito });
     setResultadoPix(null);
+    setErroCompra(null);
   }
 
   if (erro) return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>;
@@ -105,6 +86,7 @@ export default function CardComprarCreditosAvulsos({ empresaId, permitirRevenda 
         onClick={() => {
           setSelecionado({ origem, id, nome: item.nome, quantidadeCreditos: item.quantidadeCreditos, preco });
           setResultadoPix(null);
+          setErroCompra(null);
         }}
         className={`rounded-md border p-3 text-left ${ativo ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
       >
@@ -166,25 +148,16 @@ export default function CardComprarCreditosAvulsos({ empresaId, permitirRevenda 
         </div>
       </div>
 
-      {selecionado && !resultadoPix && (
-        <FormularioComprarCredito enviando={processando} onCancelar={() => setSelecionado(null)} onConfirmar={aoComprar} />
-      )}
-
-      {resultadoPix && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-center">
-          <p className="mb-2 text-xs font-medium text-blue-800">PIX gerado -- pague pra liberar os créditos:</p>
-          {resultadoPix.pixQrUrl && <img src={resultadoPix.pixQrUrl} alt="QR Code PIX" className="mx-auto mb-2 h-32 w-32" />}
-          {resultadoPix.pixCode && (
-            <textarea
-              readOnly
-              value={resultadoPix.pixCode}
-              onClick={(e) => e.target.select()}
-              className="w-full rounded-md border border-gray-300 bg-white p-2 text-xs"
-              rows={3}
-            />
-          )}
-          <p className="mt-2 text-xs text-blue-700">Os créditos são liberados automaticamente assim que o pagamento for confirmado.</p>
-        </div>
+      {selecionado && (
+        <FormularioCheckoutPagbank
+          enviando={processando}
+          resultado={resultadoPix}
+          erro={erroCompra}
+          onCancelar={() => setSelecionado(null)}
+          onConfirmar={aoComprar}
+          rotuloConfirmarPix="Gerar PIX"
+          rotuloConfirmarCartao="Comprar com cartão"
+        />
       )}
     </div>
   );

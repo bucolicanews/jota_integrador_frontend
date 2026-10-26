@@ -13,6 +13,8 @@ export const listarUsuarios = ({ contadorId, empresaId } = {}) => {
 export const criarUsuario = (dados) => api.post('/auth/usuarios', dados);
 export const bloquearUsuario = (id, motivo) => api.post(`/auth/usuarios/${id}/bloquear`, { motivo });
 export const desbloquearUsuario = (id) => api.post(`/auth/usuarios/${id}/desbloquear`);
+/** Reemite o link de acesso de um usuário que já existe (nunca recebeu o convite, perdeu, etc). */
+export const gerarLinkAcesso = (id) => api.post(`/auth/usuarios/${id}/link-acesso`);
 export const listarPermissoesUsuario = (id) => api.get(`/auth/usuarios/${id}/permissoes`);
 export const concederPermissao = (id, permissaoId) => api.put(`/auth/usuarios/${id}/permissoes/${permissaoId}`);
 export const revogarPermissao = (id, permissaoId) => api.delete(`/auth/usuarios/${id}/permissoes/${permissaoId}`);

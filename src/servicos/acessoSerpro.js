@@ -18,6 +18,11 @@ export function cadastrarOuRotacionarCertificado(empresaId, { arquivo, tipo, sen
   return api.postFormData(`/empresas/${empresaId}/certificado`, formData);
 }
 
+// Testa a conexão de verdade com o SERPRO (1 chamada real, gasta crédito) -- não exige
+// módulo fiscal/assinatura ativa, serve como diagnóstico de setup (procuração/certificado
+// recém-cadastrado). Retorna { sucesso, motivo }.
+export const testarConexaoSerpro = (empresaId) => api.post(`/empresas/${empresaId}/serpro/testar-conexao`);
+
 /** Dry-run -- abre o .pfx com a senha informada e devolve { titular, validadeInicio, validadeFim } reais, sem cadastrar nada. */
 export function testarCertificado(empresaId, { arquivo, tipo, senha }) {
   const formData = new FormData();

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
+import CardAcessoEmpresa from '../../components/empresas/CardAcessoEmpresa';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -14,6 +15,7 @@ import {
   desbloquearEmpresa,
   obterEmpresa,
 } from '../../servicos/empresas';
+import { testarConexaoSerpro } from '../../servicos/acessoSerpro';
 import { validarCnpj } from '../../utils/validarCnpj';
 
 const formatarCnpj = (valor) => {
@@ -32,9 +34,27 @@ export default function ContabilEmpresaDetalhe() {
   const [processandoBloqueio, setProcessandoBloqueio] = useState(false);
   const [mensagemSalvo, setMensagemSalvo] = useState(null);
   const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
+  const [testandoConexao, setTestandoConexao] = useState(false);
+  const [resultadoTeste, setResultadoTeste] = useState(null);
 
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm();
-  const { selecionarEmpresa } = useEmpresaAtiva();
+  const { selecionarEmpresa, empresaAtiva } = useEmpresaAtiva();
+
+  // Seletor do Header e esta tela leem "qual empresa" de fontes diferentes de propósito
+  // (empresaAtiva/Redux vs. :id da URL -- ver comentário em useEmpresaAtiva.js). Sem isso,
+  // trocar o seletor enquanto esta página está aberta não tinha efeito nenhum aqui (bug
+  // real reportado pelo usuário). Só navega numa troca DE VERDADE -- guarda o id anterior
+  // numa ref pra nunca disparar no primeiro carregamento (empresaAtiva pode estar "stale"
+  // de uma sessão anterior ao entrar aqui pela lista da carteira, e não deve te jogar de
+  // volta pra ela).
+  const empresaAtivaIdAnteriorRef = useRef(empresaAtiva?.id);
+  useEffect(() => {
+    const anteriorId = empresaAtivaIdAnteriorRef.current;
+    empresaAtivaIdAnteriorRef.current = empresaAtiva?.id;
+    if (empresaAtiva && empresaAtiva.id !== anteriorId && empresaAtiva.id !== id) {
+      navegar(`/contabil/empresas/${empresaAtiva.id}`);
+    }
+  }, [empresaAtiva, id, navegar]);
 
   function aoAbrirLancamentos() {
     if (empresa) selecionarEmpresa(empresa);
@@ -110,6 +130,19 @@ export default function ContabilEmpresaDetalhe() {
       setErro(erroRequisicao.message);
     } finally {
       setSalvandoModo(false);
+    }
+  }
+
+  async function aoTestarConexao() {
+    setTestandoConexao(true);
+    setResultadoTeste(null);
+    try {
+      const resultado = await testarConexaoSerpro(id);
+      setResultadoTeste(resultado);
+    } catch (erroRequisicao) {
+      setResultadoTeste({ sucesso: false, motivo: erroRequisicao.message });
+    } finally {
+      setTestandoConexao(false);
     }
   }
 
@@ -287,6 +320,33 @@ export default function ContabilEmpresaDetalhe() {
               <SecaoCertificadoSerpro empresaId={id} />
             </div>
           )}
+
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <button
+              type="button"
+              onClick={aoTestarConexao}
+              disabled={testandoConexao}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {testandoConexao ? 'Testando...' : 'Testar conexão'}
+            </button>
+            <p className="mt-1 text-xs text-gray-500">
+              Faz uma chamada real ao SERPRO (gasta 1 crédito) pra confirmar que a procuração/certificado funciona de verdade.
+            </p>
+            {resultadoTeste && (
+              <p className={`mt-2 text-sm font-medium ${resultadoTeste.sucesso ? 'text-green-700' : 'text-red-700'}`}>
+                {resultadoTeste.sucesso ? '✅ Conexão funcionando.' : `❌ ${resultadoTeste.motivo}`}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-1 text-sm font-semibold text-gray-900">Acesso ao sistema</h2>
+          <p className="mb-3 text-xs text-gray-500">
+            Login do responsável por {empresa.razaoSocial} -- quem vai entrar na visão JOTA FISCAL desta empresa.
+          </p>
+          <CardAcessoEmpresa empresaId={id} empresaNome={empresa.razaoSocial} />
         </div>
 
         <div className="mt-4 rounded-lg bg-white p-6 shadow">

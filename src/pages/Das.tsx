@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, ReceiptText, RefreshCw } from 'lucide-react';
+import { Coins, Loader2, ReceiptText, RefreshCw } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,8 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
-import { gerarSegundaViaDas, listarDas, obterUrlPdfDas, sincronizarDas } from '../servicos/das';
+import { estimarSincronizacaoDas, gerarSegundaViaDas, listarDas, obterUrlPdfDas, sincronizarDas } from '../servicos/das';
 import { showError } from '../utils/toast';
+
+/** AAAA-MM (valor de <input type="month">) do mês atual menos `offsetMeses`. */
+function mesInput(offsetMeses: number): string {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - offsetMeses);
+  return d.toISOString().slice(0, 7);
+}
 
 // null = SERPRO não devolveu valor estruturado nesta sincronização (ver comentário do backend em sincronizar-das-empresa.usecase.ts) -- mostra "—" em vez de fabricar R$ 0,00.
 const formatarMoeda = (valor: number | null) =>
@@ -50,6 +58,10 @@ export default function Das() {
   const [itens, setItens] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [competenciaInicio, setCompetenciaInicio] = useState(mesInput(2));
+  const [competenciaFim, setCompetenciaFim] = useState(mesInput(0));
+  const [estimando, setEstimando] = useState(false);
+  const [estimativa, setEstimativa] = useState<any>(null);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [gerandoSegundaViaId, setGerandoSegundaViaId] = useState<string | null>(null);
   const [dialogSegundaVia, setDialogSegundaVia] = useState<{ dasId: string; competencia: string } | null>(null);
@@ -72,11 +84,29 @@ export default function Das() {
   }
   useEffect(carregar, [empresaId]);
 
+  /** Intervalo escolhido, convertido pra AAAA-MM-01 (dia fixo -- competência sempre é 1º do mês). */
+  function filtroAtual() {
+    return { competenciaInicio: `${competenciaInicio}-01`, competenciaFim: `${competenciaFim}-01` };
+  }
+
+  function verCustoEstimado() {
+    if (!empresaId) return;
+    setEstimando(true);
+    setEstimativa(null);
+    estimarSincronizacaoDas(empresaId, filtroAtual())
+      .then(setEstimativa)
+      .catch((erro) => showError(erro.message))
+      .finally(() => setEstimando(false));
+  }
+
   function sincronizar() {
     if (!empresaId) return;
     setSincronizando(true);
-    sincronizarDas(empresaId)
-      .then(() => carregar())
+    sincronizarDas(empresaId, filtroAtual())
+      .then(() => {
+        setEstimativa(null);
+        carregar();
+      })
       .catch((erro) => showError(erro.message))
       .finally(() => setSincronizando(false));
   }
@@ -137,10 +167,68 @@ export default function Das() {
         <h1 className="flex items-center text-2xl font-bold md:text-3xl">
           <ReceiptText className="mr-2 h-6 w-6" /> DAS
         </h1>
-        <Button onClick={sincronizar} disabled={sincronizando || naoAplicavel} className="w-full sm:w-auto">
-          <RefreshCw className={`mr-2 h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} /> Sincronizar agora
-        </Button>
       </div>
+
+      {!naoAplicavel && (
+        <Card className="mb-6">
+          <CardContent className="flex flex-col gap-4 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="competencia-inicio">Competência início</Label>
+                <Input
+                  id="competencia-inicio"
+                  type="month"
+                  max={mesInput(0)}
+                  value={competenciaInicio}
+                  onChange={(e) => {
+                    setCompetenciaInicio(e.target.value);
+                    setEstimativa(null);
+                  }}
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="competencia-fim">Competência fim</Label>
+                <Input
+                  id="competencia-fim"
+                  type="month"
+                  max={mesInput(0)}
+                  value={competenciaFim}
+                  onChange={(e) => {
+                    setCompetenciaFim(e.target.value);
+                    setEstimativa(null);
+                  }}
+                />
+              </div>
+              <Button variant="outline" onClick={verCustoEstimado} disabled={estimando} className="sm:w-auto">
+                {estimando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coins className="mr-2 h-4 w-4" />}
+                Ver custo estimado
+              </Button>
+            </div>
+
+            {estimativa && (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">
+                  Essa sincronização vai gastar <span className="font-bold">{estimativa.creditosNecessarios}</span> crédito(s)
+                  {estimativa.detalhamento.some((d: any) => d.aproximado) && ' (número máximo -- pode custar menos)'}.
+                </p>
+                <p className="text-muted-foreground">Saldo atual: {estimativa.saldoAtual} crédito(s).</p>
+                {!estimativa.saldoSuficiente && (
+                  <p className="font-medium text-destructive">Saldo insuficiente pra essa sincronização.</p>
+                )}
+              </div>
+            )}
+
+            <Button
+              onClick={sincronizar}
+              disabled={sincronizando || (estimativa && !estimativa.saldoSuficiente)}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
+              {estimativa ? `Sincronizar (${estimativa.creditosNecessarios} crédito(s))` : 'Sincronizar agora'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

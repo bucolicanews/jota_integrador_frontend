@@ -42,21 +42,22 @@ function IndicadorCreditos({ empresaId }: { empresaId: string }) {
   const alerta = saldo > 0 && saldo <= SALDO_LIMIAR_ALERTA;
 
   return (
-    <div
+    <Link
+      to="/creditos"
       className={cn(
-        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-medium',
+        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-medium transition-opacity hover:opacity-80',
         critico
           ? 'border-red-300 bg-red-50 text-red-700'
           : alerta
             ? 'border-amber-300 bg-amber-50 text-amber-700'
             : 'border-border bg-muted text-foreground',
       )}
-      title={critico ? 'Sem créditos disponíveis' : alerta ? 'Créditos baixos' : 'Créditos disponíveis'}
+      title={critico ? 'Sem créditos disponíveis -- clique pra comprar' : alerta ? 'Créditos baixos -- clique pra comprar' : 'Créditos disponíveis -- clique pra comprar mais'}
     >
       <Coins className="h-4 w-4" />
       <span>{saldo}</span>
       {critico && <span className="hidden sm:inline">· sem créditos</span>}
-    </div>
+    </Link>
   );
 }
 

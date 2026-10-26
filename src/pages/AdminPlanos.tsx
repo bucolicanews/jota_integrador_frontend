@@ -96,10 +96,10 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
       </div>
 
       <div className="space-y-1.5">
-        <Label>Módulos anunciados</Label>
+        <Label>Módulos incluídos</Label>
         <p className="text-xs text-muted-foreground">
-          Vitrine informativa (o que o plano anuncia incluir) -- não libera módulo pra empresa-cliente, isso continua
-          sendo exclusivo de pacotes de módulos.
+          Toda empresa com assinatura ativa deste plano tem esses módulos liberados de verdade (DAS/Caixa Postal,
+          Contratos, Protocolos etc) -- marcar/desmarcar aqui afeta o acesso real na hora.
         </p>
         <Controller
           control={control}

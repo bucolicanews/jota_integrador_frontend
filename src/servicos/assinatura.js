@@ -12,10 +12,16 @@ export const bloquearAssinatura = (contadorId, empresaId) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/bloquear`);
 export const cancelarAssinatura = (contadorId, empresaId) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/cancelar`);
-export const iniciarPagamentoAssinatura = (contadorId, empresaId, { planoId, metodo, customerEmail, customerTelefoneE164 }) =>
+export const iniciarPagamentoAssinatura = (
+  contadorId,
+  empresaId,
+  { planoId, metodo, cardEncrypted, installments, customerEmail, customerTelefoneE164 },
+) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/iniciar-pagamento`, {
     planoId,
     metodo,
+    cardEncrypted,
+    installments,
     customerEmail,
     customerTelefoneE164,
   });
@@ -30,6 +36,14 @@ export const atualizarPlanoRevendaCredito = (contadorId, id, dados) =>
 // (resolve contadorId internamente) -- sem esperar ele iniciar a cobrança (ver
 // AssinaturaEmpresaController no backend).
 export const obterMinhaAssinatura = (empresaId) => api.get(`/empresas/${empresaId}/assinatura`);
+export const obterMeuPagamentoPendente = (empresaId) => api.get(`/empresas/${empresaId}/assinatura/pagamento-pendente`);
 export const listarMeusPlanosRevendaCreditos = (empresaId) => api.get(`/empresas/${empresaId}/assinatura/planos-revenda`);
-export const iniciarMinhaAssinatura = (empresaId, { planoId, metodo, customerEmail, customerTelefoneE164 }) =>
-  api.post(`/empresas/${empresaId}/assinatura/iniciar-pagamento`, { planoId, metodo, customerEmail, customerTelefoneE164 });
+export const iniciarMinhaAssinatura = (empresaId, { planoId, metodo, cardEncrypted, installments, customerEmail, customerTelefoneE164 }) =>
+  api.post(`/empresas/${empresaId}/assinatura/iniciar-pagamento`, {
+    planoId,
+    metodo,
+    cardEncrypted,
+    installments,
+    customerEmail,
+    customerTelefoneE164,
+  });

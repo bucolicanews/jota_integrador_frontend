@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
-import { Loader2, Lock, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
+import { Link2, Loader2, Lock, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
+import CartaoLinkAcesso from '../components/auth/CartaoLinkAcesso';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +20,7 @@ import {
   concederPermissao,
   criarUsuario,
   desbloquearUsuario,
+  gerarLinkAcesso,
   listarPermissoesUsuario,
   listarUsuarios,
   revogarPermissao,
@@ -76,6 +78,7 @@ function FormNovoUsuario({
   onSaveComplete: () => void;
 }) {
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [linkGerado, setLinkGerado] = useState<string | null>(null);
   const opcoesPapel = opcoesPapelPara(papelCriador);
 
   const {
@@ -99,17 +102,28 @@ function FormNovoUsuario({
       return;
     }
     try {
-      await criarUsuario({
+      const resultado = await criarUsuario({
         nome: dados.nome,
         email: dados.email,
         papel: dados.papel,
         empresaId: precisaEmpresa ? dados.empresaId : undefined,
       });
-      showSuccess('Usuário criado -- um convite foi enviado por email.');
-      onSaveComplete();
+      setLinkGerado(resultado.linkAcesso);
     } catch (e: any) {
       setErroGeral(e.message ?? 'Não foi possível criar o usuário');
     }
+  }
+
+  if (linkGerado) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">Usuário criado.</p>
+        <CartaoLinkAcesso link={linkGerado} />
+        <Button className="w-full" onClick={onSaveComplete}>
+          Concluir
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -312,6 +326,7 @@ export default function GerenciarUsuarios() {
   const [dialogNovoAberto, setDialogNovoAberto] = useState(false);
   const [usuarioParaBloquear, setUsuarioParaBloquear] = useState<any | null>(null);
   const [usuarioParaPermissoes, setUsuarioParaPermissoes] = useState<any | null>(null);
+  const [linkAcessoGerado, setLinkAcessoGerado] = useState<{ nome: string; link: string } | null>(null);
   const [processando, setProcessando] = useState<string | null>(null);
 
   useEffect(() => {
@@ -354,6 +369,18 @@ export default function GerenciarUsuarios() {
       await desbloquearUsuario(alvo.id);
       showSuccess(`${alvo.nome} foi desbloqueado.`);
       carregar();
+    } catch (e: any) {
+      showError(e.message);
+    } finally {
+      setProcessando(null);
+    }
+  }
+
+  async function reenviarLinkAcesso(alvo: any) {
+    setProcessando(alvo.id);
+    try {
+      const resultado = await gerarLinkAcesso(alvo.id);
+      setLinkAcessoGerado({ nome: alvo.nome, link: resultado.linkAcesso });
     } catch (e: any) {
       showError(e.message);
     } finally {
@@ -459,6 +486,16 @@ export default function GerenciarUsuarios() {
                               size="sm"
                               variant="ghost"
                               className="h-8 w-8 p-0"
+                              onClick={() => reenviarLinkAcesso(u)}
+                              disabled={processando === u.id}
+                              title="Gerar link de acesso"
+                            >
+                              {processando === u.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
                               onClick={() => alternarBloqueio(u)}
                               disabled={processando === u.id}
                               title={u.bloqueado ? 'Desbloquear' : 'Bloquear'}
@@ -514,6 +551,15 @@ export default function GerenciarUsuarios() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!linkAcessoGerado} onOpenChange={(aberto) => !aberto && setLinkAcessoGerado(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Link de acesso -- {linkAcessoGerado?.nome}</DialogTitle>
+          </DialogHeader>
+          {linkAcessoGerado && <CartaoLinkAcesso link={linkAcessoGerado.link} />}
         </DialogContent>
       </Dialog>
 

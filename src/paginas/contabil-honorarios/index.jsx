@@ -2,13 +2,10 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
+import FormularioCheckoutPagbank from '../../components/pagbank/FormularioCheckoutPagbank';
 import { listarEmpresas } from '../../servicos/empresas';
-import {
-  criarCobrancaHonorario,
-  iniciarOnboardingStripeConnect,
-  listarHonorariosDoContador,
-  obterStatusStripeConnect,
-} from '../../servicos/honorarios';
+import { atualizarPagbankConta, obterStatusPagbankConta } from '../../servicos/pagbankLicencas';
+import { criarCobrancaHonorario, listarHonorariosDoContador } from '../../servicos/honorarios';
 
 const STATUS_COBRANCA = {
   pendente: { rotulo: 'Pendente', cor: 'bg-amber-50 text-amber-700', icone: '🟡' },
@@ -20,47 +17,77 @@ const STATUS_COBRANCA = {
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
-function CardStripeConnect({ contadorId, status }) {
-  const [iniciando, setIniciando] = useState(false);
+/** Cadastro manual da conta PagBank do contador -- mesmo endpoint já usado em Minhas Licenças, sem onboarding próprio. */
+function CardConfiguracaoPagbank({ contadorId, onAtualizado }) {
+  const [status, setStatus] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [accountId, setAccountId] = useState('');
+  const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
 
-  async function aoIniciarOnboarding() {
-    setIniciando(true);
+  function carregar() {
+    setCarregando(true);
+    obterStatusPagbankConta(contadorId)
+      .then(setStatus)
+      .catch((e) => setErro(e.message))
+      .finally(() => setCarregando(false));
+  }
+  useEffect(carregar, [contadorId]);
+
+  async function salvar() {
+    if (!accountId.trim()) {
+      setErro('Informe o ID da conta PagBank.');
+      return;
+    }
+    setSalvando(true);
     setErro(null);
     try {
-      const origem = window.location.origin;
-      const { url } = await iniciarOnboardingStripeConnect(contadorId, {
-        refreshUrl: `${origem}/contabil/honorarios`,
-        returnUrl: `${origem}/contabil/honorarios`,
-      });
-      window.location.href = url;
-    } catch (erroRequisicao) {
-      setErro(erroRequisicao.message);
-      setIniciando(false);
+      await atualizarPagbankConta(contadorId, accountId.trim());
+      setAccountId('');
+      carregar();
+      onAtualizado();
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setSalvando(false);
     }
   }
 
   return (
     <div className="mb-6 rounded-lg bg-white p-6 shadow">
-      <h2 className="mb-3 text-sm font-semibold text-gray-900">Cadastro de recebimento (Stripe)</h2>
+      <h2 className="mb-3 text-sm font-semibold text-gray-900">Configuração de recebimento (PagBank)</h2>
 
       {erro && <p className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-      {status.chargesEnabled ? (
+      {carregando ? (
+        <p className="text-sm text-gray-500">Carregando...</p>
+      ) : status.temContaCadastrada ? (
         <p className="text-sm text-green-700">🟢 Pronto para receber honorários das empresas da carteira.</p>
       ) : (
         <>
           <p className="mb-3 text-sm text-gray-600">
-            É preciso concluir o cadastro na Stripe antes de cobrar honorários de qualquer empresa.
+            Pra cobrar com split automático (você recebe sua parte, a Jota recebe a comissão), cadastre o ID da sua
+            conta PagBank -- encontrado no painel da própria PagBank.
           </p>
-          <button
-            onClick={aoIniciarOnboarding}
-            disabled={iniciando}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {iniciando ? 'Redirecionando...' : status.detailsSubmitted ? 'Continuar cadastro' : 'Iniciar cadastro'}
-          </button>
+          <div className="flex gap-2">
+            <input
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              placeholder="ID da conta PagBank"
+              className="max-w-xs flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <button
+              onClick={salvar}
+              disabled={salvando}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando...' : 'Cadastrar'}
+            </button>
+          </div>
         </>
+      )}
+      {!carregando && status && !status.splitHabilitado && (
+        <p className="mt-2 text-xs text-gray-500">(split temporariamente indisponível na plataforma)</p>
       )}
     </div>
   );
@@ -71,59 +98,75 @@ function ModalNovaCobranca({ empresas, contadorId, aoFechar }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm({ defaultValues: { empresaId: empresas[0]?.id ?? '', descricao: '', valor: '' } });
-  const [linkGerado, setLinkGerado] = useState(null);
-  const [copiado, setCopiado] = useState(false);
+  const [dadosBase, setDadosBase] = useState(null); // { empresaId, descricao, valor }
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+  const [erro, setErro] = useState(null);
 
-  async function aoSubmeter(dados) {
-    try {
-      const origem = window.location.origin;
-      const { url } = await criarCobrancaHonorario(contadorId, dados.empresaId, {
-        descricao: dados.descricao,
-        valor: Number(dados.valor),
-        successUrl: `${origem}/contabil/honorarios?pagamento=sucesso`,
-        cancelUrl: `${origem}/contabil/honorarios?pagamento=cancelado`,
-      });
-      setLinkGerado(url);
-    } catch (erro) {
-      setError('root', { message: erro.message ?? 'Não foi possível criar a cobrança' });
-    }
+  function aoDefinirDados(dados) {
+    setDadosBase(dados);
   }
 
-  async function copiarLink() {
-    await navigator.clipboard.writeText(linkGerado);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+  async function aoConfirmarPagamento(dadosPagamento) {
+    setEnviando(true);
+    setErro(null);
+    try {
+      const resposta = await criarCobrancaHonorario(contadorId, dadosBase.empresaId, {
+        descricao: dadosBase.descricao,
+        valor: Number(dadosBase.valor),
+        metodo: dadosPagamento.metodo,
+        cardEncrypted: dadosPagamento.cardEncrypted,
+        installments: dadosPagamento.installments,
+        customerEmail: dadosPagamento.customerEmail,
+      });
+      setResultado(resposta);
+    } catch (e) {
+      setErro(e.message ?? 'Não foi possível criar a cobrança');
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        {linkGerado ? (
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        {dadosBase ? (
           <>
-            <h2 className="mb-2 text-lg font-semibold text-gray-900">Cobrança criada</h2>
-            <p className="mb-3 text-sm text-gray-600">Envie este link para a empresa realizar o pagamento:</p>
-            <div className="mb-4 flex gap-2">
-              <input readOnly value={linkGerado} className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-600" />
-              <button
-                onClick={copiarLink}
-                className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                {copiado ? 'Copiado!' : 'Copiar'}
-              </button>
-            </div>
-            <button
-              onClick={aoFechar}
-              className="w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Fechar
-            </button>
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Cobrança de honorário</h2>
+            <p className="mb-1 text-sm text-gray-600">{dadosBase.descricao}</p>
+            <p className="mb-3 text-sm font-medium text-gray-900">{formatarMoeda(Number(dadosBase.valor))}</p>
+            {resultado ? (
+              <>
+                <FormularioCheckoutPagbank
+                  onConfirmar={() => {}}
+                  onCancelar={() => {}}
+                  resultado={resultado}
+                  rotuloConfirmarPix="Gerar PIX"
+                  rotuloConfirmarCartao="Cobrar com cartão"
+                />
+                <button
+                  onClick={aoFechar}
+                  className="mt-3 w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Fechar
+                </button>
+              </>
+            ) : (
+              <FormularioCheckoutPagbank
+                enviando={enviando}
+                erro={erro}
+                onCancelar={() => setDadosBase(null)}
+                onConfirmar={aoConfirmarPagamento}
+                rotuloConfirmarPix="Gerar PIX"
+                rotuloConfirmarCartao="Cobrar com cartão"
+              />
+            )}
           </>
         ) : (
           <>
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Nova cobrança de honorário</h2>
-            <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+            <form onSubmit={handleSubmit(aoDefinirDados)} className="space-y-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Empresa *</label>
                 <select {...register('empresaId', { required: true })} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
@@ -155,8 +198,6 @@ function ModalNovaCobranca({ empresas, contadorId, aoFechar }) {
                 {errors.valor && <p className="mt-1 text-xs text-red-600">{errors.valor.message}</p>}
               </div>
 
-              {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
-
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -170,7 +211,7 @@ function ModalNovaCobranca({ empresas, contadorId, aoFechar }) {
                   disabled={isSubmitting}
                   className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Gerando...' : 'Gerar cobrança'}
+                  Continuar
                 </button>
               </div>
             </form>
@@ -195,7 +236,7 @@ export default function ContabilHonorarios() {
     setCarregando(true);
     try {
       const [dadosStatus, dadosCobrancas, dadosEmpresas] = await Promise.all([
-        obterStatusStripeConnect(contadorId),
+        obterStatusPagbankConta(contadorId),
         listarHonorariosDoContador(contadorId),
         listarEmpresas(),
       ]);
@@ -231,14 +272,14 @@ export default function ContabilHonorarios() {
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <>
-            <CardStripeConnect contadorId={contadorId} status={status} />
+            <CardConfiguracaoPagbank contadorId={contadorId} onAtualizado={carregar} />
 
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-900">Cobranças</h2>
               <button
                 onClick={() => setModalAberto(true)}
-                disabled={!status.chargesEnabled || empresas.length === 0}
-                title={!status.chargesEnabled ? 'Conclua o cadastro de recebimento primeiro' : undefined}
+                disabled={!status.temContaCadastrada || empresas.length === 0}
+                title={!status.temContaCadastrada ? 'Cadastre sua conta PagBank primeiro' : undefined}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 + Nova cobrança

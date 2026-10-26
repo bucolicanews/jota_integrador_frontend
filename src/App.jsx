@@ -3,9 +3,9 @@ import { Toaster } from './components/ui/sonner';
 import { RotaProtegida } from './componentes/RotaProtegida';
 import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
+import DefinirSenha from './paginas/definir-senha';
 import Contabil from './paginas/contabil';
 import Fiscal from './paginas/fiscal';
-import PendenciasAtivacaoModulo from './pages/PendenciasAtivacaoModulo';
 import ContabilEmpresas from './paginas/contabil-empresas';
 import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
 import ContabilEmpresaAcessoSerpro from './paginas/contabil-empresa-acesso-serpro';
@@ -49,7 +49,7 @@ import DocumentosSocietariosBlocos from './pages/DocumentosSocietariosBlocos';
 import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
 import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 import MinhasLicencas from './pages/MinhasLicencas';
-import AdminPacotes from './pages/AdminPacotes';
+import Creditos from './pages/Creditos';
 import AdminPlanos from './pages/AdminPlanos';
 import AdminCreditosAvulsos from './pages/AdminCreditosAvulsos';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
@@ -78,6 +78,14 @@ export default function App() {
           }
         />
         <Route
+          path="/definir-senha"
+          element={
+            <RotaProtegida>
+              <DefinirSenha />
+            </RotaProtegida>
+          }
+        />
+        <Route
           path="/"
           element={
             <RotaProtegida>
@@ -98,14 +106,6 @@ export default function App() {
           element={
             <RotaProtegida>
               <Fiscal />
-            </RotaProtegida>
-          }
-        />
-        <Route
-          path="/pendencias-ativacao-modulo"
-          element={
-            <RotaProtegida>
-              <PendenciasAtivacaoModulo />
             </RotaProtegida>
           }
         />
@@ -446,10 +446,10 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/pacotes"
+          path="/creditos"
           element={
             <RotaProtegida>
-              <AdminPacotes />
+              <Creditos />
             </RotaProtegida>
           }
         />

@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Package, QrCode, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 
@@ -41,12 +41,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Painel', caminho: '/painel', icone: Home },
       { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
-      {
-        nome: 'Pendências de Pagamento',
-        caminho: '/pendencias-ativacao-modulo',
-        icone: QrCode,
-        papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'],
-      },
+      { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
     ],
   },
   {
@@ -69,7 +64,16 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins },
       { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen },
+    ],
+  },
+  // Tudo que fala com o SERPRO em nome da empresa entra aqui -- mesmo módulo "fiscal"
+  // que já gate DAS e Caixa Postal (CCMEI, Procuração/Certificado etc entram aqui
+  // conforme forem ganhando tela própria).
+  {
+    titulo: 'Fiscal',
+    itens: [
       { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal' },
+      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal' },
     ],
   },
   {
@@ -84,7 +88,6 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Atendimento',
     itens: [
       { nome: 'Protocolos', caminho: '/protocolos', icone: FileStack, modulo: 'protocolos' },
-      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal' },
       { nome: 'Suporte', caminho: '/suporte', icone: LifeBuoy },
     ],
   },
@@ -121,7 +124,6 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'Contadores', caminho: '/contabil/contadores', icone: Users, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA },
-      { nome: 'Pacotes de Módulos', caminho: '/admin/pacotes', icone: Package, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },

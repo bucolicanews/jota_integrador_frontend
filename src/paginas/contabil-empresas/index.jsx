@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useForm } from 'react-hook-form';
 import { PAPEIS_PLATAFORMA } from '../../componentes/contabil/CabecalhoContabil';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
-import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
-import { criarEmpresa, listarEmpresas } from '../../servicos/empresas';
+import ModalCadastrarEmpresa from '../../components/empresas/ModalCadastrarEmpresa';
+import { listarEmpresas } from '../../servicos/empresas';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 
 const ROTULO_MODO_ACESSO = {
@@ -25,103 +24,6 @@ function BadgeStatus({ bloqueado }) {
   );
 }
 
-function ModalNovaEmpresa({ aoFechar, aoCriar }) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setError,
-  } = useForm({
-    defaultValues: { razaoSocial: '', nomeFantasia: '', cnpj: '', regimeTributario: '', modoAcessoSerpro: 'procuracao' },
-  });
-
-  async function aoSubmeter(dados) {
-    try {
-      await aoCriar({
-        razaoSocial: dados.razaoSocial,
-        nomeFantasia: dados.nomeFantasia || null,
-        cnpj: dados.cnpj.replace(/\D/g, ''),
-        regimeTributario: dados.regimeTributario || null,
-        modoAcessoSerpro: dados.modoAcessoSerpro,
-      });
-    } catch (erro) {
-      setError('root', { message: erro.message ?? 'Não foi possível cadastrar a empresa' });
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Nova empresa</h2>
-
-        <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Razão social *</label>
-            <input
-              {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
-            <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
-            <input
-              {...register('cnpj', { required: 'Obrigatório' })}
-              placeholder="00.000.000/0000-00"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
-            <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <option value="">Selecione...</option>
-              {REGIMES_TRIBUTARIOS.map((regime) => (
-                <option key={regime.valor} value={regime.valor}>
-                  {regime.rotulo}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Modo de acesso ao SERPRO *</label>
-            <select {...register('modoAcessoSerpro')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <option value="procuracao">Procuração eletrônica</option>
-              <option value="certificado_proprio">Certificado próprio</option>
-            </select>
-          </div>
-
-          {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
-
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={aoFechar}
-              className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 export default function ContabilEmpresas() {
   const navegar = useNavigate();
@@ -171,8 +73,7 @@ export default function ContabilEmpresas() {
   const totalAtivas = empresas.filter((e) => !e.bloqueado).length;
   const totalBloqueadas = empresas.length - totalAtivas;
 
-  async function aoCriarEmpresa(dados) {
-    const nova = await criarEmpresa(dados);
+  function aoCriarEmpresa(nova) {
     setModalAberto(false);
     setEmpresas((atual) => [...atual, nova]);
     navegar(`/contabil/empresas/${nova.id}`);
@@ -230,6 +131,7 @@ export default function ContabilEmpresas() {
                   <th className="px-4 py-3">Razão social</th>
                   <th className="px-4 py-3">CNPJ</th>
                   <th className="px-4 py-3">Acesso SERPRO</th>
+                  <th className="px-4 py-3">Plano</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -251,6 +153,7 @@ export default function ContabilEmpresas() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{empresa.cnpj}</td>
                     <td className="px-4 py-3 text-gray-600">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</td>
+                    <td className="px-4 py-3 text-gray-600">{empresa.planoNome ?? '—'}</td>
                     <td className="px-4 py-3">
                       <BadgeStatus bloqueado={empresa.bloqueado} />
                     </td>
@@ -272,7 +175,14 @@ export default function ContabilEmpresas() {
         )}
       </div>
 
-      {modalAberto && <ModalNovaEmpresa aoFechar={() => setModalAberto(false)} aoCriar={aoCriarEmpresa} />}
+      {modalAberto && (
+        <ModalCadastrarEmpresa
+          ehSuperAdmin={false}
+          meuContadorId={usuario?.contadorId}
+          aoFechar={() => setModalAberto(false)}
+          aoCriar={aoCriarEmpresa}
+        />
+      )}
     </LayoutPrincipal>
   );
 }

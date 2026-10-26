@@ -1,5 +1,6 @@
-// Mesmo catálogo de MODULOS_LICENCIAVEIS do backend (src/pacotes-modulos/dominio/pacote-modulos.ts)
-// -- compartilhado entre AdminPacotes.tsx e AdminPlanos.tsx (antes duplicado em cada arquivo).
+// Mesmo catálogo de MODULOS_LICENCIAVEIS do backend (src/planos/dominio/plano.ts -- antes
+// vivia em pacotes-modulos/, sistema eliminado em 2026-10-26). Usado em AdminPlanos.tsx
+// (os módulos marcados no plano de crédito SERPRO liberam de verdade via assinatura ativa).
 export const MODULOS_DISPONIVEIS = [
   { valor: 'contratos', rotulo: 'Contratos' },
   { valor: 'documentos_societarios', rotulo: 'Documentos Societários' },

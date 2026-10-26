@@ -89,7 +89,7 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           {editando ? 'Editar contador' : 'Novo contador'}
         </h2>
@@ -185,7 +185,7 @@ function ModalBloqueio({ contador, aoFechar, aoConfirmar }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <h2 className="mb-2 text-lg font-semibold text-gray-900">Bloquear {contador.nome}</h2>
         <p className="mb-4 text-sm text-gray-600">
           O contador e as empresas da carteira ficam sem acesso até serem desbloqueados.

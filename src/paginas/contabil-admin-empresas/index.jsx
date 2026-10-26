@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
+import ModalCadastrarEmpresa from '../../components/empresas/ModalCadastrarEmpresa';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
 import { creditarManualmente, debitarManualmente, obterSaldoCreditos } from '../../servicos/creditos';
@@ -10,7 +11,6 @@ import {
   atualizarEmpresa,
   bloquearEmpresa,
   corrigirCnpjEmpresa,
-  criarEmpresa,
   desbloquearEmpresa,
   listarEmpresas,
   transferirCarteiraEmpresa,
@@ -36,9 +36,8 @@ function BadgeStatus({ bloqueado }) {
   );
 }
 
-/** Criar/editar num modal só -- transferir carteira (trocar contadorId numa empresa existente) só pra SUPER_ADMIN. */
+/** Só edição -- criar empresa agora é ModalCadastrarEmpresa (plano+login obrigatórios). Transferir carteira só pra SUPER_ADMIN. */
 function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar }) {
-  const editando = Boolean(empresa);
   const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
   const [transferindoCarteira, setTransferindoCarteira] = useState(false);
   const {
@@ -75,28 +74,17 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
 
   async function aoSubmeter(dados) {
     try {
-      if (editando) {
-        if (transferindoCarteira && dados.contadorId !== empresa.contadorId) {
-          await transferirCarteiraEmpresa(empresa.id, dados.contadorId);
-        }
-        if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
-          await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
-        }
-        await atualizarEmpresa(empresa.id, {
-          razaoSocial: dados.razaoSocial,
-          nomeFantasia: dados.nomeFantasia || null,
-          regimeTributario: dados.regimeTributario || null,
-        });
-      } else {
-        await criarEmpresa({
-          contadorId: dados.contadorId,
-          razaoSocial: dados.razaoSocial,
-          nomeFantasia: dados.nomeFantasia || null,
-          cnpj: dados.cnpj.replace(/\D/g, ''),
-          regimeTributario: dados.regimeTributario || null,
-          modoAcessoSerpro: dados.modoAcessoSerpro,
-        });
+      if (transferindoCarteira && dados.contadorId !== empresa.contadorId) {
+        await transferirCarteiraEmpresa(empresa.id, dados.contadorId);
       }
+      if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
+        await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
+      }
+      await atualizarEmpresa(empresa.id, {
+        razaoSocial: dados.razaoSocial,
+        nomeFantasia: dados.nomeFantasia || null,
+        regimeTributario: dados.regimeTributario || null,
+      });
       aoSalvar();
     } catch (erro) {
       setError('root', { message: erro.message ?? 'Não foi possível salvar' });
@@ -105,13 +93,13 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">{editando ? 'Editar empresa' : 'Nova empresa'}</h2>
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Editar empresa</h2>
         <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
           <div>
             <div className="flex items-center justify-between">
               <label className="mb-1 block text-sm font-medium text-gray-700">Contador da carteira *</label>
-              {editando && ehSuperAdmin && !transferindoCarteira && (
+              {ehSuperAdmin && !transferindoCarteira && (
                 <button type="button" onClick={aoClicarTransferirCarteira} className="text-xs font-medium text-blue-700 hover:underline">
                   Transferir carteira
                 </button>
@@ -119,7 +107,7 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
             </div>
             <select
               {...register('contadorId', { required: true })}
-              disabled={editando && !transferindoCarteira}
+              disabled={!transferindoCarteira}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             >
               {contadores.map((contador) => (
@@ -128,7 +116,7 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
                 </option>
               ))}
             </select>
-            {editando && !transferindoCarteira && !ehSuperAdmin && (
+            {!transferindoCarteira && !ehSuperAdmin && (
               <p className="mt-1 text-xs text-gray-400">Só o admin pode transferir uma empresa entre carteiras.</p>
             )}
             {transferindoCarteira && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa transferência é registrada em auditoria.</p>}
@@ -151,7 +139,7 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
           <div>
             <div className="flex items-center justify-between">
               <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
-              {editando && !corrigindoCnpj && (
+              {!corrigindoCnpj && (
                 <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
                   Corrigir CNPJ
                 </button>
@@ -159,12 +147,12 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
             </div>
             <input
               {...register('cnpj', { required: 'Obrigatório' })}
-              disabled={editando && !corrigindoCnpj}
+              disabled={!corrigindoCnpj}
               placeholder="00.000.000/0000-00"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             />
             {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
-            {editando && !corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
+            {!corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
               <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
             )}
             {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
@@ -181,16 +169,6 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
               ))}
             </select>
           </div>
-
-          {!editando && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Modo de acesso ao SERPRO *</label>
-              <select {...register('modoAcessoSerpro')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                <option value="procuracao">Procuração eletrônica</option>
-                <option value="certificado_proprio">Certificado próprio</option>
-              </select>
-            </div>
-          )}
 
           {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
 
@@ -395,7 +373,8 @@ export default function ContabilAdminEmpresas() {
   const [filtroCnpj, setFiltroCnpj] = useState('');
   const [filtroContadorId, setFiltroContadorId] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
-  const [modalEmpresa, setModalEmpresa] = useState(null); // null | { empresa?: Empresa } (empresa ausente = criar)
+  const [modalEmpresa, setModalEmpresa] = useState(null); // edição de empresa existente
+  const [modalNovaEmpresa, setModalNovaEmpresa] = useState(false);
   const [modalBloqueio, setModalBloqueio] = useState(null);
   const [modalCreditos, setModalCreditos] = useState(null);
   const [acaoEmAndamento, setAcaoEmAndamento] = useState(null);
@@ -498,7 +477,7 @@ export default function ContabilAdminEmpresas() {
           <h1 className="text-xl font-semibold text-gray-900">Empresas (todas)</h1>
           {ehSuperAdmin && (
             <button
-              onClick={() => setModalEmpresa({})}
+              onClick={() => setModalNovaEmpresa(true)}
               disabled={contadores.length === 0}
               title={contadores.length === 0 ? 'Cadastre um contador antes' : undefined}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -576,6 +555,7 @@ export default function ContabilAdminEmpresas() {
                   <th className="px-4 py-3">CNPJ</th>
                   <th className="px-4 py-3">Contador</th>
                   <th className="px-4 py-3">Acesso SERPRO</th>
+                  <th className="px-4 py-3">Plano</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Ações</th>
                 </tr>
@@ -597,6 +577,7 @@ export default function ContabilAdminEmpresas() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{mapaContadorNome[empresa.contadorId] ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</td>
+                    <td className="px-4 py-3 text-gray-600">{empresa.planoNome ?? '—'}</td>
                     <td className="px-4 py-3">
                       <BadgeStatus bloqueado={empresa.bloqueado} />
                     </td>
@@ -624,7 +605,8 @@ export default function ContabilAdminEmpresas() {
                 <p className="text-sm text-gray-600">
                   Contador: <span className="font-medium">{mapaContadorNome[empresa.contadorId] ?? '—'}</span>
                 </p>
-                <p className="mb-3 text-xs text-gray-400">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</p>
+                <p className="text-xs text-gray-400">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</p>
+                <p className="mb-3 text-xs text-gray-400">Plano: {empresa.planoNome ?? '—'}</p>
 
                 <div className="border-t border-gray-100 pt-3">
                   <Acoes empresa={empresa} />
@@ -634,6 +616,18 @@ export default function ContabilAdminEmpresas() {
           </div>
         )}
       </div>
+
+      {modalNovaEmpresa && (
+        <ModalCadastrarEmpresa
+          contadores={contadores}
+          ehSuperAdmin={ehSuperAdmin}
+          aoFechar={() => setModalNovaEmpresa(false)}
+          aoCriar={() => {
+            setModalNovaEmpresa(false);
+            carregar();
+          }}
+        />
+      )}
 
       {modalEmpresa && (
         <ModalEmpresa
