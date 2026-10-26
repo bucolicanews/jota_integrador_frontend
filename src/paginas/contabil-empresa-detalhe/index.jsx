@@ -5,6 +5,7 @@ import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import CardAcessoEmpresa from '../../components/empresas/CardAcessoEmpresa';
+import CardGerenciarPlanoAssinatura from '../../components/empresas/CardGerenciarPlanoAssinatura';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -298,6 +299,11 @@ export default function ContabilEmpresaDetalhe() {
               {mensagemSalvo && <span className="text-sm text-green-700">{mensagemSalvo}</span>}
             </div>
           </form>
+        </div>
+
+        <div className="mb-4 rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Plano de Crédito SERPRO</h2>
+          <CardGerenciarPlanoAssinatura empresaId={id} contadorId={empresa.contadorId} />
         </div>
 
         <div className="rounded-lg bg-white p-6 shadow">

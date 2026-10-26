@@ -12,6 +12,8 @@ export const bloquearAssinatura = (contadorId, empresaId) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/bloquear`);
 export const cancelarAssinatura = (contadorId, empresaId) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/cancelar`);
+export const atualizarVencimentoAssinatura = (contadorId, empresaId, fimEm) =>
+  api.patch(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/vencimento`, { fimEm });
 export const iniciarPagamentoAssinatura = (
   contadorId,
   empresaId,
