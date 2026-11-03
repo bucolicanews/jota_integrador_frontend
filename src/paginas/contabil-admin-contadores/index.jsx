@@ -6,6 +6,7 @@ import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import {
   atualizarContador,
+  atualizarModulosContador,
   bloquearContador,
   corrigirCnpjCpfContador,
   criarContador,
@@ -17,6 +18,31 @@ import { listarEmpresas } from '../../servicos/empresas';
 import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
 const ROTULO_TIPO = { humano: 'Escritório/Pessoa física', interno_jota: 'Interno JOTA' };
+
+// Mesmas 9 seções do MenuLateral (SECOES_MENU) -- só as 7 chaves que de fato são
+// gateadas por módulo aparecem com badge; as demais seções não têm nenhum item com
+// `modulo:` (são núcleo ou gateadas só por papel), por isso ficam "sempre disponível".
+const GRUPOS_MODULO = [
+  { titulo: 'Geral', chaves: [] },
+  { titulo: 'Escritório', chaves: [] },
+  { titulo: 'Contabilidade', chaves: ['conciliacao_bancaria', 'bancos'] },
+  { titulo: 'Fiscal', chaves: ['fiscal'] },
+  { titulo: 'Cadastros', chaves: [] },
+  { titulo: 'Atendimento', chaves: ['protocolos'] },
+  { titulo: 'Contratos & Societário', chaves: ['contratos', 'documentos_societarios'] },
+  { titulo: 'Relatórios', chaves: ['relatorios'] },
+  { titulo: 'Administração', chaves: [] },
+];
+
+const ROTULO_MODULO = {
+  conciliacao_bancaria: 'Conciliação Bancária',
+  bancos: 'Bancos',
+  fiscal: 'Fiscal (DAS/Caixa Postal)',
+  protocolos: 'Protocolos',
+  contratos: 'Contratos',
+  documentos_societarios: 'Documentos Societários',
+  relatorios: 'Relatórios',
+};
 
 const formatarCnpjCpf = (valor) => {
   const digitos = (valor ?? '').replace(/\D/g, '');
@@ -254,6 +280,83 @@ function ListaEmpresasDoContador({ empresas }) {
   );
 }
 
+/** Admin edita quais módulos o ESCRITÓRIO do contador (não a carteira de clientes) pode usar -- cada empresa-cliente continua 100% pelo próprio plano da assinatura. */
+function ModalModulosContador({ contador, aoFechar, aoSalvar }) {
+  const [selecionados, setSelecionados] = useState(new Set(contador.modulosLiberados ?? []));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  function alternar(chave) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.add(chave);
+      return novo;
+    });
+  }
+
+  async function aoConfirmar() {
+    setSalvando(true);
+    setErro(null);
+    try {
+      await atualizarModulosContador(contador.id, Array.from(selecionados));
+      aoSalvar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message ?? 'Não foi possível salvar os módulos');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">Módulos de {contador.nome}</h2>
+        <p className="mb-4 text-xs text-gray-500">
+          Controla o que o escritório PRÓPRIO deste contador pode usar. Não afeta as empresas-cliente da carteira dele --
+          essas continuam liberadas pelo plano da assinatura de cada uma.
+        </p>
+
+        <div className="space-y-3">
+          {GRUPOS_MODULO.filter((grupo) => grupo.chaves.length > 0).map((grupo) => (
+            <div key={grupo.titulo}>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{grupo.titulo}</p>
+              <div className="space-y-1.5">
+                {grupo.chaves.map((chave) => (
+                  <label key={chave} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={selecionados.has(chave)} onChange={() => alternar(chave)} />
+                    {ROTULO_MODULO[chave]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {erro && <p className="mt-3 text-sm text-red-600">{erro}</p>}
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={aoFechar}
+            className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={aoConfirmar}
+            disabled={salvando}
+            className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {salvando ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContabilAdminContadores() {
   const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
@@ -270,6 +373,7 @@ export default function ContabilAdminContadores() {
   const [empresasPorContador, setEmpresasPorContador] = useState({});
   const [modalContador, setModalContador] = useState(null); // null | { contador?: Contador } (contador ausente = criar)
   const [modalBloqueio, setModalBloqueio] = useState(null); // Contador | null
+  const [modalModulos, setModalModulos] = useState(null); // Contador | null
   const [acaoEmAndamento, setAcaoEmAndamento] = useState(null);
 
   async function carregar() {
@@ -366,6 +470,13 @@ export default function ContabilAdminContadores() {
           className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
         >
           Créditos
+        </button>
+        <button
+          onClick={() => setModalModulos(contador)}
+          title="Módulos liberados pro escritório próprio deste contador (não afeta a carteira de clientes dele)"
+          className="rounded-md border border-purple-300 px-2.5 py-1 text-xs font-medium text-purple-700 hover:bg-purple-50"
+        >
+          Módulos
         </button>
         {ehSuperAdmin &&
           (contador.bloqueado ? (
@@ -570,6 +681,17 @@ export default function ContabilAdminContadores() {
           aoFechar={() => setModalBloqueio(null)}
           aoConfirmar={() => {
             setModalBloqueio(null);
+            carregar();
+          }}
+        />
+      )}
+
+      {modalModulos && (
+        <ModalModulosContador
+          contador={modalModulos}
+          aoFechar={() => setModalModulos(null)}
+          aoSalvar={() => {
+            setModalModulos(null);
             carregar();
           }}
         />

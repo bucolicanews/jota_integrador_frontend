@@ -15,3 +15,6 @@ export const desbloquearContador = (id) => api.post(`/contadores/${id}/desbloque
 // (carteira vazia, sem login, sem assinatura/crédito/consulta) -- backend bloqueia com
 // 409 e uma lista do que resolver antes, senão.
 export const deletarContador = (id) => api.delete(`/contadores/${id}`);
+// Módulos que o escritório PRÓPRIO do contador (não a carteira de clientes) pode usar --
+// editável só por plataforma.
+export const atualizarModulosContador = (id, modulos) => api.patch(`/contadores/${id}/modulos`, { modulos });
