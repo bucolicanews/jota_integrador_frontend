@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { criarEmpresa } from '../../servicos/empresas';
+import { listarModelosPlanoContas } from '../../servicos/planoContas';
 import { listarPlanos, listarPlanosRevendaCreditos } from '../../servicos/assinatura';
 import { obterStatusPagbankConta } from '../../servicos/pagbankLicencas';
 import FormularioCheckoutPagbank from '../pagbank/FormularioCheckoutPagbank';
@@ -26,6 +27,13 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
   const [resultadoFinal, setResultadoFinal] = useState(null); // { empresa, pagamento, cobranca }
+  const [modelosPlanoContas, setModelosPlanoContas] = useState([]);
+
+  useEffect(() => {
+    listarModelosPlanoContas()
+      .then(setModelosPlanoContas)
+      .catch(() => setModelosPlanoContas([]));
+  }, []);
 
   const {
     register,
@@ -39,6 +47,7 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
       cnpj: '',
       regimeTributario: '',
       modoAcessoSerpro: 'procuracao',
+      planoContasModelo: '',
     },
   });
 
@@ -58,6 +67,7 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
         cnpj: dadosEmpresa.cnpj.replace(/\D/g, ''),
         regimeTributario: dadosEmpresa.regimeTributario || null,
         modoAcessoSerpro: dadosEmpresa.modoAcessoSerpro,
+        planoContasModelo: dadosEmpresa.planoContasModelo || null,
         ...payload,
       });
       setResultadoFinal({
@@ -163,6 +173,16 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
                 <option value="procuracao">Procuração eletrônica</option>
                 <option value="certificado_proprio">Certificado próprio</option>
               </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Modelo de plano de contas</label>
+              <select {...register('planoContasModelo')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <option value="">Nenhum -- montar na mão depois</option>
+                {modelosPlanoContas.map((m) => (
+                  <option key={m.chave} value={m.chave}>{m.rotulo}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Já popula o plano de contas da empresa com um modelo pronto.</p>
             </div>
 
             <div className="flex gap-2 pt-2">

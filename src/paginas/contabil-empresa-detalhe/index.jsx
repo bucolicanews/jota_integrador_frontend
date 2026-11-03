@@ -17,6 +17,7 @@ import {
   obterEmpresa,
 } from '../../servicos/empresas';
 import { testarConexaoSerpro } from '../../servicos/acessoSerpro';
+import { notificarSaldoCreditosAtualizado } from '../../servicos/creditos';
 import { validarCnpj } from '../../utils/validarCnpj';
 
 const formatarCnpj = (valor) => {
@@ -140,6 +141,7 @@ export default function ContabilEmpresaDetalhe() {
     try {
       const resultado = await testarConexaoSerpro(id);
       setResultadoTeste(resultado);
+      notificarSaldoCreditosAtualizado();
     } catch (erroRequisicao) {
       setResultadoTeste({ sucesso: false, motivo: erroRequisicao.message });
     } finally {

@@ -4,6 +4,9 @@ import { api } from './api';
 export const obterProcuracao = (empresaId) => api.get(`/empresas/${empresaId}/procuracao`);
 export const atualizarStatusProcuracao = (empresaId, dados) =>
   api.patch(`/empresas/${empresaId}/procuracao`, dados);
+// Sincronização sob demanda (contador/empresário) -- chama o SERPRO de verdade pra
+// atualizar o status local, sem esperar o cron diário (5h). Mesmo custo de crédito do cron.
+export const sincronizarProcuracao = (empresaId) => api.post(`/empresas/${empresaId}/procuracao/sincronizar`);
 
 // Certificado (Modo B) -- metadados só (arquivo/senha nunca voltam da API, docs/SEGURANCA.md)
 export const listarCertificados = (empresaId) => api.get(`/empresas/${empresaId}/certificado`);

@@ -42,7 +42,7 @@ function CardResumo({ label, valor, icone: Icone, cor }: { label: string; valor:
   );
 }
 
-export default function DetalheFolhaPonto({ funcionario }: { funcionario: any }) {
+export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false }: { funcionario: any; somenteLeitura?: boolean }) {
   const agora = new Date();
   const [ano, setAno] = useState(agora.getFullYear());
   const [mes, setMes] = useState(agora.getMonth() + 1);
@@ -165,25 +165,36 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
                 <AlertTriangle className="h-4 w-4" /> Dias de folga fixa trabalhados sem decisão:
               </p>
               <div className="flex flex-wrap gap-2">
-                {resumo.diasQuePrecisamGestao.map((dia: string) => (
-                  <Button key={dia} size="sm" variant="outline" className="h-7 bg-white text-xs" onClick={() => setDialogFolga({ aberto: true, data: dia })}>
-                    {new Date(`${dia}T00:00:00`).toLocaleDateString('pt-BR')}
-                  </Button>
-                ))}
+                {resumo.diasQuePrecisamGestao.map((dia: string) =>
+                  somenteLeitura ? (
+                    <span key={dia} className="rounded-md border bg-white px-2 py-1 text-xs">
+                      {new Date(`${dia}T00:00:00`).toLocaleDateString('pt-BR')}
+                    </span>
+                  ) : (
+                    <Button key={dia} size="sm" variant="outline" className="h-7 bg-white text-xs" onClick={() => setDialogFolga({ aberto: true, data: dia })}>
+                      {new Date(`${dia}T00:00:00`).toLocaleDateString('pt-BR')}
+                    </Button>
+                  ),
+                )}
               </div>
+              {somenteLeitura && <p className="mt-2 text-xs">Fale com seu gestor pra decidir compensação ou pagamento extra desses dias.</p>}
             </div>
           )}
 
           <div className="mb-4 flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setDialogFaltaAbono(true)}>
-              Falta / Abono
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogFolga({ aberto: true })}>
-              Folga Trabalhada
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setDialogFerias(true)}>
-              Férias
-            </Button>
+            {!somenteLeitura && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => setDialogFaltaAbono(true)}>
+                  Falta / Abono
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDialogFolga({ aberto: true })}>
+                  Folga Trabalhada
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDialogFerias(true)}>
+                  Férias
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="outline" onClick={imprimir}>
               <Printer className="mr-2 h-3.5 w-3.5" /> Imprimir
             </Button>
@@ -196,14 +207,14 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Registros (clique pra excluir um)</TableHead>
-                      <TableHead className="w-[100px] text-right">Ação</TableHead>
+                      <TableHead>Registros{!somenteLeitura && ' (clique pra excluir um)'}</TableHead>
+                      {!somenteLeitura && <TableHead className="w-[100px] text-right">Ação</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {diasOrdenados.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={somenteLeitura ? 2 : 3} className="h-24 text-center text-muted-foreground">
                           Nenhum registro neste mês.
                         </TableCell>
                       </TableRow>
@@ -217,20 +228,22 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
                                 <Badge
                                   key={r.id}
                                   variant={r.tipo === 'entrada' ? 'success' : r.tipo === 'saida' ? 'secondary' : 'outline'}
-                                  className="cursor-pointer"
-                                  onClick={() => excluir(r.id)}
-                                  title="Clique pra excluir"
+                                  className={somenteLeitura ? undefined : 'cursor-pointer'}
+                                  onClick={somenteLeitura ? undefined : () => excluir(r.id)}
+                                  title={somenteLeitura ? undefined : 'Clique pra excluir'}
                                 >
                                   {ROTULO_TIPO[r.tipo] ?? r.tipo} {new Date(r.horarioRegistro).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 </Badge>
                               ))}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="ghost" onClick={() => abrirAjusteDoDia(dia)}>
-                              Ajustar
-                            </Button>
-                          </TableCell>
+                          {!somenteLeitura && (
+                            <TableCell className="text-right">
+                              <Button size="sm" variant="ghost" onClick={() => abrirAjusteDoDia(dia)}>
+                                Ajustar
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
@@ -242,23 +255,27 @@ export default function DetalheFolhaPonto({ funcionario }: { funcionario: any })
         </>
       )}
 
-      <GerenciarFaltaAbonoDialog funcionarioId={funcionario.id} open={dialogFaltaAbono} onOpenChange={setDialogFaltaAbono} onSalvo={carregar} />
-      <GerenciarFolgaTrabalhadaDialog
-        funcionarioId={funcionario.id}
-        data={dialogFolga.data}
-        open={dialogFolga.aberto}
-        onOpenChange={(aberto) => setDialogFolga({ aberto })}
-        onSalvo={carregar}
-      />
-      <GerenciarFeriasDialog funcionarioId={funcionario.id} open={dialogFerias} onOpenChange={setDialogFerias} onSalvo={carregar} />
-      <AjustarRegistrosDialog
-        funcionarioId={funcionario.id}
-        data={dialogAjuste.data}
-        batidasIniciais={dialogAjuste.batidas}
-        open={dialogAjuste.aberto}
-        onOpenChange={(aberto) => setDialogAjuste((s) => ({ ...s, aberto }))}
-        onSalvo={carregar}
-      />
+      {!somenteLeitura && (
+        <>
+          <GerenciarFaltaAbonoDialog funcionarioId={funcionario.id} open={dialogFaltaAbono} onOpenChange={setDialogFaltaAbono} onSalvo={carregar} />
+          <GerenciarFolgaTrabalhadaDialog
+            funcionarioId={funcionario.id}
+            data={dialogFolga.data}
+            open={dialogFolga.aberto}
+            onOpenChange={(aberto) => setDialogFolga({ aberto })}
+            onSalvo={carregar}
+          />
+          <GerenciarFeriasDialog funcionarioId={funcionario.id} open={dialogFerias} onOpenChange={setDialogFerias} onSalvo={carregar} />
+          <AjustarRegistrosDialog
+            funcionarioId={funcionario.id}
+            data={dialogAjuste.data}
+            batidasIniciais={dialogAjuste.batidas}
+            open={dialogAjuste.aberto}
+            onOpenChange={(aberto) => setDialogAjuste((s) => ({ ...s, aberto }))}
+            onSalvo={carregar}
+          />
+        </>
+      )}
     </div>
   );
 }

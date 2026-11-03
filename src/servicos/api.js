@@ -37,6 +37,30 @@ async function requisicao(caminho, opcoes = {}) {
   return corpo;
 }
 
+/** Downloads (CSV/arquivo): resposta não é JSON, então não passa pelo requisicao() acima. */
+async function requisicaoArquivo(caminho, opcoes = {}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const resposta = await fetch(`${URL_BASE}${caminho}`, {
+    ...opcoes,
+    headers: {
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      ...opcoes.headers,
+    },
+  });
+
+  if (!resposta.ok) {
+    const corpo = await resposta.json().catch(() => null);
+    const erro = new Error(corpo?.message ?? `Erro ${resposta.status} ao chamar ${caminho}`);
+    erro.status = resposta.status;
+    throw erro;
+  }
+
+  return resposta.blob();
+}
+
 export const api = {
   get: (caminho) => requisicao(caminho, { method: 'GET' }),
   post: (caminho, dados) => requisicao(caminho, { method: 'POST', body: JSON.stringify(dados) }),
@@ -44,4 +68,5 @@ export const api = {
   put: (caminho, dados) => requisicao(caminho, { method: 'PUT', body: JSON.stringify(dados) }),
   delete: (caminho) => requisicao(caminho, { method: 'DELETE' }),
   postFormData: (caminho, formData) => requisicao(caminho, { method: 'POST', body: formData }),
+  getArquivo: (caminho) => requisicaoArquivo(caminho, { method: 'GET' }),
 };

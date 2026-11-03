@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { BookOpen, ChevronDown, Loader2, PlusCircle } from 'lucide-react';
+import { BookOpen, ChevronDown, FileDown, FileUp, Loader2, PlusCircle, Upload } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -17,8 +18,12 @@ import EditableCell from '../components/contabilidade/EditableCell';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import {
   atualizarContaContabil,
+  baixarModeloPlanoContas,
   criarContaContabil,
   desativarContaContabil,
+  exportarPlanoContas,
+  importarPlanoContas,
+  listarModelosPlanoContas,
   listarPlanoContas,
   reativarContaContabil,
 } from '../servicos/planoContas';
@@ -233,6 +238,19 @@ export default function PlanoContas() {
   const [contaEditando, setContaEditando] = useState<Conta | null>(null);
   const [contaPaiSugerida, setContaPaiSugerida] = useState<Conta | null>(null);
   const [saldos, setSaldos] = useState<Record<string, number | 'carregando' | 'erro'>>({});
+  const [dialogImportarAberto, setDialogImportarAberto] = useState(false);
+  const [arquivoImportar, setArquivoImportar] = useState<File | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [exportando, setExportando] = useState(false);
+  const [modelos, setModelos] = useState<{ chave: string; rotulo: string }[]>([]);
+  const [baixandoModelo, setBaixandoModelo] = useState<string | null>(null);
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    listarModelosPlanoContas()
+      .then(setModelos)
+      .catch((erro: any) => showError(erro.message));
+  }, []);
 
   async function carregar() {
     if (!empresaId) return;
@@ -262,6 +280,60 @@ export default function PlanoContas() {
       return true;
     });
   }, [contas, busca, filtroGrupo, filtroTipo]);
+
+  async function aoImportar() {
+    if (!empresaId || !arquivoImportar) return;
+    setImportando(true);
+    try {
+      const resultado = await importarPlanoContas(empresaId, arquivoImportar);
+      showSuccess(
+        `Plano importado: ${resultado.criadas} criada(s), ${resultado.atualizadas} atualizada(s), ${resultado.desativadas} desativada(s).`,
+      );
+      setDialogImportarAberto(false);
+      setArquivoImportar(null);
+      if (inputArquivoRef.current) inputArquivoRef.current.value = '';
+      carregar();
+    } catch (erro: any) {
+      showError(erro.message);
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  async function aoExportar() {
+    if (!empresaId) return;
+    setExportando(true);
+    try {
+      const blob = await exportarPlanoContas(empresaId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `plano-contas-${empresaId}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (erro: any) {
+      showError(erro.message);
+    } finally {
+      setExportando(false);
+    }
+  }
+
+  async function aoBaixarModelo(chave: string) {
+    setBaixandoModelo(chave);
+    try {
+      const blob = await baixarModeloPlanoContas(chave);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `plano-contas-padrao-${chave}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (erro: any) {
+      showError(erro.message);
+    } finally {
+      setBaixandoModelo(null);
+    }
+  }
 
   async function verSaldo(contaId: string) {
     if (!empresaId) return;
@@ -311,18 +383,70 @@ export default function PlanoContas() {
         <h1 className="flex items-center text-2xl font-bold md:text-3xl">
           <BookOpen className="mr-2 h-6 w-6" /> Plano de Contas
         </h1>
-        <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-          <Button onClick={() => abrirNovaConta(null)}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Nova conta
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+            <Button onClick={() => abrirNovaConta(null)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Nova conta
+            </Button>
+            <ModalConta
+              conta={contaEditando}
+              contaPaiSugerida={contaPaiSugerida}
+              contasSinteticas={contasSinteticas}
+              aoFechar={() => setDialogAberto(false)}
+              aoSalvar={aoSalvarConta}
+            />
+          </Dialog>
+          <Dialog open={dialogImportarAberto} onOpenChange={setDialogImportarAberto}>
+            <Button variant="outline" onClick={() => setDialogImportarAberto(true)}>
+              <Upload className="mr-2 h-4 w-4" /> Importar Plano de Contas
+            </Button>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Importar Plano de Contas</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+                  A importação atualiza as contas do arquivo e desativa (nunca apaga) as contas atuais que não aparecem no
+                  novo arquivo. Contas com lançamentos continuam preservadas no histórico.
+                </p>
+                <Input
+                  ref={inputArquivoRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => setArquivoImportar(e.target.files?.[0] ?? null)}
+                />
+                <div className="flex gap-2 pt-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setDialogImportarAberto(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" className="flex-1" onClick={aoImportar} disabled={!arquivoImportar || importando}>
+                    {importando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Importar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={aoExportar} disabled={exportando}>
+            {exportando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            Exportar CSV
           </Button>
-          <ModalConta
-            conta={contaEditando}
-            contaPaiSugerida={contaPaiSugerida}
-            contasSinteticas={contasSinteticas}
-            aoFechar={() => setDialogAberto(false)}
-            aoSalvar={aoSalvarConta}
-          />
-        </Dialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <FileUp className="mr-2 h-4 w-4" /> Baixar Plano Padrão
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {modelos.map((m) => (
+                <DropdownMenuItem key={m.chave} disabled={baixandoModelo === m.chave} onClick={() => aoBaixarModelo(m.chave)}>
+                  {baixandoModelo === m.chave ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {m.rotulo}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">

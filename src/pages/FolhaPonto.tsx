@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { ArrowLeft, Loader2, Users } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import DetalheFolhaPonto from '../components/ponto/DetalheFolhaPonto';
 import { listarContadores } from '../servicos/contadores';
@@ -25,6 +26,7 @@ export default function FolhaPonto() {
   const [funcionarios, setFuncionarios] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<any | null>(null);
+  const [busca, setBusca] = useState('');
 
   useEffect(() => {
     if (papelAtual === 'SUPER_ADMIN') {
@@ -47,6 +49,12 @@ export default function FolhaPonto() {
       .finally(() => setCarregando(false));
   }
   useEffect(carregar, [papelAtual, contadorFiltro]);
+
+  const funcionariosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return funcionarios;
+    return funcionarios.filter((f) => `${f.nome} ${f.email}`.toLowerCase().includes(termo));
+  }, [funcionarios, busca]);
 
   if (!papelAtual) return null;
 
@@ -75,23 +83,29 @@ export default function FolhaPonto() {
         <Users className="mr-2 h-6 w-6" /> Folha de Ponto
       </h1>
 
-      {papelAtual === 'SUPER_ADMIN' && (
-        <div className="mb-4 max-w-xs space-y-1.5">
-          <Label>Contador</Label>
-          <Select value={contadorFiltro} onValueChange={setContadorFiltro}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um contador" />
-            </SelectTrigger>
-            <SelectContent>
-              {contadores.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome ?? c.razaoSocial}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        {papelAtual === 'SUPER_ADMIN' && (
+          <div className="max-w-xs space-y-1.5">
+            <Label>Contador</Label>
+            <Select value={contadorFiltro} onValueChange={setContadorFiltro}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um contador" />
+              </SelectTrigger>
+              <SelectContent>
+                {contadores.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome ?? c.razaoSocial}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="max-w-xs flex-1 space-y-1.5">
+          <Label>Buscar</Label>
+          <Input placeholder="Nome ou email..." value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
-      )}
+      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -107,23 +121,31 @@ export default function FolhaPonto() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Papel</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="w-[100px] text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {funcionarios.length === 0 ? (
+                  {funcionariosFiltrados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                        {papelAtual === 'SUPER_ADMIN' && !contadorFiltro ? 'Selecione um contador pra ver a equipe.' : 'Nenhum funcionário cadastrado.'}
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                        {papelAtual === 'SUPER_ADMIN' && !contadorFiltro
+                          ? 'Selecione um contador pra ver a equipe.'
+                          : funcionarios.length === 0
+                            ? 'Nenhum funcionário cadastrado.'
+                            : 'Nenhum funcionário encontrado com essa busca.'}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    funcionarios.map((f) => (
+                    funcionariosFiltrados.map((f) => (
                       <TableRow key={f.id}>
                         <TableCell className="font-medium">{f.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{f.email}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">{ROTULO_PAPEL[f.papel] ?? f.papel}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={f.bloqueado ? 'destructive' : 'success'}>{f.bloqueado ? 'Bloqueado' : 'Ativo'}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="ghost" onClick={() => setFuncionarioSelecionado(f)}>

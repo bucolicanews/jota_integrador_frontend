@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
 import { obterEmpresa } from '../../servicos/empresas';
-import { atualizarStatusProcuracao, obterProcuracao } from '../../servicos/acessoSerpro';
+import { atualizarStatusProcuracao, obterProcuracao, sincronizarProcuracao } from '../../servicos/acessoSerpro';
+import { notificarSaldoCreditosAtualizado, obterSaldoCreditos } from '../../servicos/creditos';
 
 const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
 
@@ -27,6 +28,8 @@ function SecaoProcuracao({ empresaId, podeEditar }) {
   const [erro, setErro] = useState(null);
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [mensagemCredito, setMensagemCredito] = useState(null);
   const { register, handleSubmit, reset } = useForm();
 
   async function carregar() {
@@ -51,6 +54,28 @@ function SecaoProcuracao({ empresaId, podeEditar }) {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
+
+  async function aoSincronizar() {
+    setSincronizando(true);
+    setMensagemCredito(null);
+    try {
+      const { saldo: saldoAntes } = await obterSaldoCreditos(empresaId);
+      await sincronizarProcuracao(empresaId);
+      await carregar();
+      const { saldo: saldoDepois } = await obterSaldoCreditos(empresaId);
+      notificarSaldoCreditosAtualizado();
+      const gasto = saldoAntes - saldoDepois;
+      setMensagemCredito(
+        gasto > 0
+          ? `Consulta gastou ${gasto} crédito(s). Saldo atual: ${saldoDepois}.`
+          : `Consulta não gastou crédito (estornado automaticamente por falha). Saldo atual: ${saldoDepois}.`,
+      );
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   async function aoSalvar(dados) {
     setSalvando(true);
@@ -105,14 +130,27 @@ function SecaoProcuracao({ empresaId, podeEditar }) {
         </div>
       </dl>
 
-      {podeEditar && !editando && (
+      <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => setEditando(true)}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={aoSincronizar}
+          disabled={sincronizando}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          Sincronizar status manualmente
+          {sincronizando ? 'Sincronizando...' : 'Sincronizar com o SERPRO agora'}
         </button>
-      )}
+        {podeEditar && !editando && (
+          <button
+            onClick={() => setEditando(true)}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Ajustar status manualmente
+          </button>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-gray-500">
+        Chama o SERPRO de verdade pra confirmar a procuração outorgada no gov.br (gasta 1 crédito) -- não espera o sincronismo automático da madrugada.
+      </p>
+      {mensagemCredito && <p className="mt-2 text-sm font-medium text-gray-700">{mensagemCredito}</p>}
 
       {podeEditar && editando && (
         <form onSubmit={handleSubmit(aoSalvar)} className="space-y-3 border-t border-gray-100 pt-4">

@@ -8,3 +8,14 @@ export const desativarContaContabil = (empresaId, contaId) =>
   api.post(`/empresas/${empresaId}/plano-contas/${contaId}/desativar`);
 export const reativarContaContabil = (empresaId, contaId) =>
   api.post(`/empresas/${empresaId}/plano-contas/${contaId}/reativar`);
+
+export const importarPlanoContas = (empresaId, arquivo) => {
+  const formData = new FormData();
+  formData.append('arquivo', arquivo);
+  return api.postFormData(`/empresas/${empresaId}/plano-contas/importar`, formData);
+};
+
+export const exportarPlanoContas = (empresaId) => api.getArquivo(`/empresas/${empresaId}/plano-contas/exportar`);
+
+export const listarModelosPlanoContas = () => api.get('/plano-contas-modelos');
+export const baixarModeloPlanoContas = (modelo) => api.getArquivo(`/plano-contas-modelos/${modelo}/csv`);

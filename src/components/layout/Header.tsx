@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { cn } from '@/lib/utils';
 import { useAutenticacao } from '../../hooks/useAutenticacao';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
-import { obterSaldoCreditos } from '../../servicos/creditos';
+import { EVENTO_SALDO_CREDITOS_ATUALIZADO, obterSaldoCreditos } from '../../servicos/creditos';
 import { supabase } from '../../servicos/supabase';
 import { limparUsuario } from '../../store/autenticacaoSlice';
 import { useDispatch } from 'react-redux';
@@ -24,15 +24,22 @@ function IndicadorCreditos({ empresaId }: { empresaId: string }) {
 
   useEffect(() => {
     let cancelado = false;
-    obterSaldoCreditos(empresaId)
-      .then((dados) => {
-        if (!cancelado) setSaldo(dados.saldo);
-      })
-      .catch(() => {
-        if (!cancelado) setSaldo(null);
-      });
+
+    function buscar() {
+      obterSaldoCreditos(empresaId)
+        .then((dados) => {
+          if (!cancelado) setSaldo(dados.saldo);
+        })
+        .catch(() => {
+          if (!cancelado) setSaldo(null);
+        });
+    }
+
+    buscar();
+    window.addEventListener(EVENTO_SALDO_CREDITOS_ATUALIZADO, buscar);
     return () => {
       cancelado = true;
+      window.removeEventListener(EVENTO_SALDO_CREDITOS_ATUALIZADO, buscar);
     };
   }, [empresaId]);
 

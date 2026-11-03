@@ -3,12 +3,12 @@ import { useSelector } from 'react-redux';
 import { AlertTriangle, Clock, Loader2, LogIn, LogOut, MapPin } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useGeolocation } from '../hooks/useGeolocation';
+import DetalheFolhaPonto from '../components/ponto/DetalheFolhaPonto';
+import { useGeolocation, type Coordenadas } from '../hooks/useGeolocation';
 import { listarRegistros, registrarBatida } from '../servicos/pontoEletronico';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -26,22 +26,22 @@ export default function PontoEletronico() {
   const podeBater = usuario?.papel === 'OPERADOR_CONTADOR' || usuario?.papel === 'OPERADOR_EMPRESA';
 
   const [registrosMes, setRegistrosMes] = useState<any[]>([]);
-  const [carregando, setCarregando] = useState(true);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [usarManual, setUsarManual] = useState(false);
   const [latManual, setLatManual] = useState('');
   const [lngManual, setLngManual] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [confirmAberto, setConfirmAberto] = useState(false);
+  const [coordenadasConfirmacao, setCoordenadasConfirmacao] = useState<Coordenadas | null>(null);
   const geo = useGeolocation();
 
   function carregar() {
     if (!podeBater) return;
     const agora = new Date();
-    setCarregando(true);
     listarRegistros({ ano: agora.getFullYear(), mes: agora.getMonth() + 1 })
       .then(setRegistrosMes)
-      .catch((e) => showError(e.message))
-      .finally(() => setCarregando(false));
+      .catch((e) => showError(e.message));
   }
   useEffect(carregar, [podeBater]);
 
@@ -54,28 +54,38 @@ export default function PontoEletronico() {
     ultimaBatida?.tipo === 'entrada' ? (Date.now() - new Date(ultimaBatida.horarioRegistro).getTime()) / 3_600_000 : 0;
   const alertaQuatroHoras = proximaAcao === 'saida' && horasDesdeEntrada >= 4;
 
-  async function confirmarBatida() {
+  async function prepararConfirmacao() {
     if (!selfie) {
       showError('Tire ou selecione a selfie antes de confirmar.');
       return;
     }
+    let coordenadas = geo.coordenadas;
+    if (usarManual && latManual && lngManual) {
+      coordenadas = { latitude: Number(latManual), longitude: Number(lngManual) };
+    } else if (!coordenadas) {
+      coordenadas = await geo.obterLocalizacao();
+    }
+    setCoordenadasConfirmacao(coordenadas);
+    setConfirmAberto(true);
+  }
+
+  async function confirmarBatida() {
     setEnviando(true);
     try {
-      let coordenadas = geo.coordenadas;
-      if (usarManual && latManual && lngManual) {
-        coordenadas = { latitude: Number(latManual), longitude: Number(lngManual) };
-      } else if (!coordenadas) {
-        coordenadas = await geo.obterLocalizacao();
-      }
-
-      await registrarBatida({ selfie, latitude: coordenadas?.latitude ?? null, longitude: coordenadas?.longitude ?? null });
+      await registrarBatida({
+        selfie,
+        latitude: coordenadasConfirmacao?.latitude ?? null,
+        longitude: coordenadasConfirmacao?.longitude ?? null,
+      });
       showSuccess(`${ROTULO_TIPO[proximaAcao]} registrada com sucesso.`);
       setSelfie(null);
       carregar();
+      setRefreshKey((k) => k + 1);
     } catch (e: any) {
       showError(e.message ?? 'Não foi possível registrar a batida');
     } finally {
       setEnviando(false);
+      setConfirmAberto(false);
     }
   }
 
@@ -95,8 +105,8 @@ export default function PontoEletronico() {
         <Clock className="mr-2 h-6 w-6" /> Bater Ponto
       </h1>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="space-y-6">
+        <Card className="max-w-xl">
           <CardHeader>
             <CardTitle className="text-base">Registrar {ROTULO_TIPO[proximaAcao]}</CardTitle>
           </CardHeader>
@@ -145,7 +155,7 @@ export default function PontoEletronico() {
               )}
             </div>
 
-            <Button onClick={confirmarBatida} disabled={enviando || !selfie} className="w-full">
+            <Button onClick={prepararConfirmacao} disabled={enviando || !selfie} className="w-full">
               {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : proximaAcao === 'entrada' ? <LogIn className="mr-2 h-4 w-4" /> : <LogOut className="mr-2 h-4 w-4" />}
               Confirmar {ROTULO_TIPO[proximaAcao]}
             </Button>
@@ -154,50 +164,44 @@ export default function PontoEletronico() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Meu ponto -- este mês</CardTitle>
+            <CardTitle className="text-base">Minha folha de ponto</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            {carregando ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="max-h-[420px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data/Hora</TableHead>
-                      <TableHead>Tipo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registrosMes.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                          Nenhum registro neste mês ainda.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      [...registrosMes]
-                        .reverse()
-                        .map((r) => (
-                          <TableRow key={r.id}>
-                            <TableCell className="text-sm">{new Date(r.horarioRegistro).toLocaleString('pt-BR')}</TableCell>
-                            <TableCell>
-                              <Badge variant={r.tipo === 'entrada' ? 'success' : r.tipo === 'saida' ? 'secondary' : 'outline'}>
-                                {ROTULO_TIPO[r.tipo] ?? r.tipo}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+          <CardContent>
+            <DetalheFolhaPonto key={refreshKey} funcionario={{ id: usuario.id, nome: usuario.nome, email: usuario.email }} somenteLeitura />
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={confirmAberto} onOpenChange={setConfirmAberto}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar registro de ponto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <p>
+              Você está prestes a registrar <span className="font-semibold">{ROTULO_TIPO[proximaAcao]}</span>.
+            </p>
+            {coordenadasConfirmacao ? (
+              <p className="text-xs text-muted-foreground">
+                Localização: {coordenadasConfirmacao.latitude.toFixed(5)}, {coordenadasConfirmacao.longitude.toFixed(5)}
+              </p>
+            ) : (
+              <p className="flex items-center gap-1 text-xs text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5" /> Sem localização -- o registro ficará sem coordenadas.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAberto(false)} disabled={enviando}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmarBatida} disabled={enviando}>
+              {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </LayoutPrincipal>
   );
 }
