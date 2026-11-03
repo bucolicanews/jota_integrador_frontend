@@ -7,7 +7,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { cn } from '@/lib/utils';
 import { useAutenticacao } from '../../hooks/useAutenticacao';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
+import { ROTULO_PAPEL } from '../../constantes/papeis';
 import { EVENTO_SALDO_CREDITOS_ATUALIZADO, obterSaldoCreditos } from '../../servicos/creditos';
+import { obterEmpresa } from '../../servicos/empresas';
+import { obterMeuPerfil } from '../../servicos/perfil';
 import { supabase } from '../../servicos/supabase';
 import { limparUsuario } from '../../store/autenticacaoSlice';
 import { useDispatch } from 'react-redux';
@@ -78,6 +81,31 @@ export default function Header() {
   const mostrarIndicadorCreditos = Boolean(empresaId) && !ehPlataforma;
   const dispatch = useDispatch();
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [razaoSocialPropria, setRazaoSocialPropria] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!usuario) return;
+    obterMeuPerfil()
+      .then((dados) => setAvatarUrl(dados.avatarUrl ?? null))
+      .catch(() => setAvatarUrl(null));
+  }, [usuario]);
+
+  useEffect(() => {
+    // Pro empresário/operador da empresa, a razão social da própria empresa identifica
+    // melhor "quem é" do que o papel cru (EMPRESARIO_DONO) -- contador/plataforma não tem
+    // "a própria empresa" nesse sentido, mantém o rótulo do papel.
+    if (ehContador || ehPlataforma || !empresaId) {
+      setRazaoSocialPropria(null);
+      return;
+    }
+    obterEmpresa(empresaId)
+      .then((dados) => setRazaoSocialPropria(dados.razaoSocial))
+      .catch(() => setRazaoSocialPropria(null));
+  }, [ehContador, ehPlataforma, empresaId]);
+
+  const rotuloIdentidade = razaoSocialPropria ?? (usuario ? ROTULO_PAPEL[usuario.papel] ?? usuario.papel : '');
+
   async function sair() {
     await supabase.auth.signOut();
     dispatch(limparUsuario());
@@ -133,15 +161,19 @@ export default function Header() {
         {usuario && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
-                <User className="h-5 w-5" />
+              <Button variant="ghost" className="relative h-9 w-9 overflow-hidden rounded-full p-0">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="truncate text-sm font-medium leading-none">{usuario.email}</p>
-                  <p className="text-xs leading-none text-primary">{usuario.papel}</p>
+                  <p className="truncate text-xs leading-none text-primary">{rotuloIdentidade}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

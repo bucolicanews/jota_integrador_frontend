@@ -8,26 +8,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '../servicos/supabase';
-import { obterMeuPerfil, atualizarMeuNome } from '../servicos/perfil';
+import { obterMeuPerfil, atualizarMeuNome, atualizarMeuAvatar } from '../servicos/perfil';
 import { atualizarContador, corrigirCnpjCpfContador, obterMeuContador } from '../servicos/contadores';
 import { validarCpfOuCnpj } from '../utils/validarCpfOuCnpj';
 import { showError, showSuccess } from '../utils/toast';
+import { ROTULO_PAPEL } from '../constantes/papeis';
 
 const formatarCnpjCpf = (valor: string) => {
   const digitos = (valor ?? '').replace(/\D/g, '');
   if (digitos.length === 11) return digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   if (digitos.length === 14) return digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   return valor ?? '';
-};
-
-const ROTULO_PAPEL: Record<string, string> = {
-  SUPER_ADMIN: 'Administrador da plataforma',
-  ADMIN_FINANCEIRO: 'Administrador financeiro',
-  ADMIN_SUPORTE: 'Administrador de suporte',
-  CONTADOR_DONO: 'Contador (dono do escritório)',
-  OPERADOR_CONTADOR: 'Operador do escritório',
-  EMPRESARIO_DONO: 'Empresário (dono da empresa)',
-  OPERADOR_EMPRESA: 'Operador da empresa',
 };
 
 interface DadosNome {
@@ -58,6 +49,7 @@ export default function Perfil() {
   const [carregando, setCarregando] = useState(true);
   const [escritorio, setEscritorio] = useState<any | null>(null);
   const [corrigindoDoc, setCorrigindoDoc] = useState(false);
+  const [enviandoAvatar, setEnviandoAvatar] = useState(false);
 
   const {
     register: registrarNome,
@@ -129,6 +121,22 @@ export default function Perfil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ehContador]);
 
+  async function aoEscolherAvatar(evento: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = evento.target.files?.[0];
+    if (!arquivo) return;
+    setEnviandoAvatar(true);
+    try {
+      const atualizado = await atualizarMeuAvatar(arquivo);
+      setPerfil(atualizado);
+      showSuccess('Foto de perfil atualizada.');
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível atualizar a foto de perfil');
+    } finally {
+      setEnviandoAvatar(false);
+      evento.target.value = '';
+    }
+  }
+
   async function aoSalvarNome(dados: DadosNome) {
     try {
       const atualizado = await atualizarMeuNome(dados.nome);
@@ -177,6 +185,29 @@ export default function Perfil() {
             <CardTitle className="text-base">Dados gerais</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 flex items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                {perfil.avatarUrl ? (
+                  <img src={perfil.avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+                ) : (
+                  <UserCog className="h-8 w-8 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <Label htmlFor="avatar-input" className="cursor-pointer text-sm font-medium text-primary hover:underline">
+                  {enviandoAvatar ? 'Enviando...' : 'Trocar foto'}
+                </Label>
+                <input
+                  id="avatar-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={enviandoAvatar}
+                  onChange={aoEscolherAvatar}
+                />
+                <p className="text-xs text-muted-foreground">JPG, PNG ou WEBP, máx. 2MB.</p>
+              </div>
+            </div>
             <form onSubmit={handleSubmitNome(aoSalvarNome)} className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Nome</Label>

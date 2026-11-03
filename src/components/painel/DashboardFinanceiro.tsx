@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowDownCircle, ArrowUpCircle, Banknote, Loader2, Scale, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,46 +109,54 @@ export default function DashboardFinanceiro({ empresaId }: { empresaId: string }
   return (
     <div className="mb-8 space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className={cn('border-l-4', totalSaldo >= 0 ? 'border-green-500' : 'border-red-500')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="flex items-center text-sm font-medium">
-              <Banknote className="mr-2 h-4 w-4" /> Saldo Total (Contas)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={cn('text-2xl font-bold', totalSaldo >= 0 ? 'text-green-600' : 'text-red-600')}>{formatarMoeda(totalSaldo)}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="flex items-center text-sm font-medium">
-              <ArrowUpCircle className="mr-2 h-4 w-4" /> A Receber (30 dias)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatarMoeda(totalReceber30)}</div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-red-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="flex items-center text-sm font-medium">
-              <ArrowDownCircle className="mr-2 h-4 w-4" /> A Pagar (30 dias)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatarMoeda(totalPagar30)}</div>
-          </CardContent>
-        </Card>
-        <Card className={cn('border-l-4', resultadoPrevisto >= 0 ? 'border-green-500' : 'border-red-500')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="flex items-center text-sm font-medium">
-              <TrendingUp className="mr-2 h-4 w-4" /> Resultado Previsto (30 dias)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={cn('text-2xl font-bold', resultadoPrevisto >= 0 ? 'text-green-600' : 'text-red-600')}>{formatarMoeda(resultadoPrevisto)}</div>
-          </CardContent>
-        </Card>
+        <Link to="/bancos" className="block">
+          <Card className={cn('border-l-4 transition-shadow hover:shadow-md', totalSaldo >= 0 ? 'border-green-500' : 'border-red-500')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center text-sm font-medium">
+                <Banknote className="mr-2 h-4 w-4" /> Saldo Total (Contas)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={cn('text-2xl font-bold', totalSaldo >= 0 ? 'text-green-600' : 'text-red-600')}>{formatarMoeda(totalSaldo)}</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/contas-a-receber" className="block">
+          <Card className="border-l-4 border-blue-500 transition-shadow hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center text-sm font-medium">
+                <ArrowUpCircle className="mr-2 h-4 w-4" /> A Receber (30 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{formatarMoeda(totalReceber30)}</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/contas-a-pagar" className="block">
+          <Card className="border-l-4 border-red-500 transition-shadow hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center text-sm font-medium">
+                <ArrowDownCircle className="mr-2 h-4 w-4" /> A Pagar (30 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{formatarMoeda(totalPagar30)}</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/relatorios/fluxo-caixa" className="block">
+          <Card className={cn('border-l-4 transition-shadow hover:shadow-md', resultadoPrevisto >= 0 ? 'border-green-500' : 'border-red-500')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center text-sm font-medium">
+                <TrendingUp className="mr-2 h-4 w-4" /> Resultado Previsto (30 dias)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={cn('text-2xl font-bold', resultadoPrevisto >= 0 ? 'text-green-600' : 'text-red-600')}>{formatarMoeda(resultadoPrevisto)}</div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

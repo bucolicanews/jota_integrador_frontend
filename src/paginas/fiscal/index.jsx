@@ -340,7 +340,7 @@ function CardCaixaPostal({ empresaId }) {
     setMensagens((atual) => atual.map((m) => (m.id === id ? { ...m, status: 'lida' } : m)));
   }
 
-  if (erro) return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Não conseguimos verificar sua caixa postal agora.</p>;
+  if (erro) return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro || 'Não conseguimos verificar sua caixa postal agora.'}</p>;
   if (!mensagens) return <p className="text-sm text-gray-500">Verificando...</p>;
 
   const naoLidas = mensagens.filter((m) => m.status === 'nao_lida').length;
