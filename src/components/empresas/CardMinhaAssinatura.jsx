@@ -7,6 +7,7 @@ const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') :
 
 const ROTULO_STATUS = {
   ativa: { texto: 'Ativa', cor: 'text-green-700 bg-green-50' },
+  vencida: { texto: 'Vencida', cor: 'text-red-700 bg-red-50' },
   bloqueada: { texto: 'Bloqueada', cor: 'text-red-700 bg-red-50' },
   cancelada: { texto: 'Cancelada', cor: 'text-gray-700 bg-gray-100' },
 };
@@ -59,20 +60,33 @@ export default function CardMinhaAssinatura({ empresaId }) {
     return <p className="text-sm text-gray-500">Carregando...</p>;
   }
 
+  // Backend marca 'vencida' por cron de hora em hora (AssinaturasVencimentoCron) -- essa
+  // segunda checagem por data cobre só a janela de atraso entre o fim_em passar e o
+  // cron rodar de novo.
+  const vencida = Boolean(
+    assinatura?.status === 'vencida' ||
+      (assinatura?.status === 'ativa' && assinatura.fimEm && new Date(assinatura.fimEm) < new Date()),
+  );
   const badge = assinatura ? ROTULO_STATUS[assinatura.status] ?? { texto: assinatura.status, cor: 'text-gray-700 bg-gray-100' } : null;
-  const planoAtual = assinatura ? planos.find((p) => p.planoRevendaId === assinatura.planoRevendaId) : null;
+  // planoNome vem direto do backend (join por planoId) -- nunca fica vazio, diferente de
+  // cruzar com o catálogo de revenda (planoRevendaId pode ser null, ex: "Ativar sem
+  // cobrar" do admin -- bug real reportado: aparecia "Plano: —" mesmo com plano ativo).
   const validade = formatarData(assinatura?.fimEm);
 
   return (
     <div className="space-y-3">
       {assinatura ? (
-        <div className="rounded-md bg-gray-50 p-3">
+        <div className={`rounded-md p-3 ${vencida ? 'bg-red-50' : 'bg-gray-50'}`}>
           <p className="text-sm text-gray-600">
             Status:{' '}
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cor}`}>{badge.texto}</span>
           </p>
-          <p className="mt-1 text-sm font-semibold text-gray-900">Plano: {planoAtual?.nome ?? '—'}</p>
-          {validade && <p className="text-xs text-gray-500">Válida até {validade}</p>}
+          <p className="mt-1 text-sm font-semibold text-gray-900">Plano: {assinatura.planoNome ?? '—'}</p>
+          {validade && (
+            <p className={`text-xs ${vencida ? 'font-medium text-red-700' : 'text-gray-500'}`}>
+              {vencida ? `Venceu em ${validade} -- renove abaixo pra continuar consultando` : `Válida até ${validade}`}
+            </p>
+          )}
         </div>
       ) : (
         <p className="text-sm text-gray-600">Nenhuma assinatura ainda.</p>
@@ -90,8 +104,8 @@ export default function CardMinhaAssinatura({ empresaId }) {
           <p className="text-sm text-gray-500">Seu contador ainda não cadastrou nenhum plano de revenda pra você assinar por conta própria -- fale com ele.</p>
         ) : (
           <>
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              {assinatura ? 'Renovar ou trocar de plano' : 'Assinar'} (vendido pelo seu contador)
+            <p className={`text-xs font-medium uppercase tracking-wide ${vencida ? 'text-red-600' : 'text-gray-500'}`}>
+              {vencida ? 'Renovar agora' : assinatura ? 'Renovar ou trocar de plano' : 'Assinar'} (vendido pelo seu contador)
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {planos.map((p) => {

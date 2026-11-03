@@ -15,6 +15,7 @@ import {
 
 const STATUS_ASSINATURA = {
   ativa: { rotulo: 'Ativa', cor: 'bg-green-50 text-green-700', icone: '🟢' },
+  vencida: { rotulo: 'Vencida', cor: 'bg-red-50 text-red-700', icone: '🔴' },
   bloqueada: { rotulo: 'Bloqueada', cor: 'bg-amber-50 text-amber-700', icone: '🟡' },
   cancelada: { rotulo: 'Cancelada', cor: 'bg-gray-100 text-gray-600', icone: '⚪' },
 };

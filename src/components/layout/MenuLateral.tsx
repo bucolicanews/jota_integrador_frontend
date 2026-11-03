@@ -42,6 +42,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
       { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
+      { nome: 'Minha Assinatura', caminho: '/minha-assinatura', icone: CreditCard, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
     ],
   },
   {

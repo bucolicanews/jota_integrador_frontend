@@ -50,6 +50,7 @@ import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
 import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
 import MinhasLicencas from './pages/MinhasLicencas';
 import Creditos from './pages/Creditos';
+import MinhaAssinatura from './pages/MinhaAssinatura';
 import AdminPlanos from './pages/AdminPlanos';
 import AdminCreditosAvulsos from './pages/AdminCreditosAvulsos';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
@@ -450,6 +451,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Creditos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/minha-assinatura"
+          element={
+            <RotaProtegida>
+              <MinhaAssinatura />
             </RotaProtegida>
           }
         />
