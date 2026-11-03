@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import { estimarSincronizacaoDas, gerarSegundaViaDas, listarDas, obterUrlPdfDas, sincronizarDas } from '../servicos/das';
+import { executarComAvisoDeCredito } from '../servicos/creditos';
 import { showError } from '../utils/toast';
 
 /** AAAA-MM (valor de <input type="month">) do mês atual menos `offsetMeses`. */
@@ -54,10 +55,14 @@ const ROTULO_STATUS: Record<string, { texto: string; variante: 'success' | 'warn
 };
 
 export default function Das() {
-  const { empresaId } = useEmpresaAtiva();
+  const { empresaId, ehContador, ehPlataforma } = useEmpresaAtiva();
+  // Custo em crédito só é mostrado pro contador/plataforma -- pro empresário é "operações
+  // fiscais incluídas no plano" (docs/UX-UI.md), nunca granular por operação.
+  const podeVerCredito = ehContador || ehPlataforma;
   const [itens, setItens] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [mensagemCredito, setMensagemCredito] = useState<string | null>(null);
   const [competenciaInicio, setCompetenciaInicio] = useState(mesInput(2));
   const [competenciaFim, setCompetenciaFim] = useState(mesInput(0));
   const [estimando, setEstimando] = useState(false);
@@ -99,16 +104,22 @@ export default function Das() {
       .finally(() => setEstimando(false));
   }
 
-  function sincronizar() {
+  async function sincronizar() {
     if (!empresaId) return;
     setSincronizando(true);
-    sincronizarDas(empresaId, filtroAtual())
-      .then(() => {
-        setEstimativa(null);
-        carregar();
-      })
-      .catch((erro) => showError(erro.message))
-      .finally(() => setSincronizando(false));
+    setMensagemCredito(null);
+    try {
+      const { gasto, saldo } = await executarComAvisoDeCredito(empresaId, () => sincronizarDas(empresaId, filtroAtual()));
+      setEstimativa(null);
+      carregar();
+      if (podeVerCredito) {
+        setMensagemCredito(gasto > 0 ? `Sincronização gastou ${gasto} crédito(s). Saldo atual: ${saldo}.` : `Sincronização não gastou crédito. Saldo atual: ${saldo}.`);
+      }
+    } catch (erro: any) {
+      showError(erro.message);
+    } finally {
+      setSincronizando(false);
+    }
   }
 
   async function baixar(dasId: string) {
@@ -146,11 +157,16 @@ export default function Das() {
     if (aba) aba.opener = null;
     setGerandoSegundaViaId(dasId);
     try {
-      const { url } = await gerarSegundaViaDas(empresaId, dasId, dataConsolidacao);
-      if (aba) aba.location.href = url;
-      else window.open(url, '_blank', 'noopener,noreferrer');
+      const { resultado, gasto, saldo } = await executarComAvisoDeCredito(empresaId, () =>
+        gerarSegundaViaDas(empresaId, dasId, dataConsolidacao),
+      );
+      if (aba) aba.location.href = resultado.url;
+      else window.open(resultado.url, '_blank', 'noopener,noreferrer');
       setDialogSegundaVia(null);
       carregar();
+      if (podeVerCredito) {
+        setMensagemCredito(gasto > 0 ? `2ª via gastou ${gasto} crédito(s). Saldo atual: ${saldo}.` : `2ª via não gastou crédito. Saldo atual: ${saldo}.`);
+      }
     } catch (erro: any) {
       aba?.close();
       showError(erro.message ?? 'Não foi possível gerar a 2ª via do DAS');
@@ -226,6 +242,7 @@ export default function Das() {
               <RefreshCw className={`mr-2 h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
               {estimativa ? `Sincronizar (${estimativa.creditosNecessarios} crédito(s))` : 'Sincronizar agora'}
             </Button>
+            {mensagemCredito && <p className="text-sm font-medium text-muted-foreground">{mensagemCredito}</p>}
           </CardContent>
         </Card>
       )}

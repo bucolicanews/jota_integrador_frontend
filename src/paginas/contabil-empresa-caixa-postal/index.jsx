@@ -9,6 +9,7 @@ import {
   obterDetalheMensagem,
   sincronizarCaixaPostal,
 } from '../../servicos/caixaPostal';
+import { executarComAvisoDeCredito } from '../../servicos/creditos';
 
 const formatarData = (iso) => new Date(iso).toLocaleDateString('pt-BR');
 
@@ -16,15 +17,19 @@ function ModalMensagem({ empresaId, mensagem, aoFechar, aoMarcarLida }) {
   const [conteudo, setConteudo] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
+  const [custoConsulta, setCustoConsulta] = useState(null);
 
   useEffect(() => {
     let cancelado = false;
 
     async function carregar() {
       try {
-        const resposta = await obterDetalheMensagem(empresaId, mensagem.id);
+        const { resultado: resposta, gasto, saldo } = await executarComAvisoDeCredito(empresaId, () =>
+          obterDetalheMensagem(empresaId, mensagem.id),
+        );
         if (cancelado) return;
         setConteudo(resposta.conteudo);
+        setCustoConsulta(gasto > 0 ? `Essa consulta gastou ${gasto} crédito(s). Saldo atual: ${saldo}.` : `Consulta não gastou crédito. Saldo atual: ${saldo}.`);
         if (mensagem.status === 'nao_lida') {
           await marcarMensagemComoLida(empresaId, mensagem.id);
           aoMarcarLida(mensagem.id);
@@ -61,6 +66,7 @@ function ModalMensagem({ empresaId, mensagem, aoFechar, aoMarcarLida }) {
 
         {carregando && <p className="text-sm text-gray-500">Carregando conteúdo...</p>}
         {erro && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
+        {custoConsulta && <p className="mb-3 text-xs font-medium text-gray-500">{custoConsulta}</p>}
         {conteudoSeguro && (
           // Conteúdo vem do SERPRO (Receita Federal), sempre sanitizado com DOMPurify
           // antes de renderizar -- nunca HTML bruto direto no DOM (docs/SEGURANCA.md).
@@ -105,10 +111,11 @@ export default function ContabilEmpresaCaixaPostal() {
     setSincronizando(true);
     setAvisoSincronizacao(null);
     try {
-      const { sincronizadas } = await sincronizarCaixaPostal(id);
-      setAvisoSincronizacao(
-        sincronizadas > 0 ? `${sincronizadas} mensagem${sincronizadas > 1 ? 's' : ''} nova${sincronizadas > 1 ? 's' : ''}.` : 'Nenhuma mensagem nova.',
-      );
+      const { resultado, gasto, saldo } = await executarComAvisoDeCredito(id, () => sincronizarCaixaPostal(id));
+      const { sincronizadas } = resultado;
+      const textoNovas = sincronizadas > 0 ? `${sincronizadas} mensagem${sincronizadas > 1 ? 's' : ''} nova${sincronizadas > 1 ? 's' : ''}.` : 'Nenhuma mensagem nova.';
+      const textoCredito = gasto > 0 ? `Gastou ${gasto} crédito(s). Saldo atual: ${saldo}.` : `Não gastou crédito. Saldo atual: ${saldo}.`;
+      setAvisoSincronizacao(`${textoNovas} ${textoCredito}`);
       const dadosMensagens = await listarMensagensCaixaPostal(id);
       setMensagens(dadosMensagens);
     } catch (erroRequisicao) {

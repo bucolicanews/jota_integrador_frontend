@@ -7,7 +7,6 @@ import { api } from '../../servicos/api';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
 import { atualizarEmpresa } from '../../servicos/empresas';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
-import CardMinhaAssinatura from '../../components/empresas/CardMinhaAssinatura';
 import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 
@@ -21,6 +20,7 @@ import {
   obterDetalheMensagem,
   sincronizarCaixaPostal,
 } from '../../servicos/caixaPostal';
+import { notificarSaldoCreditosAtualizado } from '../../servicos/creditos';
 
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
@@ -266,6 +266,7 @@ function ModalMensagemFiscal({ empresaId, mensagem, aoFechar, aoMarcarLida }) {
     obterDetalheMensagem(empresaId, mensagem.id)
       .then(async (resposta) => {
         if (cancelado) return;
+        notificarSaldoCreditosAtualizado();
         setConteudo(resposta.conteudo);
         if (mensagem.status === 'nao_lida') {
           await marcarMensagemComoLida(empresaId, mensagem.id);
@@ -326,6 +327,7 @@ function CardCaixaPostal({ empresaId }) {
     setSincronizando(true);
     try {
       await sincronizarCaixaPostal(empresaId);
+      notificarSaldoCreditosAtualizado();
       await carregar();
     } catch (e) {
       setErro(e.message);
@@ -519,11 +521,6 @@ export default function Fiscal() {
           <div className="rounded-lg bg-white p-6 shadow">
             <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Caixa Postal</h2>
             <CardCaixaPostal empresaId={empresa.id} />
-          </div>
-
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Minha assinatura</h2>
-            <CardMinhaAssinatura empresaId={empresa.id} />
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">

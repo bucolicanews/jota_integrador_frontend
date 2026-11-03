@@ -9,15 +9,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import { listarMensagensCaixaPostal, marcarMensagemComoLida, obterDetalheMensagem, sincronizarCaixaPostal } from '../servicos/caixaPostal';
+import { executarComAvisoDeCredito } from '../servicos/creditos';
 import { showError } from '../utils/toast';
 
 const formatarData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 
 export default function CaixaPostal() {
-  const { empresaId } = useEmpresaAtiva();
+  const { empresaId, ehContador, ehPlataforma } = useEmpresaAtiva();
+  // Custo em crédito só é mostrado pro contador/plataforma -- pro empresário é "operações
+  // fiscais incluídas no plano" (docs/UX-UI.md), nunca granular por operação.
+  const podeVerCredito = ehContador || ehPlataforma;
   const [mensagens, setMensagens] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [mensagemCredito, setMensagemCredito] = useState<string | null>(null);
   const [mensagemSelecionada, setMensagemSelecionada] = useState<any | null>(null);
   const [conteudo, setConteudo] = useState<string | null>(null);
   const [carregandoConteudo, setCarregandoConteudo] = useState(false);
@@ -32,13 +37,21 @@ export default function CaixaPostal() {
   }
   useEffect(carregar, [empresaId]);
 
-  function sincronizar() {
+  async function sincronizar() {
     if (!empresaId) return;
     setSincronizando(true);
-    sincronizarCaixaPostal(empresaId)
-      .then(() => carregar())
-      .catch((erro) => showError(erro.message))
-      .finally(() => setSincronizando(false));
+    setMensagemCredito(null);
+    try {
+      const { gasto, saldo } = await executarComAvisoDeCredito(empresaId, () => sincronizarCaixaPostal(empresaId));
+      carregar();
+      if (podeVerCredito) {
+        setMensagemCredito(gasto > 0 ? `Consulta gastou ${gasto} crédito(s). Saldo atual: ${saldo}.` : `Consulta não gastou crédito. Saldo atual: ${saldo}.`);
+      }
+    } catch (erro: any) {
+      showError(erro.message);
+    } finally {
+      setSincronizando(false);
+    }
   }
 
   async function abrirMensagem(mensagem: any) {
@@ -46,7 +59,7 @@ export default function CaixaPostal() {
     setConteudo(null);
     setCarregandoConteudo(true);
     try {
-      const resposta = await obterDetalheMensagem(empresaId, mensagem.id);
+      const { resultado: resposta } = await executarComAvisoDeCredito(empresaId, () => obterDetalheMensagem(empresaId, mensagem.id));
       setConteudo(resposta.conteudo);
       if (mensagem.status === 'nao_lida') {
         await marcarMensagemComoLida(empresaId, mensagem.id);
@@ -77,6 +90,7 @@ export default function CaixaPostal() {
           <RefreshCw className={`mr-2 h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} /> Sincronizar com a Receita Federal
         </Button>
       </div>
+      {mensagemCredito && <p className="mb-4 text-sm font-medium text-muted-foreground">{mensagemCredito}</p>}
 
       <Card>
         <CardContent className="p-0">
