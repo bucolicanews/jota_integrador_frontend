@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
