@@ -141,7 +141,11 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
               <label className="mb-1 block text-sm font-medium text-gray-700">Razão social *</label>
               <input
                 {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                onChange={(e) => {
+                  e.target.value = e.target.value.toUpperCase();
+                  register('razaoSocial').onChange(e);
+                }}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase"
               />
               {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
             </div>

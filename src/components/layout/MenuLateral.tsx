@@ -78,6 +78,12 @@ const SECOES_MENU: SecaoMenu[] = [
     ],
   },
   {
+    titulo: 'Configurações',
+    itens: [
+      { nome: 'Fiscais', caminho: '/contabil/configuracoes-fiscais', icone: Settings, papeis: PAPEIS_CARTEIRA },
+    ],
+  },
+  {
     titulo: 'Cadastros',
     itens: [
       { nome: 'Clientes', caminho: '/clientes', icone: Users },

@@ -7,6 +7,12 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { criarCliente, atualizarCliente } from '../../servicos/clientes';
 import { showSuccess } from '../../utils/toast';
+import { buscarCep } from '../../utils/viaCep';
+
+function formatarCep(valor: string) {
+  const digitos = valor.replace(/\D/g, '');
+  return digitos.length <= 8 ? digitos.replace(/(\d{5})(\d{0,3})/, (_, a, b) => (b ? `${a}-${b}` : a)) : valor;
+}
 
 interface Cliente {
   id: string;
@@ -48,10 +54,12 @@ interface FormClienteProps {
 export default function FormCliente({ empresaId, clienteInicial, onSaveComplete }: FormClienteProps) {
   const isEditing = !!clienteInicial;
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<DadosFormulario>({
     defaultValues: {
@@ -69,6 +77,21 @@ export default function FormCliente({ empresaId, clienteInicial, onSaveComplete 
       estado: clienteInicial?.estado ?? '',
     },
   });
+
+  async function aoMudarCep(evento: React.ChangeEvent<HTMLInputElement>) {
+    const formatado = formatarCep(evento.target.value);
+    setValue('cep', formatado);
+
+    if (formatado.replace(/\D/g, '').length !== 8) return;
+    setBuscandoCep(true);
+    const endereco = await buscarCep(formatado);
+    setBuscandoCep(false);
+    if (!endereco) return;
+    setValue('endereco', endereco.logradouro, { shouldDirty: true });
+    setValue('bairro', endereco.bairro, { shouldDirty: true });
+    setValue('cidade', endereco.cidade, { shouldDirty: true });
+    setValue('estado', endereco.estado, { shouldDirty: true });
+  }
 
   async function aoSubmeter(dados: DadosFormulario) {
     setErroGeral(null);
@@ -135,7 +158,8 @@ export default function FormCliente({ empresaId, clienteInicial, onSaveComplete 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label>CEP</Label>
-          <Input {...register('cep')} />
+          <Input {...register('cep')} onChange={aoMudarCep} maxLength={9} />
+          {buscandoCep && <p className="text-xs text-muted-foreground">Buscando endereço...</p>}
         </div>
         <div className="space-y-1.5 md:col-span-2">
           <Label>Endereço</Label>

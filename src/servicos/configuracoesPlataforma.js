@@ -6,3 +6,9 @@ export const atualizarComissaoHonorarios = (comissaoHonorariosPct) =>
 
 export const obterConfiguracaoPagbank = () => api.get('/configuracoes-plataforma/pagbank');
 export const atualizarConfiguracaoPagbank = (dados) => api.patch('/configuracoes-plataforma/pagbank', dados);
+
+// Comissão sobre link de pagamento PagBank de parcela de Contas a Receber (contrato) --
+// separada da comissão de honorários.
+export const obterComissaoContratos = () => api.get('/configuracoes-plataforma/comissao-contratos');
+export const atualizarComissaoContratos = (comissaoContratosPct) =>
+  api.patch('/configuracoes-plataforma/comissao-contratos', { comissaoContratosPct });

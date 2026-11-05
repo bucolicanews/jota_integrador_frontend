@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Coins, LogOut, Menu, User, UserCog } from 'lucide-react';
+import { Coins, LogOut, Menu, Settings, User, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -81,6 +81,11 @@ export default function Header() {
   const mostrarIndicadorCreditos = Boolean(empresaId) && !ehPlataforma;
   const dispatch = useDispatch();
 
+  // Contador e plataforma (admin) têm empresa própria (interna_contador/interna_plataforma)
+  // e usam a MESMA tela pra configurar o acesso dela ao SERPRO -- empresário/operador de
+  // empresa-cliente não tem configuração própria aqui, não mostra o ícone.
+  const rotaConfiguracoes = ehContador || ehPlataforma ? '/contabil/configuracoes-fiscais' : null;
+
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [razaoSocialPropria, setRazaoSocialPropria] = useState<string | null>(null);
 
@@ -136,6 +141,14 @@ export default function Header() {
 
       <div className="flex items-center gap-3">
         {mostrarIndicadorCreditos && <IndicadorCreditos empresaId={empresaId} />}
+
+        {rotaConfiguracoes && (
+          <Button variant="ghost" size="icon" asChild aria-label="Configurações">
+            <Link to={rotaConfiguracoes}>
+              <Settings className="h-5 w-5" />
+            </Link>
+          </Button>
+        )}
 
         {ehContador && (
           <select

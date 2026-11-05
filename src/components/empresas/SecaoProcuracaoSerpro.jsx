@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
-import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
-import { obterEmpresa } from '../../servicos/empresas';
 import { atualizarStatusProcuracao, obterProcuracao, sincronizarProcuracao } from '../../servicos/acessoSerpro';
 import { notificarSaldoCreditosAtualizado, obterSaldoCreditos } from '../../servicos/creditos';
-
-const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
 
 const STATUS_PROCURACAO = {
   pendente: { rotulo: 'Pendente', cor: 'bg-amber-50 text-amber-700', icone: '🟡' },
@@ -22,7 +15,7 @@ function formatarData(iso) {
   return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-function SecaoProcuracao({ empresaId, podeEditar }) {
+export default function SecaoProcuracaoSerpro({ empresaId, podeEditar }) {
   const [procuracao, setProcuracao] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -107,7 +100,7 @@ function SecaoProcuracao({ empresaId, podeEditar }) {
   };
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow">
+    <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900">Procuração eletrônica</h2>
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${info.cor}`}>
@@ -195,56 +188,5 @@ function SecaoProcuracao({ empresaId, podeEditar }) {
         </form>
       )}
     </div>
-  );
-}
-
-function SecaoCertificado({ empresaId }) {
-  return (
-    <div className="rounded-lg bg-white p-6 shadow">
-      <h2 className="mb-4 text-sm font-semibold text-gray-900">Certificado digital</h2>
-      <SecaoCertificadoSerpro empresaId={empresaId} />
-    </div>
-  );
-}
-
-export default function ContabilEmpresaAcessoSerpro() {
-  const { id } = useParams();
-  const navegar = useNavigate();
-  const { usuario } = useSelector((state) => state.autenticacao);
-  const [empresa, setEmpresa] = useState(null);
-  const [erro, setErro] = useState(null);
-
-  useEffect(() => {
-    obterEmpresa(id)
-      .then(setEmpresa)
-      .catch((erroRequisicao) => setErro(erroRequisicao.message));
-  }, [id]);
-
-  return (
-    <LayoutPrincipal>
-      <div className="mx-auto max-w-3xl">
-        <button
-          onClick={() => navegar(`/contabil/empresas/${id}`)}
-          className="mb-4 text-sm text-gray-500 hover:text-gray-700"
-        >
-          ← Voltar pra empresa
-        </button>
-
-        {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
-
-        {empresa && (
-          <>
-            <h1 className="mb-1 text-xl font-semibold text-gray-900">{empresa.razaoSocial}</h1>
-            <p className="mb-6 text-sm text-gray-500">Acesso ao SERPRO / Integra Contador</p>
-
-            {empresa.modoAcessoSerpro === 'procuracao' ? (
-              <SecaoProcuracao empresaId={id} podeEditar={PAPEIS_PLATAFORMA.includes(usuario?.papel)} />
-            ) : (
-              <SecaoCertificado empresaId={id} />
-            )}
-          </>
-        )}
-      </div>
-    </LayoutPrincipal>
   );
 }

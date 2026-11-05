@@ -8,12 +8,12 @@ import Contabil from './paginas/contabil';
 import Fiscal from './paginas/fiscal';
 import ContabilEmpresas from './paginas/contabil-empresas';
 import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
-import ContabilEmpresaAcessoSerpro from './paginas/contabil-empresa-acesso-serpro';
 import ContabilAssinatura from './paginas/contabil-assinatura';
 import ContabilHonorarios from './paginas/contabil-honorarios';
 import ContabilCreditos from './paginas/contabil-creditos';
 import ContabilEmpresaCaixaPostal from './paginas/contabil-empresa-caixa-postal';
 import ContabilAuditoria from './paginas/contabil-auditoria';
+import ContabilConfiguracoesFiscais from './paginas/contabil-configuracoes-fiscais';
 import ContabilAdminContadores from './paginas/contabil-admin-contadores';
 import ContabilAdminEmpresas from './paginas/contabil-admin-empresas';
 import PlanoContas from './pages/PlanoContas';
@@ -127,14 +127,6 @@ export default function App() {
           }
         />
         <Route
-          path="/contabil/empresas/:id/acesso-serpro"
-          element={
-            <RotaProtegida>
-              <ContabilEmpresaAcessoSerpro />
-            </RotaProtegida>
-          }
-        />
-        <Route
           path="/contabil/assinatura"
           element={
             <RotaProtegida>
@@ -171,6 +163,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <ContabilAuditoria />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contabil/configuracoes-fiscais"
+          element={
+            <RotaProtegida>
+              <ContabilConfiguracoesFiscais />
             </RotaProtegida>
           }
         />

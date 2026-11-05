@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, BadgeDollarSign, Undo2, XCircle, History } from 'lucide-react';
+import { Loader2, BadgeDollarSign, Undo2, XCircle, History, Link2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   obterContaReceber,
@@ -17,6 +17,7 @@ import {
   estornarRecebimento,
   cancelarContaReceber,
 } from '../../servicos/contasAReceber';
+import { gerarLinkPagamento, listarLinksPagamento } from '../../servicos/pagamentosParcela';
 import { showError, showSuccess } from '../../utils/toast';
 
 const formatarMoeda = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
@@ -63,6 +64,12 @@ export default function DetalheContaReceberDialog({ empresaId, contaId, contasCa
 
   const [cancelando, setCancelando] = useState(false);
 
+  const [parcelaParaLink, setParcelaParaLink] = useState<any | null>(null);
+  const [linksDaParcela, setLinksDaParcela] = useState<any[]>([]);
+  const [carregandoLinks, setCarregandoLinks] = useState(false);
+  const [gerandoLink, setGerandoLink] = useState(false);
+  const [erroLink, setErroLink] = useState<string | null>(null);
+
   function carregar() {
     if (!open || !contaId) return;
     setCarregando(true);
@@ -102,6 +109,40 @@ export default function DetalheContaReceberDialog({ empresaId, contaId, contasCa
     } finally {
       setSalvandoRecebimento(false);
     }
+  }
+
+  function abrirLink(parcela: any) {
+    setParcelaParaLink(parcela);
+    setErroLink(null);
+    carregarLinks(parcela.id);
+  }
+
+  function carregarLinks(parcelaId: string) {
+    setCarregandoLinks(true);
+    listarLinksPagamento(empresaId, parcelaId)
+      .then(setLinksDaParcela)
+      .catch((erro: any) => setErroLink(erro.message))
+      .finally(() => setCarregandoLinks(false));
+  }
+
+  async function aoGerarLink() {
+    if (!parcelaParaLink) return;
+    setGerandoLink(true);
+    setErroLink(null);
+    try {
+      await gerarLinkPagamento(empresaId, parcelaParaLink.id, { metodo: 'pix' });
+      showSuccess('Link de pagamento gerado.');
+      carregarLinks(parcelaParaLink.id);
+    } catch (erro: any) {
+      setErroLink(erro.message ?? 'Não foi possível gerar o link de pagamento');
+    } finally {
+      setGerandoLink(false);
+    }
+  }
+
+  function copiarPix(codigo: string) {
+    navigator.clipboard.writeText(codigo);
+    showSuccess('Código PIX copiado.');
   }
 
   function abrirHistorico(parcela: any) {
@@ -218,9 +259,14 @@ export default function DetalheContaReceberDialog({ empresaId, contaId, contasCa
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             {(p.status === 'aberta' || p.status === 'parcial') && (
-                              <Button size="sm" variant="outline" className="h-8" onClick={() => abrirRecebimento(p)}>
-                                <BadgeDollarSign className="h-3.5 w-3.5" />
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => abrirRecebimento(p)} title="Registrar recebimento manual">
+                                  <BadgeDollarSign className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => abrirLink(p)} title="Gerar link de pagamento (PagBank)">
+                                  <Link2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
                             )}
                             {p.valorRecebido > 0 && (
                               <Button size="sm" variant="ghost" className="h-8" onClick={() => abrirHistorico(p)} title="Histórico de recebimentos">
@@ -336,6 +382,58 @@ export default function DetalheContaReceberDialog({ empresaId, contaId, contasCa
               ))}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={parcelaParaLink !== null} onOpenChange={(o) => !o && setParcelaParaLink(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Link de pagamento</DialogTitle>
+            {parcelaParaLink && (
+              <DialogDescription>
+                Parcela {parcelaParaLink.numeroParcela} — restante {formatarMoeda(parcelaParaLink.valorParcela - parcelaParaLink.valorRecebido)}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="space-y-3">
+            {erroLink && <p className="text-sm text-destructive">{erroLink}</p>}
+
+            {carregandoLinks ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {linksDaParcela.length === 0 && <p className="text-sm text-muted-foreground">Nenhum link gerado ainda pra esta parcela.</p>}
+                {linksDaParcela.map((link) => (
+                  <div key={link.id} className="space-y-2 rounded-md border p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{formatarMoeda(link.valor)}</p>
+                      <Badge variant={link.status === 'pago' ? 'success' : link.status === 'falhou' ? 'destructive' : 'secondary'}>
+                        {link.status === 'pago' ? 'Pago' : link.status === 'falhou' ? 'Falhou' : 'Pendente'}
+                      </Badge>
+                    </div>
+                    {link.status === 'pendente' && link.pixCode && (
+                      <>
+                        {link.pixQrUrl && <img src={link.pixQrUrl} alt="QR Code PIX" className="h-32 w-32" />}
+                        <div className="flex items-center gap-2">
+                          <Input readOnly value={link.pixCode} className="h-8 font-mono text-xs" />
+                          <Button size="sm" variant="ghost" className="h-8" onClick={() => copiarPix(link.pixCode)}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button className="w-full" onClick={aoGerarLink} disabled={gerandoLink}>
+              {gerandoLink && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Gerar novo link (PIX)
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

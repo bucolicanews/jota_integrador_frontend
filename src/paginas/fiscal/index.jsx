@@ -7,6 +7,7 @@ import { api } from '../../servicos/api';
 import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
 import { atualizarEmpresa } from '../../servicos/empresas';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
+import CardContaPagbankEmpresa from '../../components/empresas/CardContaPagbankEmpresa';
 import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 
@@ -527,6 +528,8 @@ export default function Fiscal() {
             <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Comprar créditos</h2>
             <CardComprarCreditosAvulsos empresaId={empresa.id} permitirRevenda />
           </div>
+
+          <CardContaPagbankEmpresa empresa={empresa} aoAtualizar={carregar} />
         </div>
       )}
     </LayoutPrincipal>

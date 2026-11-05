@@ -19,3 +19,8 @@ export const atualizarModoAcessoSerpro = (id, modoAcessoSerpro) =>
   api.patch(`/empresas/${id}/modo-acesso-serpro`, { modoAcessoSerpro });
 export const bloquearEmpresa = (id, motivo) => api.post(`/empresas/${id}/bloquear`, { motivo });
 export const desbloquearEmpresa = (id) => api.post(`/empresas/${id}/desbloquear`);
+
+// Conta PagBank PRÓPRIA da empresa (contador, empresa-cliente ou a interna_plataforma
+// do admin) -- recebe a parte "seller" de um link de pagamento com split.
+export const atualizarPagbankContaEmpresa = (id, dados) => api.patch(`/empresas/${id}/pagbank-conta`, dados);
+export const obterStatusPagbankEmpresa = (id) => api.get(`/empresas/${id}/pagbank-conta/status`);

@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
+  atualizarComissaoContratos,
   atualizarComissaoHonorarios,
   atualizarConfiguracaoPagbank,
+  obterComissaoContratos,
   obterComissaoHonorarios,
   obterConfiguracaoPagbank,
 } from '../servicos/configuracoesPlataforma';
@@ -25,6 +27,10 @@ import { showError, showSuccess } from '../utils/toast';
 
 interface DadosComissao {
   comissaoHonorariosPct: number;
+}
+
+interface DadosComissaoContratos {
+  comissaoContratosPct: number;
 }
 
 interface DadosNovoCusto {
@@ -86,6 +92,71 @@ function CardComissaoHonorarios() {
                 min="0"
                 max="100"
                 {...register('comissaoHonorariosPct', { required: true, valueAsNumber: true, min: 0, max: 100 })}
+              />
+            </div>
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CardComissaoContratos() {
+  const [carregando, setCarregando] = useState(true);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<DadosComissaoContratos>();
+
+  function carregar() {
+    setCarregando(true);
+    obterComissaoContratos()
+      .then((dados) => reset(dados))
+      .catch((e) => showError(e.message))
+      .finally(() => setCarregando(false));
+  }
+  useEffect(carregar, []);
+
+  async function aoSalvar(dados: DadosComissaoContratos) {
+    try {
+      await atualizarComissaoContratos(Number(dados.comissaoContratosPct));
+      showSuccess('Comissão atualizada com sucesso.');
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível atualizar a comissão');
+    }
+  }
+
+  return (
+    <Card className="w-full sm:flex-1">
+      <CardHeader>
+        <CardTitle className="text-base">Comissão de Contratos da Plataforma</CardTitle>
+        <CardDescription>
+          Percentual retido pela Jota sobre cada link de pagamento com split de parcela de Contas a Receber (contador
+          ou empresa-cliente cobrando o próprio cliente, ou admin cobrando cliente direto). Vale só pra links novos --
+          os já gerados mantêm o percentual congelado no momento da criação.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {carregando ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit(aoSalvar)} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Comissão (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                {...register('comissaoContratosPct', { required: true, valueAsNumber: true, min: 0, max: 100 })}
               />
             </div>
             <Button type="submit" disabled={isSubmitting} className="w-full">
@@ -490,8 +561,9 @@ export default function Configuracoes() {
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <CardComissaoHonorarios />
-          <CardConfiguracaoPagbank />
+          <CardComissaoContratos />
         </div>
+        <CardConfiguracaoPagbank />
         <CardCustosConsultasSerpro />
         <CardRelatorioConsultasSerpro />
       </div>

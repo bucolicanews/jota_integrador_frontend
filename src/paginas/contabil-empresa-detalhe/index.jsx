@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
+import SecaoProcuracaoSerpro from '../../components/empresas/SecaoProcuracaoSerpro';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import CardAcessoEmpresa from '../../components/empresas/CardAcessoEmpresa';
 import CardGerenciarPlanoAssinatura from '../../components/empresas/CardGerenciarPlanoAssinatura';
@@ -16,18 +18,41 @@ import {
   desbloquearEmpresa,
   obterEmpresa,
 } from '../../servicos/empresas';
+import { obterContador } from '../../servicos/contadores';
 import { testarConexaoSerpro } from '../../servicos/acessoSerpro';
 import { notificarSaldoCreditosAtualizado } from '../../servicos/creditos';
-import { validarCnpj } from '../../utils/validarCnpj';
+import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
 const formatarCnpj = (valor) => {
   const digitos = (valor ?? '').replace(/\D/g, '');
   return digitos.length === 14 ? digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : valor ?? '';
 };
 
+const formatarCpf = (valor) => {
+  const digitos = (valor ?? '').replace(/\D/g, '');
+  return digitos.length === 11 ? digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : valor ?? '';
+};
+
+// Empresa interna do contador pode ser pessoa física (CPF) -- toda outra é sempre jurídica
+// (ver [[feedback_modulos_licenciamento_arquitetura]]/validarDocumentoEmpresa no backend).
+const formatarDocumento = (valor, tipoPessoa) => (tipoPessoa === 'fisica' ? formatarCpf(valor) : formatarCnpj(valor));
+
+// Ordem fixa combinada com o usuário -- rolagem horizontal em vez de quebrar linha, pra
+// não espremer os rótulos em telas estreitas (padrão mobile-first do projeto).
+const ABAS = [
+  { id: 'dados', rotulo: 'Dados cadastrais' },
+  { id: 'plano', rotulo: 'Plano de Crédito SERPRO' },
+  { id: 'acesso-serpro', rotulo: 'Modo de acesso ao SERPRO' },
+  { id: 'acesso-sistema', rotulo: 'Acesso ao sistema' },
+  { id: 'creditos', rotulo: 'Comprar créditos' },
+];
+
+const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
+
 export default function ContabilEmpresaDetalhe() {
   const { id } = useParams();
   const navegar = useNavigate();
+  const { usuario } = useSelector((state) => state.autenticacao);
   const [empresa, setEmpresa] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -38,8 +63,11 @@ export default function ContabilEmpresaDetalhe() {
   const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
   const [testandoConexao, setTestandoConexao] = useState(false);
   const [resultadoTeste, setResultadoTeste] = useState(null);
+  const [abaAtiva, setAbaAtiva] = useState('dados');
+  const [preenchendoComDadosContador, setPreenchendoComDadosContador] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isDirty } } = useForm();
+  const tipoPessoaForm = watch('tipoPessoa');
   const { selecionarEmpresa, empresaAtiva } = useEmpresaAtiva();
 
   // Seletor do Header e esta tela leem "qual empresa" de fontes diferentes de propósito
@@ -58,11 +86,6 @@ export default function ContabilEmpresaDetalhe() {
     }
   }, [empresaAtiva, id, navegar]);
 
-  function aoAbrirLancamentos() {
-    if (empresa) selecionarEmpresa(empresa);
-    navegar('/lancamentos');
-  }
-
   function aoAbrirPlanoContas() {
     if (empresa) selecionarEmpresa(empresa);
     navegar('/plano-contas');
@@ -78,6 +101,8 @@ export default function ContabilEmpresaDetalhe() {
         nomeFantasia: dados.nomeFantasia ?? '',
         regimeTributario: dados.regimeTributario ?? '',
         cnpj: dados.cnpj,
+        tipoPessoa: dados.tipoPessoa ?? 'juridica',
+        crc: dados.crc ?? '',
       });
       setCorrigindoCnpj(false);
       setErro(null);
@@ -92,6 +117,22 @@ export default function ContabilEmpresaDetalhe() {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Pessoa física da empresa interna costuma ser literalmente o mesmo cadastro do
+  // contador (nome + CPF) -- evita digitar de novo o que já existe em `contadores`.
+  async function aoUsarMesmoDadosContador() {
+    setPreenchendoComDadosContador(true);
+    try {
+      const contador = await obterContador(empresa.contadorId);
+      setValue('razaoSocial', contador.nome, { shouldDirty: true });
+      setCorrigindoCnpj(true);
+      setValue('cnpj', contador.cnpjCpf, { shouldDirty: true });
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setPreenchendoComDadosContador(false);
+    }
+  }
 
   function aoClicarCorrigirCnpj() {
     const confirmado = window.confirm(
@@ -112,6 +153,7 @@ export default function ContabilEmpresaDetalhe() {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia || null,
         regimeTributario: dados.regimeTributario || null,
+        ...(empresa.tipo === 'interna_contador' ? { tipoPessoa: dados.tipoPessoa, crc: dados.crc || null } : {}),
       });
       await carregar();
       setMensagemSalvo('Dados salvos.');
@@ -189,14 +231,14 @@ export default function ContabilEmpresaDetalhe() {
           ← Voltar pra carteira
         </button>
 
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{empresa.razaoSocial}</h1>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="break-words text-xl font-semibold text-gray-900">{empresa.razaoSocial}</h1>
             <p className="text-sm text-gray-500">
-              {formatarCnpj(empresa.cnpj)}
-              {!validarCnpj(empresa.cnpj) && (
+              {formatarDocumento(empresa.cnpj, empresa.tipoPessoa)}
+              {!validarCpfOuCnpj(empresa.cnpj) && (
                 <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                  ⚠️ CNPJ inválido
+                  ⚠️ {empresa.tipoPessoa === 'fisica' ? 'CPF' : 'CNPJ'} inválido
                 </span>
               )}
             </p>
@@ -204,7 +246,7 @@ export default function ContabilEmpresaDetalhe() {
           <button
             onClick={aoAlternarBloqueio}
             disabled={processandoBloqueio}
-            className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
+            className={`shrink-0 rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
               empresa.bloqueado
                 ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'border border-red-300 text-red-700 hover:bg-red-50'
@@ -216,13 +258,7 @@ export default function ContabilEmpresaDetalhe() {
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-        <nav className="mb-6 flex gap-2">
-          <Link
-            to={`/contabil/empresas/${id}/acesso-serpro`}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Procuração / Certificado
-          </Link>
+        <nav className="mb-6 flex flex-wrap gap-2">
           <Link
             to={`/contabil/empresas/${id}/caixa-postal`}
             className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -236,131 +272,189 @@ export default function ContabilEmpresaDetalhe() {
           >
             Plano de Contas
           </button>
-          <button
-            type="button"
-            onClick={aoAbrirLancamentos}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Lançamentos
-          </button>
         </nav>
 
-        <div className="mb-4 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-sm font-semibold text-gray-900">Dados cadastrais</h2>
-          <form onSubmit={handleSubmit(aoSalvarDados)} className="space-y-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Razão social</label>
-              <input
-                {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-              {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
-              <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ</label>
-                {!corrigindoCnpj && (
-                  <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
-                    Corrigir CNPJ
-                  </button>
-                )}
-              </div>
-              <input
-                {...register('cnpj', { required: 'Obrigatório' })}
-                disabled={!corrigindoCnpj}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-              />
-              {!corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
-                <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
-              )}
-              {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
-              <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                <option value="">Selecione...</option>
-                {REGIMES_TRIBUTARIOS.map((regime) => (
-                  <option key={regime.valor} value={regime.valor}>
-                    {regime.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-3 pt-1">
+        <div className="mb-4 -mx-4 overflow-x-auto border-b border-gray-200 px-4 sm:mx-0 sm:px-0">
+          <div className="flex min-w-max gap-1">
+            {ABAS.map((aba) => (
               <button
-                type="submit"
-                disabled={salvandoDados || !isDirty}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                key={aba.id}
+                type="button"
+                onClick={() => setAbaAtiva(aba.id)}
+                className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+                  abaAtiva === aba.id
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
               >
-                {salvandoDados ? 'Salvando...' : 'Salvar alterações'}
+                {aba.rotulo}
               </button>
-              {mensagemSalvo && <span className="text-sm text-green-700">{mensagemSalvo}</span>}
-            </div>
-          </form>
-        </div>
-
-        <div className="mb-4 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Plano de Crédito SERPRO</h2>
-          <CardGerenciarPlanoAssinatura empresaId={id} contadorId={empresa.contadorId} />
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-1 text-sm font-semibold text-gray-900">Modo de acesso ao SERPRO</h2>
-          <p className="mb-3 text-xs text-gray-500">
-            Como a Jota consulta os dados fiscais desta empresa junto à Receita Federal.
-          </p>
-          <select
-            value={empresa.modoAcessoSerpro}
-            onChange={aoTrocarModoAcesso}
-            disabled={salvandoModo}
-            className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
-          >
-            <option value="procuracao">Procuração eletrônica</option>
-            <option value="certificado_proprio">Certificado próprio</option>
-          </select>
-
-          {empresa.modoAcessoSerpro === 'certificado_proprio' && (
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <SecaoCertificadoSerpro empresaId={id} />
-            </div>
-          )}
-
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <button
-              type="button"
-              onClick={aoTestarConexao}
-              disabled={testandoConexao}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {testandoConexao ? 'Testando...' : 'Testar conexão'}
-            </button>
-            <p className="mt-1 text-xs text-gray-500">
-              Faz uma chamada real ao SERPRO (gasta 1 crédito) pra confirmar que a procuração/certificado funciona de verdade.
-            </p>
-            {resultadoTeste && (
-              <p className={`mt-2 text-sm font-medium ${resultadoTeste.sucesso ? 'text-green-700' : 'text-red-700'}`}>
-                {resultadoTeste.sucesso ? '✅ Conexão funcionando.' : `❌ ${resultadoTeste.motivo}`}
-              </p>
-            )}
+            ))}
           </div>
         </div>
 
-        <div className="mt-4 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-1 text-sm font-semibold text-gray-900">Acesso ao sistema</h2>
-          <p className="mb-3 text-xs text-gray-500">
-            Login do responsável por {empresa.razaoSocial} -- quem vai entrar na visão JOTA FISCAL desta empresa.
-          </p>
-          <CardAcessoEmpresa empresaId={id} empresaNome={empresa.razaoSocial} />
-        </div>
+        {abaAtiva === 'dados' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <form onSubmit={handleSubmit(aoSalvarDados)} className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Razão social</label>
+                <input
+                  {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
+                <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
+              </div>
 
-        <div className="mt-4 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">Comprar créditos</h2>
-          <CardComprarCreditosAvulsos empresaId={id} />
-        </div>
+              {empresa.tipo === 'interna_contador' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de cadastro</label>
+                  <select {...register('tipoPessoa')} className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    <option value="juridica">Jurídica (CNPJ)</option>
+                    <option value="fisica">Física -- contador autônomo (CPF + CRC)</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {tipoPessoaForm === 'fisica' ? 'CPF' : 'CNPJ'}
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {empresa.tipo === 'interna_contador' && tipoPessoaForm === 'fisica' && (
+                      <button
+                        type="button"
+                        onClick={aoUsarMesmoDadosContador}
+                        disabled={preenchendoComDadosContador}
+                        className="text-xs font-medium text-blue-700 hover:underline disabled:opacity-50"
+                      >
+                        {preenchendoComDadosContador ? 'Buscando...' : 'Usar mesmo dados do contador'}
+                      </button>
+                    )}
+                    {!corrigindoCnpj && (
+                      <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
+                        Corrigir {tipoPessoaForm === 'fisica' ? 'CPF' : 'CNPJ'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  {...register('cnpj', { required: 'Obrigatório' })}
+                  disabled={!corrigindoCnpj}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                />
+                {!corrigindoCnpj && !validarCpfOuCnpj(empresa.cnpj) && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    ⚠️ Este {empresa.tipoPessoa === 'fisica' ? 'CPF' : 'CNPJ'} não passa na validação de formato -- considere corrigir.
+                  </p>
+                )}
+                {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
+              </div>
+
+              {empresa.tipo === 'interna_contador' && tipoPessoaForm === 'fisica' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">CRC</label>
+                  <input
+                    {...register('crc', { required: 'CRC é obrigatório pra pessoa física' })}
+                    className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  {errors.crc && <p className="mt-1 text-xs text-red-600">{errors.crc.message}</p>}
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
+                <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">Selecione...</option>
+                  {REGIMES_TRIBUTARIOS.map((regime) => (
+                    <option key={regime.valor} value={regime.valor}>
+                      {regime.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={salvandoDados || !isDirty}
+                  className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 sm:w-auto"
+                >
+                  {salvandoDados ? 'Salvando...' : 'Salvar alterações'}
+                </button>
+                {mensagemSalvo && <span className="text-sm text-green-700">{mensagemSalvo}</span>}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {abaAtiva === 'plano' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <CardGerenciarPlanoAssinatura empresaId={id} contadorId={empresa.contadorId} />
+          </div>
+        )}
+
+        {abaAtiva === 'acesso-serpro' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <p className="mb-3 text-xs text-gray-500">
+              Como a Jota consulta os dados fiscais desta empresa junto à Receita Federal.
+            </p>
+            <select
+              value={empresa.modoAcessoSerpro}
+              onChange={aoTrocarModoAcesso}
+              disabled={salvandoModo}
+              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+            >
+              <option value="procuracao">Procuração eletrônica</option>
+              <option value="certificado_proprio">Certificado próprio</option>
+            </select>
+
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              {empresa.modoAcessoSerpro === 'certificado_proprio' ? (
+                <SecaoCertificadoSerpro empresaId={id} />
+              ) : (
+                <SecaoProcuracaoSerpro empresaId={id} podeEditar={PAPEIS_PLATAFORMA.includes(usuario?.papel)} />
+              )}
+            </div>
+
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                onClick={aoTestarConexao}
+                disabled={testandoConexao}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+              >
+                {testandoConexao ? 'Testando...' : 'Testar conexão'}
+              </button>
+              <p className="mt-1 text-xs text-gray-500">
+                Faz uma chamada real ao SERPRO (gasta 1 crédito) pra confirmar que a procuração/certificado funciona de verdade.
+              </p>
+              {resultadoTeste && (
+                <p className={`mt-2 break-words text-sm font-medium ${resultadoTeste.sucesso ? 'text-green-700' : 'text-red-700'}`}>
+                  {resultadoTeste.sucesso ? '✅ Conexão funcionando.' : `❌ ${resultadoTeste.motivo}`}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {abaAtiva === 'acesso-sistema' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <p className="mb-3 break-words text-xs text-gray-500">
+              Login do responsável por {empresa.razaoSocial} -- quem vai entrar na visão JOTA FISCAL desta empresa.
+            </p>
+            <CardAcessoEmpresa empresaId={id} empresaNome={empresa.razaoSocial} />
+          </div>
+        )}
+
+        {abaAtiva === 'creditos' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <CardComprarCreditosAvulsos empresaId={id} />
+          </div>
+        )}
       </div>
     </LayoutPrincipal>
   );
