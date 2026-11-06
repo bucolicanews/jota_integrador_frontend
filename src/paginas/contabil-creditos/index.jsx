@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import { creditarManualmente, debitarManualmente, listarMovimentosCreditos, obterSaldoCreditos } from '../../servicos/creditos';
+import { listarEmpresas } from '../../servicos/empresas';
 
 const formatarData = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -86,11 +88,33 @@ function FormularioAjusteCreditoManual({ empresaId, aoConcluir }) {
 }
 
 export default function ContabilCreditos() {
-  const { empresaId, empresaAtiva, ehPlataforma, precisaSelecionarEmpresa } = useEmpresaAtiva();
+  const { empresaId: empresaIdSessao, empresaAtiva, ehPlataforma, precisaSelecionarEmpresa } = useEmpresaAtiva();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  // Admin clicando "Créditos" num contador específico (tela Contadores) navega pra cá com
+  // ?contadorId= -- esse modo ignora a empresa ativa da própria sessão do admin (ele não
+  // tem carteira) e troca pra um seletor local da carteira DAQUELE contador.
+  const contadorIdConsulta = searchParams.get('contadorId');
+  const nomeContadorConsulta = location.state?.nomeContador;
+
+  const [carteiraContador, setCarteiraContador] = useState(null);
+  const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState(null);
+  const empresaId = contadorIdConsulta ? empresaSelecionadaId : empresaIdSessao;
+
   const [saldo, setSaldo] = useState(null);
   const [movimentos, setMovimentos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    if (!contadorIdConsulta) return;
+    listarEmpresas(contadorIdConsulta)
+      .then((lista) => {
+        setCarteiraContador(lista);
+        if (lista.length === 1) setEmpresaSelecionadaId(lista[0].id);
+      })
+      .catch((erroRequisicao) => setErro(erroRequisicao.message));
+  }, [contadorIdConsulta]);
 
   async function carregar() {
     setCarregando(true);
@@ -115,20 +139,49 @@ export default function ContabilCreditos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
 
+  const empresaSelecionada = contadorIdConsulta
+    ? carteiraContador?.find((e) => e.id === empresaSelecionadaId)
+    : empresaAtiva;
+
   return (
     <LayoutPrincipal>
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-6 text-xl font-semibold text-gray-900">
-          Créditos{empresaAtiva?.razaoSocial ? ` — ${empresaAtiva.razaoSocial}` : ''}
+          Créditos
+          {contadorIdConsulta
+            ? ` — carteira de ${nomeContadorConsulta ?? 'contador'}${empresaSelecionada ? ` · ${empresaSelecionada.razaoSocial}` : ''}`
+            : empresaSelecionada?.razaoSocial ? ` — ${empresaSelecionada.razaoSocial}` : ''}
         </h1>
 
         {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
-        {precisaSelecionarEmpresa || !empresaId ? (
+        {contadorIdConsulta && carteiraContador?.length > 1 && (
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-medium text-gray-700">Empresa</label>
+            <select
+              value={empresaSelecionadaId ?? ''}
+              onChange={(evento) => setEmpresaSelecionadaId(evento.target.value)}
+              className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="" disabled>Selecione a empresa</option>
+              {carteiraContador.map((e) => (
+                <option key={e.id} value={e.id}>{e.razaoSocial}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {contadorIdConsulta && carteiraContador?.length === 0 && (
+          <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
+            Esse contador ainda não tem empresas na carteira.
+          </p>
+        )}
+
+        {!contadorIdConsulta && (precisaSelecionarEmpresa || !empresaId) ? (
           <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
             Selecione uma empresa no topo da tela pra ver os créditos dela.
           </p>
-        ) : carregando ? (
+        ) : !empresaId ? null : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <>
