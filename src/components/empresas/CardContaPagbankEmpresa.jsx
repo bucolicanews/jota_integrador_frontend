@@ -25,6 +25,7 @@ export default function CardContaPagbankEmpresa({ empresa, aoAtualizar }) {
   const [salvando, setSalvando] = useState(false);
   const [mensagemSalvo, setMensagemSalvo] = useState(null);
   const [erro, setErro] = useState(null);
+  const [guiaAberto, setGuiaAberto] = useState(false);
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm({
     defaultValues: {
       pagbankAccountId: empresa.pagbankAccountId ?? '',
@@ -47,12 +48,31 @@ export default function CardContaPagbankEmpresa({ empresa, aoAtualizar }) {
   }, [empresa.id, modulos, temModuloBancos]);
 
   useEffect(() => {
+    // Espera a lista carregar (bancos OU contasContabeis, conforme o módulo) antes de
+    // aplicar o reset -- sincronizar o valor salvo ANTES da <option> correspondente
+    // existir faz o <select> ficar em branco pra sempre (RHF só reaplica valor em reset
+    // explícito, nunca por conta de uma <option> aparecer depois num re-render passivo).
+    if (modulos == null) return;
+    // Só espera a lista quando tem um valor salvo que precisa achar a própria <option> --
+    // sem valor selecionado ainda, não há corrida (nenhuma <option> pra esperar).
+    if (temModuloBancos && empresa.bancoPagbankId && bancos.length === 0) return;
+    if (!temModuloBancos && empresa.contaContabilPagbankId && contasContabeis.length === 0) return;
+
     reset({
       pagbankAccountId: empresa.pagbankAccountId ?? '',
       bancoPagbankId: empresa.bancoPagbankId ?? '',
       contaContabilPagbankId: empresa.contaContabilPagbankId ?? '',
     });
-  }, [empresa.pagbankAccountId, empresa.bancoPagbankId, empresa.contaContabilPagbankId, reset]);
+  }, [
+    empresa.pagbankAccountId,
+    empresa.bancoPagbankId,
+    empresa.contaContabilPagbankId,
+    reset,
+    modulos,
+    temModuloBancos,
+    bancos,
+    contasContabeis,
+  ]);
 
   async function aoSalvar(dados) {
     setSalvando(true);
@@ -80,6 +100,38 @@ export default function CardContaPagbankEmpresa({ empresa, aoAtualizar }) {
         Recebe automaticamente a parte que cabe a esta empresa quando um cliente paga um link de pagamento (contrato
         / conta a receber) -- a comissão da plataforma é descontada antes, no próprio split.
       </p>
+
+      <button
+        type="button"
+        onClick={() => setGuiaAberto((atual) => !atual)}
+        className="mb-3 text-xs font-medium text-blue-600 hover:underline"
+      >
+        {guiaAberto ? '▾' : '▸'} Como configurar o PagBank? (passo a passo)
+      </button>
+
+      {guiaAberto && (
+        <ol className="mb-4 space-y-2 rounded-md border border-blue-100 bg-blue-50 p-3 text-xs text-gray-700">
+          <li>
+            <span className="font-semibold text-gray-900">1. Acesse o PagBank</span> -- crie uma conta ou faça login em{' '}
+            <span className="font-medium">pagseguro.uol.com.br</span>.
+          </li>
+          <li>
+            <span className="font-semibold text-gray-900">2. Pegue o identificador da conta</span> -- menu
+            Minha Conta → Dados da Conta → Identificador da conta (formato <span className="font-medium">ACCO_XXXX...</span> ou{' '}
+            <span className="font-medium">ACCT_XXXX...</span>).
+          </li>
+          <li>
+            <span className="font-semibold text-gray-900">3. Cole esse ID</span> no campo "ID da conta PagBank" abaixo.
+          </li>
+          <li>
+            <span className="font-semibold text-gray-900">4. Escolha a conta de recebimento</span> e clique em Salvar.
+          </li>
+          <li className="text-gray-500">
+            Sem token e sem cadastro de webhook aqui -- isso fica só no lado da plataforma. Essa conta é usada só pra
+            saber pra onde mandar a sua parte do split quando um link de pagamento é confirmado.
+          </li>
+        </ol>
+      )}
 
       {erro && <p className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 

@@ -91,15 +91,19 @@ export default function ContabilConfiguracoesFiscais() {
     setSalvandoDados(true);
     setMensagemSalvo(null);
     try {
-      if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
-        await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
-      }
+      // atualizarEmpresa primeiro -- se o tipoPessoa está mudando (ex: juridica -> fisica)
+      // nessa mesma edição, corrigirCnpjEmpresa valida o documento contra o tipoPessoa
+      // ATUAL no banco; chamar antes dessa atualização validaria um CPF de 11 dígitos como
+      // CNPJ (14) e rejeitaria tudo, mesmo com o documento certo.
       await atualizarEmpresa(empresa.id, {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia || null,
         regimeTributario: dados.regimeTributario || null,
         ...(ehContador ? { tipoPessoa: dados.tipoPessoa, crc: dados.crc || null } : {}),
       });
+      if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
+        await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
+      }
       await carregar();
       setMensagemSalvo('Dados salvos.');
     } catch (erroRequisicao) {
