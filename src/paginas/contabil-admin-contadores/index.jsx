@@ -15,6 +15,9 @@ import {
   listarContadores,
 } from '../../servicos/contadores';
 import { listarEmpresas } from '../../servicos/empresas';
+import { atualizarPagbankConta } from '../../servicos/pagbankLicencas';
+import { criarUsuario, gerarLinkAcesso, listarUsuarios } from '../../servicos/usuarios';
+import CartaoLinkAcesso from '../../components/auth/CartaoLinkAcesso';
 import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
 const ROTULO_TIPO = { humano: 'Escritório/Pessoa física', interno_jota: 'Interno JOTA' };
@@ -78,6 +81,7 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
       cnpjCpf: contador?.cnpjCpf ?? '',
       email: contador?.email ?? '',
       telefone: contador?.telefone ?? '',
+      pagbankAccountId: contador?.pagbankAccountId ?? '',
     },
   });
 
@@ -99,6 +103,10 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
           email: dados.email,
           telefone: dados.telefone || null,
         });
+        const novaContaPagbank = dados.pagbankAccountId.trim();
+        if (novaContaPagbank && novaContaPagbank !== (contador.pagbankAccountId ?? '')) {
+          await atualizarPagbankConta(contador.id, novaContaPagbank);
+        }
       } else {
         await criarContador({
           nome: dados.nome,
@@ -168,6 +176,16 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
               {...register('telefone')}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Conta PagBank</label>
+            <input
+              {...register('pagbankAccountId')}
+              placeholder="Account id obtido no painel da PagBank"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-400">Precisa estar cadastrada pra esse contador poder cobrar/receber split.</p>
           </div>
 
           {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
@@ -357,6 +375,116 @@ function ModalModulosContador({ contador, aoFechar, aoSalvar }) {
   );
 }
 
+/** Login/acesso do contador -- sem campo de senha (nunca existe no sistema, login é 100% por link/convite). Se já existe usuário dono, só reemite o link; senão cria o usuário CONTADOR_DONO primeiro. */
+function ModalLoginContador({ contador, aoFechar }) {
+  const [carregando, setCarregando] = useState(true);
+  const [usuarioDono, setUsuarioDono] = useState(null);
+  const [email, setEmail] = useState(contador.email ?? '');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [link, setLink] = useState(null);
+
+  useEffect(() => {
+    listarUsuarios({ contadorId: contador.id })
+      .then((lista) => setUsuarioDono(lista.find((u) => u.papel === 'CONTADOR_DONO') ?? null))
+      .catch((erroRequisicao) => setErro(erroRequisicao.message))
+      .finally(() => setCarregando(false));
+  }, [contador.id]);
+
+  async function aoCriarLogin() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      const resultado = await criarUsuario({
+        nome: contador.nome,
+        email,
+        papel: 'CONTADOR_DONO',
+        contadorId: contador.id,
+      });
+      setUsuarioDono(resultado);
+      setLink(resultado.linkAcesso);
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message ?? 'Não foi possível criar o login');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function aoReenviarLink() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      const resultado = await gerarLinkAcesso(usuarioDono.id);
+      setLink(resultado.linkAcesso);
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message ?? 'Não foi possível gerar o link');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">Login de {contador.nome}</h2>
+
+        {carregando ? (
+          <p className="text-sm text-gray-500">Carregando...</p>
+        ) : usuarioDono ? (
+          <>
+            <p className="mb-4 text-sm text-gray-600">
+              Login já existe, e-mail <span className="font-medium text-gray-900">{usuarioDono.email}</span>. Não há senha
+              cadastrada no sistema -- acesso é sempre por link de convite.
+            </p>
+            <button
+              type="button"
+              onClick={aoReenviarLink}
+              disabled={enviando}
+              className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {enviando ? 'Gerando...' : 'Reenviar link / redefinir acesso'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-gray-600">Esse contador ainda não tem login. Informe o e-mail pra criar.</p>
+            <label className="mb-1 block text-sm font-medium text-gray-700">E-mail *</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={aoCriarLogin}
+              disabled={enviando || !email}
+              className="w-full rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {enviando ? 'Criando...' : 'Criar login e gerar link'}
+            </button>
+          </>
+        )}
+
+        {erro && <p className="mt-3 text-sm text-red-600">{erro}</p>}
+        {link && (
+          <div className="mt-4">
+            <CartaoLinkAcesso link={link} titulo="Link de acesso" />
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={aoFechar}
+          className="mt-4 w-full rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ContabilAdminContadores() {
   const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
@@ -374,6 +502,7 @@ export default function ContabilAdminContadores() {
   const [modalContador, setModalContador] = useState(null); // null | { contador?: Contador } (contador ausente = criar)
   const [modalBloqueio, setModalBloqueio] = useState(null); // Contador | null
   const [modalModulos, setModalModulos] = useState(null); // Contador | null
+  const [modalLogin, setModalLogin] = useState(null); // Contador | null
   const [acaoEmAndamento, setAcaoEmAndamento] = useState(null);
 
   async function carregar() {
@@ -461,6 +590,13 @@ export default function ContabilAdminContadores() {
           className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           Editar
+        </button>
+        <button
+          onClick={() => setModalLogin(contador)}
+          title="Criar login (se não existir) e enviar/reenviar link de acesso -- não há senha cadastrada no sistema"
+          className="rounded-md border border-green-300 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-50"
+        >
+          Login
         </button>
         <button
           onClick={() =>
@@ -696,6 +832,8 @@ export default function ContabilAdminContadores() {
           }}
         />
       )}
+
+      {modalLogin && <ModalLoginContador contador={modalLogin} aoFechar={() => setModalLogin(null)} />}
     </LayoutPrincipal>
   );
 }
