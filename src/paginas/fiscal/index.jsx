@@ -4,11 +4,11 @@ import { useForm } from 'react-hook-form';
 import DOMPurify from 'dompurify';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { api } from '../../servicos/api';
-import { cadastrarOuRotacionarCertificado, listarCertificados, obterProcuracao, testarCertificado } from '../../servicos/acessoSerpro';
 import { atualizarEmpresa } from '../../servicos/empresas';
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import CardContaPagbankEmpresa from '../../components/empresas/CardContaPagbankEmpresa';
-import { diasRestantesCertificado, statusExpiracaoCertificado } from '../../utils/certificadoExpiracao';
+import SecaoCertificadoSerpro from '../../components/empresas/SecaoCertificadoSerpro';
+import SecaoProcuracaoSerpro from '../../components/empresas/SecaoProcuracaoSerpro';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 
 const formatarCnpj = (valor) => {
@@ -23,240 +23,12 @@ import {
 } from '../../servicos/caixaPostal';
 import { notificarSaldoCreditosAtualizado } from '../../servicos/creditos';
 
-const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
-
 /**
  * Perfil JOTA FISCAL (empresário) -- linguagem 100% não-técnica, semáforo 🟢🟡🔴 como
  * padrão visual consistente (docs/UX-UI.md). Roda dentro do mesmo LayoutPrincipal/
  * MenuLateral do JOTA CONTÁBIL (empresa ganha sidebar com os módulos que o contador
  * licenciou pra ela) -- só o conteúdo desta página é o dashboard enxuto original.
  */
-
-const MENSAGEM_PROCURACAO = {
-  pendente: {
-    icone: '🟡',
-    titulo: 'Aguardando sua procuração',
-    texto: 'Para liberarmos as consultas fiscais da sua empresa, é preciso outorgar a procuração eletrônica no portal e-CAC (gov.br).',
-  },
-  ativa: {
-    icone: '🟢',
-    titulo: 'Tudo certo com seu acesso',
-    texto: 'Sua procuração está ativa — já podemos consultar os dados fiscais da sua empresa.',
-  },
-  expirada: {
-    icone: '🟠',
-    titulo: 'Sua procuração venceu',
-    texto: 'Renove a procuração no e-CAC (gov.br) para continuarmos consultando seus dados fiscais.',
-  },
-  revogada: {
-    icone: '🔴',
-    titulo: 'Procuração revogada',
-    texto: 'Sua procuração foi revogada. Outorgue uma nova no e-CAC (gov.br) para retomarmos o acesso.',
-  },
-};
-
-function CardProcuracao({ empresaId }) {
-  const [procuracao, setProcuracao] = useState(null);
-  const [erro, setErro] = useState(null);
-
-  useEffect(() => {
-    obterProcuracao(empresaId)
-      .then(setProcuracao)
-      .catch((e) => setErro(e.message));
-  }, [empresaId]);
-
-  if (erro) return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Não conseguimos verificar seu acesso agora.</p>;
-  if (!procuracao) return <p className="text-sm text-gray-500">Verificando...</p>;
-
-  const info = MENSAGEM_PROCURACAO[procuracao.status];
-
-  return (
-    <div>
-      <p className="text-base font-medium text-gray-900">
-        {info.icone} {info.titulo}
-      </p>
-      <p className="mt-1 text-sm text-gray-600">{info.texto}</p>
-      {procuracao.status === 'ativa' && procuracao.expiraEm && (
-        <p className="mt-1 text-xs text-gray-500">Válida até {formatarData(procuracao.expiraEm)}</p>
-      )}
-    </div>
-  );
-}
-
-function FormularioCertificadoFiscal({ empresaId, aoConcluir }) {
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting }, setError, clearErrors } = useForm();
-  const [testando, setTestando] = useState(false);
-  const [resultadoTeste, setResultadoTeste] = useState(null);
-  const arquivoWatch = watch('arquivo');
-  const senhaWatch = watch('senha');
-  const assinaturaAtual = `${arquivoWatch?.[0]?.name ?? ''}|${arquivoWatch?.[0]?.size ?? ''}|${senhaWatch ?? ''}`;
-  const testeAtual = resultadoTeste?.assinaturaTestada === assinaturaAtual ? resultadoTeste : null;
-  const testeValidoPraAtual = testeAtual?.ok && !testeAtual.cnpjDivergente;
-
-  async function aoTestar() {
-    const arquivo = arquivoWatch?.[0];
-    const senha = senhaWatch;
-    if (!arquivo) {
-      setError('arquivo', { message: 'Selecione o arquivo do seu certificado' });
-      return;
-    }
-    if (!senha) {
-      setError('senha', { message: 'Obrigatório' });
-      return;
-    }
-    clearErrors(['arquivo', 'senha']);
-    setTestando(true);
-    setResultadoTeste(null);
-    try {
-      const resultado = await testarCertificado(empresaId, { arquivo, tipo: 'A1', senha });
-      setResultadoTeste({ ok: true, ...resultado, assinaturaTestada: assinaturaAtual });
-    } catch (erro) {
-      setResultadoTeste({ ok: false, mensagem: erro.message ?? 'Não conseguimos validar seu certificado agora' });
-    } finally {
-      setTestando(false);
-    }
-  }
-
-  async function aoSubmeter(dados) {
-    const arquivo = dados.arquivo?.[0];
-    if (!arquivo || !testeValidoPraAtual) return;
-    try {
-      await cadastrarOuRotacionarCertificado(empresaId, { arquivo, tipo: 'A1', senha: dados.senha });
-      aoConcluir();
-    } catch (erro) {
-      setError('root', { message: erro.message ?? 'Não conseguimos enviar seu certificado agora. Tente novamente.' });
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit(aoSubmeter)} className="mt-3 space-y-3">
-      <p className="text-xs text-gray-500">Seu certificado é protegido e cifrado assim que enviado — ninguém, nem nós, consegue vê-lo depois.</p>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Arquivo do certificado (.pfx ou .p12)</label>
-        <input type="file" accept=".pfx,.p12" {...register('arquivo')} className="w-full text-sm" />
-        {errors.arquivo && <p className="mt-1 text-xs text-red-600">{errors.arquivo.message}</p>}
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Senha do certificado</label>
-        <input
-          type="password"
-          {...register('senha', { required: 'Obrigatório' })}
-          className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
-        {errors.senha && <p className="mt-1 text-xs text-red-600">{errors.senha.message}</p>}
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={aoTestar}
-          disabled={testando}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          {testando ? 'Testando...' : 'Testar certificado'}
-        </button>
-        {testeAtual?.ok && testeAtual.cnpjDivergente && (
-          <p className="mt-2 text-sm font-medium text-red-600">
-            ⚠️ O CNPJ deste certificado ({testeAtual.cnpjCertificado}) não é o CNPJ da sua empresa -- confira se enviou o certificado
-            correto.
-          </p>
-        )}
-        {testeAtual?.ok && !testeAtual.cnpjDivergente && (
-          <p className="mt-2 text-sm text-green-700">✅ Certificado válido — válido até {formatarData(testeAtual.validadeFim)}</p>
-        )}
-        {resultadoTeste?.ok === false && <p className="mt-2 text-sm text-red-600">❌ {resultadoTeste.mensagem}</p>}
-        {resultadoTeste?.ok && !testeAtual && (
-          <p className="mt-2 text-xs text-amber-600">Arquivo ou senha mudaram -- teste novamente antes de enviar.</p>
-        )}
-      </div>
-
-      {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
-      <button
-        type="submit"
-        disabled={isSubmitting || !testeValidoPraAtual}
-        title={!testeValidoPraAtual ? 'Teste o certificado antes de enviar' : undefined}
-        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
-        {isSubmitting ? 'Enviando...' : 'Enviar certificado'}
-      </button>
-    </form>
-  );
-}
-
-function CardCertificado({ empresaId }) {
-  const [certificados, setCertificados] = useState(null);
-  const [erro, setErro] = useState(null);
-  const [mostrarForm, setMostrarForm] = useState(false);
-
-  async function carregar() {
-    try {
-      const dados = await listarCertificados(empresaId);
-      setCertificados(dados);
-    } catch (e) {
-      setErro(e.message);
-    }
-  }
-
-  useEffect(() => {
-    carregar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresaId]);
-
-  if (erro) return <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">Não conseguimos verificar seu certificado agora.</p>;
-  if (!certificados) return <p className="text-sm text-gray-500">Verificando...</p>;
-
-  const ativo = certificados.find((c) => c.status === 'ativo');
-
-  if (ativo) {
-    const expiracao = statusExpiracaoCertificado(ativo.validadeFim);
-    const diasRestantes = diasRestantesCertificado(ativo.validadeFim);
-
-    if (expiracao === 'vencido') {
-      return (
-        <div>
-          <p className="text-base font-medium text-gray-900">🔴 Seu certificado venceu</p>
-          <p className="mt-1 text-sm text-gray-600">
-            Venceu em {formatarData(ativo.validadeFim)} — suas consultas fiscais ficam bloqueadas até enviar um novo certificado. Fale
-            com seu contador se precisar de ajuda.
-          </p>
-        </div>
-      );
-    }
-    if (expiracao === 'proximo') {
-      return (
-        <div>
-          <p className="text-base font-medium text-gray-900">🟠 Seu certificado vence em breve</p>
-          <p className="mt-1 text-sm text-gray-600">
-            Vence em {diasRestantes} dia{diasRestantes === 1 ? '' : 's'} ({formatarData(ativo.validadeFim)}) — providencie a renovação
-            com seu contador antes do vencimento.
-          </p>
-        </div>
-      );
-    }
-    return (
-      <p className="text-base font-medium text-gray-900">
-        🟢 Certificado ativo — válido até {formatarData(ativo.validadeFim)}
-      </p>
-    );
-  }
-
-  return (
-    <div>
-      <p className="text-base font-medium text-gray-900">🟡 Aguardando seu certificado digital</p>
-      <p className="mt-1 text-sm text-gray-600">Envie o certificado da sua empresa para liberarmos as consultas fiscais.</p>
-      {!mostrarForm ? (
-        <button
-          onClick={() => setMostrarForm(true)}
-          className="mt-3 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Enviar certificado
-        </button>
-      ) : (
-        <FormularioCertificadoFiscal empresaId={empresaId} aoConcluir={carregar} />
-      )}
-    </div>
-  );
-}
 
 function ModalMensagemFiscal({ empresaId, mensagem, aoFechar, aoMarcarLida }) {
   const [conteudo, setConteudo] = useState(null);
@@ -472,10 +244,19 @@ function CardDadosCadastrais({ empresa, aoAtualizar }) {
   );
 }
 
+const ABAS_FISCAL = [
+  { id: 'dados', rotulo: 'Dados cadastrais' },
+  { id: 'acesso-serpro', rotulo: 'Acesso à Receita Federal' },
+  { id: 'caixa-postal', rotulo: 'Caixa Postal' },
+  { id: 'creditos', rotulo: 'Comprar créditos' },
+  { id: 'pagbank', rotulo: 'Conta PagBank' },
+];
+
 export default function Fiscal() {
   const { usuario } = useSelector((state) => state.autenticacao);
   const [empresa, setEmpresa] = useState(null);
   const [erro, setErro] = useState(null);
+  const [abaAtiva, setAbaAtiva] = useState('dados');
 
   async function carregar() {
     try {
@@ -505,31 +286,58 @@ export default function Fiscal() {
             </p>
           </div>
 
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Dados cadastrais</h2>
-            <CardDadosCadastrais empresa={empresa} aoAtualizar={carregar} />
+          <div className="border-b border-gray-200">
+            <div className="flex gap-1 overflow-x-auto">
+              {ABAS_FISCAL.map((aba) => (
+                <button
+                  key={aba.id}
+                  type="button"
+                  onClick={() => setAbaAtiva(aba.id)}
+                  className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
+                    abaAtiva === aba.id
+                      ? 'border-blue-600 text-blue-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {aba.rotulo}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Acesso à Receita Federal</h2>
-            {empresa.modoAcessoSerpro === 'procuracao' ? (
-              <CardProcuracao empresaId={empresa.id} />
-            ) : (
-              <CardCertificado empresaId={empresa.id} />
-            )}
-          </div>
+          {abaAtiva === 'dados' && (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Dados cadastrais</h2>
+              <CardDadosCadastrais empresa={empresa} aoAtualizar={carregar} />
+            </div>
+          )}
 
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Caixa Postal</h2>
-            <CardCaixaPostal empresaId={empresa.id} />
-          </div>
+          {abaAtiva === 'acesso-serpro' && (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Acesso à Receita Federal</h2>
+              {empresa.modoAcessoSerpro === 'procuracao' ? (
+                <SecaoProcuracaoSerpro empresaId={empresa.id} podeEditar={false} />
+              ) : (
+                <SecaoCertificadoSerpro empresaId={empresa.id} />
+              )}
+            </div>
+          )}
 
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Comprar créditos</h2>
-            <CardComprarCreditosAvulsos empresaId={empresa.id} permitirRevenda />
-          </div>
+          {abaAtiva === 'caixa-postal' && (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Caixa Postal</h2>
+              <CardCaixaPostal empresaId={empresa.id} />
+            </div>
+          )}
 
-          <CardContaPagbankEmpresa empresa={empresa} aoAtualizar={carregar} />
+          {abaAtiva === 'creditos' && (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-3 text-sm font-semibold uppercase text-gray-500">Comprar créditos</h2>
+              <CardComprarCreditosAvulsos empresaId={empresa.id} permitirRevenda />
+            </div>
+          )}
+
+          {abaAtiva === 'pagbank' && <CardContaPagbankEmpresa empresa={empresa} aoAtualizar={carregar} />}
         </div>
       )}
     </LayoutPrincipal>

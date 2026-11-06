@@ -203,6 +203,7 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
         {etapa === 'plano' && (
           <EtapaPlano
             contadorId={dadosEmpresa.contadorId}
+            ehSuperAdmin={ehSuperAdmin}
             erro={erro}
             enviando={enviando}
             onVoltar={() => setEtapa('dados')}
@@ -214,12 +215,13 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
   );
 }
 
-function EtapaPlano({ contadorId, erro, enviando, onVoltar, onSubmeter }) {
+function EtapaPlano({ contadorId, ehSuperAdmin, erro, enviando, onVoltar, onSubmeter }) {
   const [planos, setPlanos] = useState(null);
   const [planosRevenda, setPlanosRevenda] = useState([]);
   const [statusPagbank, setStatusPagbank] = useState(null);
   const [planoId, setPlanoId] = useState('');
-  const [cobranca, setCobranca] = useState('gratis'); // 'gratis' | 'contador_paga_agora' | 'cliente_paga_depois'
+  // Contador nunca pode ativar empresa de cliente sem cobrar -- "gratis" é exclusivo do admin.
+  const [cobranca, setCobranca] = useState(ehSuperAdmin ? 'gratis' : 'contador_paga_agora'); // 'gratis' | 'contador_paga_agora' | 'cliente_paga_depois'
   const [clienteNome, setClienteNome] = useState('');
   const [clienteEmail, setClienteEmail] = useState('');
   const [erroLocal, setErroLocal] = useState(null);
@@ -316,14 +318,18 @@ function EtapaPlano({ contadorId, erro, enviando, onVoltar, onSubmeter }) {
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">Cobrança</label>
         <div className="space-y-1.5">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={cobranca === 'gratis'} onChange={() => setCobranca('gratis')} />
-            Ativar sem cobrar
-          </label>
-          <label className={`flex items-center gap-2 text-sm ${podeCobrar ? '' : 'text-gray-400'}`}>
-            <input type="radio" disabled={!podeCobrar} checked={cobranca === 'contador_paga_agora'} onChange={() => setCobranca('contador_paga_agora')} />
-            Eu pago agora
-          </label>
+          {ehSuperAdmin && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" checked={cobranca === 'gratis'} onChange={() => setCobranca('gratis')} />
+              Ativar sem cobrar
+            </label>
+          )}
+          {!ehSuperAdmin && (
+            <label className={`flex items-center gap-2 text-sm ${podeCobrar ? '' : 'text-gray-400'}`}>
+              <input type="radio" disabled={!podeCobrar} checked={cobranca === 'contador_paga_agora'} onChange={() => setCobranca('contador_paga_agora')} />
+              Eu pago agora
+            </label>
+          )}
           <label className={`flex items-center gap-2 text-sm ${podeCobrar ? '' : 'text-gray-400'}`}>
             <input type="radio" disabled={!podeCobrar} checked={cobranca === 'cliente_paga_depois'} onChange={() => setCobranca('cliente_paga_depois')} />
             Mandar o cliente pagar depois
