@@ -34,3 +34,7 @@ Thumbs.db
 # Cache
 .eslintcache
 .cache/
+
+# Supabase CLI (estado local de link, não versionar)
+supabase/.branches/
+supabase/.temp/
