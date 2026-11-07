@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
-import { Link2, Loader2, Lock, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
+import { Link2, Loader2, Lock, Mail, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import CartaoLinkAcesso from '../components/auth/CartaoLinkAcesso';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { listarContadores } from '../servicos/contadores';
 import { listarEmpresas } from '../servicos/empresas';
 import {
+  atualizarEmailUsuario,
   bloquearUsuario,
   concederPermissao,
   criarUsuario,
@@ -264,6 +265,48 @@ function DialogBloquear({ usuario, onClose, onBloqueado }: { usuario: any; onClo
   );
 }
 
+function DialogEditarEmail({ usuario, onClose, onAtualizado }: { usuario: any; onClose: () => void; onAtualizado: () => void }) {
+  const [novoEmail, setNovoEmail] = useState(usuario.email);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function confirmar() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await atualizarEmailUsuario(usuario.id, novoEmail.trim());
+      showSuccess('E-mail de login atualizado.');
+      onAtualizado();
+    } catch (e: any) {
+      setErro(e.message ?? 'Não foi possível atualizar o e-mail');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Novo e-mail de login *</Label>
+        <Input type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Vale pro próximo login -- sessões já ativas continuam funcionando até expirar.
+      </p>
+      {erro && <p className="text-sm text-destructive">{erro}</p>}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button onClick={confirmar} disabled={enviando || !novoEmail.trim()}>
+          {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function DialogPermissoes({ usuario }: { usuario: any }) {
   const [dados, setDados] = useState<{ catalogoDisponivel: any[]; concedidas: any[] } | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -350,6 +393,7 @@ export default function GerenciarUsuarios() {
   const [carregando, setCarregando] = useState(false);
   const [dialogNovoAberto, setDialogNovoAberto] = useState(false);
   const [usuarioParaBloquear, setUsuarioParaBloquear] = useState<any | null>(null);
+  const [usuarioParaEditarEmail, setUsuarioParaEditarEmail] = useState<any | null>(null);
   const [usuarioParaPermissoes, setUsuarioParaPermissoes] = useState<any | null>(null);
   const [linkAcessoGerado, setLinkAcessoGerado] = useState<{ nome: string; link: string } | null>(null);
   const [processando, setProcessando] = useState<string | null>(null);
@@ -507,6 +551,9 @@ export default function GerenciarUsuarios() {
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setUsuarioParaPermissoes(u)} title="Permissões">
                               <ShieldCheck className="h-3.5 w-3.5" />
                             </Button>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setUsuarioParaEditarEmail(u)} title="Editar e-mail de login">
+                              <Mail className="h-3.5 w-3.5" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -572,6 +619,24 @@ export default function GerenciarUsuarios() {
               onClose={() => setUsuarioParaBloquear(null)}
               onBloqueado={() => {
                 setUsuarioParaBloquear(null);
+                carregar();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!usuarioParaEditarEmail} onOpenChange={(aberto) => !aberto && setUsuarioParaEditarEmail(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar e-mail de login</DialogTitle>
+          </DialogHeader>
+          {usuarioParaEditarEmail && (
+            <DialogEditarEmail
+              usuario={usuarioParaEditarEmail}
+              onClose={() => setUsuarioParaEditarEmail(null)}
+              onAtualizado={() => {
+                setUsuarioParaEditarEmail(null);
                 carregar();
               }}
             />

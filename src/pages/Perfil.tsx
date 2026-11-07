@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '../servicos/supabase';
-import { obterMeuPerfil, atualizarMeuNome, atualizarMeuAvatar } from '../servicos/perfil';
+import { obterMeuPerfil, atualizarMeuNome, atualizarMeuEmail, atualizarMeuAvatar } from '../servicos/perfil';
 import { atualizarContador, corrigirCnpjCpfContador, obterMeuContador } from '../servicos/contadores';
 import { validarCpfOuCnpj } from '../utils/validarCpfOuCnpj';
 import { showError, showSuccess } from '../utils/toast';
@@ -50,6 +50,10 @@ export default function Perfil() {
   const [escritorio, setEscritorio] = useState<any | null>(null);
   const [corrigindoDoc, setCorrigindoDoc] = useState(false);
   const [enviandoAvatar, setEnviandoAvatar] = useState(false);
+  const [editandoEmail, setEditandoEmail] = useState(false);
+  const [novoEmail, setNovoEmail] = useState('');
+  const [salvandoEmail, setSalvandoEmail] = useState(false);
+  const [erroEmail, setErroEmail] = useState<string | null>(null);
 
   const {
     register: registrarNome,
@@ -147,6 +151,27 @@ export default function Perfil() {
     }
   }
 
+  function aoClicarEditarEmail() {
+    setNovoEmail(perfil.email);
+    setErroEmail(null);
+    setEditandoEmail(true);
+  }
+
+  async function aoSalvarEmail() {
+    setSalvandoEmail(true);
+    setErroEmail(null);
+    try {
+      const atualizado = await atualizarMeuEmail(novoEmail.trim());
+      setPerfil(atualizado);
+      setEditandoEmail(false);
+      showSuccess('E-mail de login atualizado -- use o novo e-mail no próximo acesso.');
+    } catch (erro: any) {
+      setErroEmail(erro.message ?? 'Não foi possível atualizar o e-mail');
+    } finally {
+      setSalvandoEmail(false);
+    }
+  }
+
   async function aoSalvarSenha(dados: DadosSenha) {
     if (dados.novaSenha !== dados.confirmarSenha) {
       showError('As senhas não conferem.');
@@ -214,8 +239,31 @@ export default function Perfil() {
                 <Input {...registrarNome('nome', { required: true, minLength: 2 })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input value={perfil.email} disabled />
+                <div className="flex items-center justify-between">
+                  <Label>Email de login</Label>
+                  {!editandoEmail && (
+                    <button type="button" onClick={aoClicarEditarEmail} className="text-xs font-medium text-primary hover:underline">
+                      Alterar e-mail
+                    </button>
+                  )}
+                </div>
+                {editandoEmail ? (
+                  <div className="space-y-1.5">
+                    <Input type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} />
+                    {erroEmail && <p className="text-xs text-destructive">{erroEmail}</p>}
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setEditandoEmail(false)} disabled={salvandoEmail}>
+                        Cancelar
+                      </Button>
+                      <Button type="button" size="sm" onClick={aoSalvarEmail} disabled={salvandoEmail || !novoEmail.trim()}>
+                        {salvandoEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar e-mail
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Input value={perfil.email} disabled />
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <Badge variant="secondary">{ROTULO_PAPEL[perfil.papel] ?? perfil.papel}</Badge>

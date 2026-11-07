@@ -15,6 +15,8 @@ export const bloquearUsuario = (id, motivo) => api.post(`/auth/usuarios/${id}/bl
 export const desbloquearUsuario = (id) => api.post(`/auth/usuarios/${id}/desbloquear`);
 /** Reemite o link de acesso de um usuário que já existe (nunca recebeu o convite, perdeu, etc). */
 export const gerarLinkAcesso = (id) => api.post(`/auth/usuarios/${id}/link-acesso`);
+export const atualizarEmailUsuario = (id, novoEmail) => api.patch(`/auth/usuarios/${id}/email`, { novoEmail });
+export const atualizarSenhaUsuario = (id, novaSenha) => api.patch(`/auth/usuarios/${id}/senha`, { novaSenha });
 export const listarPermissoesUsuario = (id) => api.get(`/auth/usuarios/${id}/permissoes`);
 export const concederPermissao = (id, permissaoId) => api.put(`/auth/usuarios/${id}/permissoes/${permissaoId}`);
 export const revogarPermissao = (id, permissaoId) => api.delete(`/auth/usuarios/${id}/permissoes/${permissaoId}`);

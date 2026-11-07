@@ -4,6 +4,8 @@ export const obterMeuPerfil = () => api.get('/auth/me');
 
 export const atualizarMeuNome = (nome) => api.patch('/auth/me', { nome });
 
+export const atualizarMeuEmail = (novoEmail) => api.patch('/auth/me/email', { novoEmail });
+
 export const atualizarMeuAvatar = (arquivo) => {
   const formData = new FormData();
   formData.append('arquivo', arquivo);

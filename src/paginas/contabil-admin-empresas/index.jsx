@@ -15,6 +15,7 @@ import {
   listarEmpresas,
   transferirCarteiraEmpresa,
 } from '../../servicos/empresas';
+import { atualizarEmailUsuario, atualizarSenhaUsuario } from '../../servicos/usuarios';
 import { validarCnpj } from '../../utils/validarCnpj';
 
 const ROTULO_MODO_ACESSO = { procuracao: 'Procuração', certificado_proprio: 'Certificado próprio' };
@@ -40,6 +41,8 @@ function BadgeStatus({ bloqueado }) {
 function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar }) {
   const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
   const [transferindoCarteira, setTransferindoCarteira] = useState(false);
+  const [novoEmailLogin, setNovoEmailLogin] = useState(empresa.emailLogin ?? '');
+  const [novaSenhaLogin, setNovaSenhaLogin] = useState('');
   const {
     register,
     handleSubmit,
@@ -79,6 +82,12 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
       }
       if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
         await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
+      }
+      if (empresa.usuarioLoginId && novoEmailLogin.trim() && novoEmailLogin.trim() !== empresa.emailLogin) {
+        await atualizarEmailUsuario(empresa.usuarioLoginId, novoEmailLogin.trim());
+      }
+      if (empresa.usuarioLoginId && novaSenhaLogin.trim()) {
+        await atualizarSenhaUsuario(empresa.usuarioLoginId, novaSenhaLogin.trim());
       }
       await atualizarEmpresa(empresa.id, {
         razaoSocial: dados.razaoSocial,
@@ -156,6 +165,35 @@ function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar })
               <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
             )}
             {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
+          </div>
+
+          <div className="space-y-2 rounded-md border border-gray-200 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Login de acesso da empresa</p>
+            {empresa.usuarioLoginId ? (
+              <>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">E-mail de login</label>
+                  <input
+                    type="email"
+                    value={novoEmailLogin}
+                    onChange={(e) => setNovoEmailLogin(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Nova senha (deixe em branco pra não alterar)</label>
+                  <input
+                    type="password"
+                    value={novaSenhaLogin}
+                    onChange={(e) => setNovaSenhaLogin(e.target.value)}
+                    placeholder="Mínimo 9 caracteres"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Esta empresa ainda não tem login criado.</p>
+            )}
           </div>
 
           <div>
@@ -553,6 +591,7 @@ export default function ContabilAdminEmpresas() {
                 <tr>
                   <th className="px-4 py-3">Razão social</th>
                   <th className="px-4 py-3">CNPJ</th>
+                  <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Contador</th>
                   <th className="px-4 py-3">Acesso SERPRO</th>
                   <th className="px-4 py-3">Plano</th>
@@ -575,6 +614,7 @@ export default function ContabilAdminEmpresas() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-gray-600">{empresa.emailLogin ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{mapaContadorNome[empresa.contadorId] ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{ROTULO_MODO_ACESSO[empresa.modoAcessoSerpro]}</td>
                     <td className="px-4 py-3 text-gray-600">{empresa.planoNome ?? '—'}</td>
@@ -602,6 +642,7 @@ export default function ContabilAdminEmpresas() {
                   {formatarCnpj(empresa.cnpj)}
                   {!validarCnpj(empresa.cnpj) && <span className="ml-1.5 text-xs font-medium text-red-700">⚠️ inválido</span>}
                 </p>
+                <p className="text-sm text-gray-600">{empresa.emailLogin ?? '—'}</p>
                 <p className="text-sm text-gray-600">
                   Contador: <span className="font-medium">{mapaContadorNome[empresa.contadorId] ?? '—'}</span>
                 </p>
