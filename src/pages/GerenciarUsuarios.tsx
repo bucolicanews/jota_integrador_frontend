@@ -319,6 +319,7 @@ function DialogPermissoes({ usuario }: { usuario: any }) {
   const [dados, setDados] = useState<{ catalogoDisponivel: any[]; concedidas: any[] } | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [alterando, setAlterando] = useState<string | null>(null);
+  const [aplicandoTodos, setAplicandoTodos] = useState(false);
 
   function carregar() {
     setCarregando(true);
@@ -345,6 +346,21 @@ function DialogPermissoes({ usuario }: { usuario: any }) {
     }
   }
 
+  async function alternarTodos(conceder: boolean) {
+    if (!dados) return;
+    setAplicandoTodos(true);
+    try {
+      const concedidasIds = new Set(dados.concedidas.map((c: any) => c.id));
+      const alvo = dados.catalogoDisponivel.filter((p: any) => (conceder ? !concedidasIds.has(p.id) : concedidasIds.has(p.id)));
+      await Promise.all(alvo.map((p: any) => (conceder ? concederPermissao(usuario.id, p.id) : revogarPermissao(usuario.id, p.id))));
+      carregar();
+    } catch (e: any) {
+      showError(e.message);
+    } finally {
+      setAplicandoTodos(false);
+    }
+  }
+
   if (carregando) {
     return (
       <div className="flex justify-center py-8">
@@ -362,8 +378,18 @@ function DialogPermissoes({ usuario }: { usuario: any }) {
 
   return (
     <div className="max-h-[60vh] space-y-4 overflow-y-auto">
-      {Object.keys(porRecurso).length === 0 && (
+      {Object.keys(porRecurso).length === 0 ? (
         <p className="text-sm text-muted-foreground">O papel deste usuário não tem permissões adicionais assinaláveis.</p>
+      ) : (
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => alternarTodos(true)} disabled={aplicandoTodos}>
+            {aplicandoTodos && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            Marcar todos
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => alternarTodos(false)} disabled={aplicandoTodos}>
+            Desmarcar todos
+          </Button>
+        </div>
       )}
       {Object.entries(porRecurso).map(([recurso, permissoes]) => (
         <div key={recurso} className="space-y-1.5">
