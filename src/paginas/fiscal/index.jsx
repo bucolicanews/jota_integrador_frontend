@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import DOMPurify from 'dompurify';
@@ -253,17 +254,24 @@ const ABAS_FISCAL = [
 ];
 
 export default function Fiscal() {
+  const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
   const [empresa, setEmpresa] = useState(null);
   const [erro, setErro] = useState(null);
+  const [semPlanoAtivo, setSemPlanoAtivo] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState('dados');
 
   async function carregar() {
     try {
       const dados = await api.get(`/empresas/${usuario.empresaId}`);
       setEmpresa(dados);
+      setSemPlanoAtivo(false);
     } catch (erroRequisicao) {
-      setErro(erroRequisicao.message);
+      if (erroRequisicao.message?.includes('sem plano ativo')) {
+        setSemPlanoAtivo(true);
+      } else {
+        setErro(erroRequisicao.message);
+      }
     }
   }
 
@@ -271,6 +279,30 @@ export default function Fiscal() {
     if (usuario?.empresaId) carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario]);
+
+  if (semPlanoAtivo) {
+    return (
+      <LayoutPrincipal>
+        <div className="mx-auto max-w-md rounded-lg bg-white p-8 text-center shadow">
+          <p className="mb-2 text-4xl">🔒</p>
+          <h2 className="mb-2 text-lg font-semibold text-gray-900">Sua empresa está sem plano ativo</h2>
+          <p className="mb-6 text-sm text-gray-500">
+            Pra voltar a acessar o sistema, ative um plano agora ou peça pro seu contador liberar o acesso.
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => navegar('/minha-assinatura')}
+              className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Ver minha assinatura
+            </button>
+            <p className="text-xs text-gray-400">Ou fale com seu contador pra liberar o acesso.</p>
+          </div>
+        </div>
+      </LayoutPrincipal>
+    );
+  }
 
   return (
     <LayoutPrincipal>
