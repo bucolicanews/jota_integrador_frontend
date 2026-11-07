@@ -151,6 +151,14 @@ export default function ContabilEmpresas() {
     navegar(`/contabil/empresas/${empresa.id}`);
   }
 
+  // /contabil/assinatura lê a empresa de useEmpresaAtiva (estado global, não :id na URL)
+  // -- mesmo truque de aoAbrirPainel, só que pro destino de gerenciar plano.
+  function aoClicarEditarPlano(evento, empresa) {
+    evento.stopPropagation();
+    selecionarEmpresa(empresa);
+    navegar('/contabil/assinatura');
+  }
+
   async function aoDesbloquear(evento, empresa) {
     evento.stopPropagation();
     if (!window.confirm(`Desbloquear ${empresa.razaoSocial}?`)) return;
@@ -264,6 +272,13 @@ export default function ContabilEmpresas() {
                             Bloquear
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(evento) => aoClicarEditarPlano(evento, empresa)}
+                          className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Editar Plano
+                        </button>
                         <button
                           type="button"
                           onClick={(evento) => aoAbrirPainel(evento, empresa)}
