@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
+import FormularioCheckoutPagbank from '../../components/pagbank/FormularioCheckoutPagbank';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import { obterEmpresa } from '../../servicos/empresas';
 import {
@@ -24,38 +24,16 @@ const STATUS_ASSINATURA = {
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 const formatarData = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
 
-/** Formulário mínimo pra iniciar a cobrança PIX -- só o e-mail do cliente é obrigatório (exigido pela PagBank). */
-function FormularioCobrarPix({ onConfirmar, onCancelar, enviando }) {
-  const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: { customerEmail: '' } });
-
-  return (
-    <form onSubmit={handleSubmit(onConfirmar)} className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-      <div className="flex-1">
-        <label className="mb-1 block text-xs font-medium text-gray-700">E-mail do responsável pela empresa (pra receber o PIX)</label>
-        <input
-          type="email"
-          {...register('customerEmail', { required: true })}
-          className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-        />
-        {errors.customerEmail && <p className="text-xs text-red-600">Obrigatório</p>}
-      </div>
-      <button type="submit" disabled={enviando} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-        {enviando ? 'Gerando PIX...' : 'Gerar PIX'}
-      </button>
-      <button type="button" onClick={onCancelar} className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">
-        Cancelar
-      </button>
-    </form>
-  );
-}
-
-function CardPlano({ plano, planoRevenda, podeGerenciar, ehSuperAdmin, onAtivarManual, onCobrarPix, processando, resultadoPix }) {
+function CardPlano({ plano, planoRevenda, podeGerenciar, ehSuperAdmin, onAtivarManual, onCobrar, processando, resultadoPagamento }) {
   const expirado = plano.dataValidade && plano.dataValidade < new Date().toISOString().slice(0, 10);
-  const [mostrandoFormPix, setMostrandoFormPix] = useState(false);
+  // null | 'proprio' (contador paga o custo, PIX ou cartão) | 'cliente' (gera cobrança
+  // pro cliente pagar depois, preço de venda completo, só PIX -- contador nunca digita
+  // cartão de quem não é ele).
+  const [modoCheckout, setModoCheckout] = useState(null);
 
-  const linkMailto = resultadoPix?.customerEmail
-    ? `mailto:${resultadoPix.customerEmail}?subject=${encodeURIComponent(`Pagamento -- ${plano.nome}`)}&body=${encodeURIComponent(
-        `Olá! Segue o código PIX pra ativar o plano "${plano.nome}":\n\n${resultadoPix.pixCode ?? ''}`,
+  const linkMailto = resultadoPagamento?.pagoPeloContador === false && resultadoPagamento?.pixCode
+    ? `mailto:${resultadoPagamento.customerEmail}?subject=${encodeURIComponent(`Pagamento -- ${plano.nome}`)}&body=${encodeURIComponent(
+        `Olá! Segue o código PIX pra ativar o plano "${plano.nome}":\n\n${resultadoPagamento.pixCode}`,
       )}`
     : null;
 
@@ -82,51 +60,49 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, ehSuperAdmin, onAtivarM
               Ativar sem cobrar
             </button>
           )}
+          <button
+            onClick={() => setModoCheckout('proprio')}
+            disabled={processando}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Eu pago agora
+          </button>
           {planoRevenda ? (
             <button
-              onClick={() => setMostrandoFormPix(true)}
+              onClick={() => setModoCheckout('cliente')}
               disabled={processando}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              Cobrar via PIX
+              Cliente paga depois
             </button>
           ) : (
-            <p className="text-xs text-gray-400">Cadastre seu preço de venda (Minhas Licenças) pra cobrar via PIX.</p>
+            <p className="text-xs text-gray-400">Cadastre seu preço de venda (Minhas Licenças) pra cobrar do cliente.</p>
           )}
         </div>
       )}
       {expirado && <p className="mt-4 text-xs text-red-600">Plano expirado.</p>}
 
-      {mostrandoFormPix && (
-        <FormularioCobrarPix
+      {modoCheckout && !resultadoPagamento && (
+        <FormularioCheckoutPagbank
           enviando={processando}
-          onCancelar={() => setMostrandoFormPix(false)}
-          onConfirmar={(dados) => onCobrarPix(plano, dados.customerEmail)}
+          somentePix={modoCheckout === 'cliente'}
+          rotuloConfirmarPix={modoCheckout === 'proprio' ? 'Gerar PIX e pagar' : 'Gerar PIX pro cliente'}
+          onCancelar={() => setModoCheckout(null)}
+          onConfirmar={(dados) => onCobrar(plano, { ...dados, pagoPeloContador: modoCheckout === 'proprio' })}
         />
       )}
 
-      {resultadoPix && (
-        <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-center">
-          <p className="mb-2 text-xs font-medium text-blue-800">PIX gerado -- envie pra empresa pagar:</p>
-          {resultadoPix.pixQrUrl && <img src={resultadoPix.pixQrUrl} alt="QR Code PIX" className="mx-auto mb-2 h-32 w-32" />}
-          {resultadoPix.pixCode && (
-            <textarea
-              readOnly
-              value={resultadoPix.pixCode}
-              onClick={(e) => e.target.select()}
-              className="w-full rounded-md border border-gray-300 bg-white p-2 text-xs"
-              rows={3}
-            />
-          )}
-          {linkMailto && (
-            <a
-              href={linkMailto}
-              className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Enviar por e-mail pro cliente
-            </a>
-          )}
-        </div>
+      {resultadoPagamento && (
+        <FormularioCheckoutPagbank resultado={resultadoPagamento} onConfirmar={() => {}} onCancelar={() => {}} />
+      )}
+
+      {linkMailto && (
+        <a
+          href={linkMailto}
+          className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Enviar por e-mail pro cliente
+        </a>
       )}
     </div>
   );
@@ -200,12 +176,12 @@ export default function ContabilAssinatura() {
     }
   }
 
-  async function aoCobrarPix(plano, customerEmail) {
+  async function aoCobrar(plano, dados) {
     setProcessandoPlanoId(plano.id);
     setErro(null);
     try {
-      const resultado = await iniciarPagamentoAssinatura(contadorId, empresaId, { planoId: plano.id, metodo: 'pix', customerEmail });
-      setResultadosPix((atual) => ({ ...atual, [plano.id]: { ...resultado, customerEmail } }));
+      const resultado = await iniciarPagamentoAssinatura(contadorId, empresaId, { planoId: plano.id, ...dados });
+      setResultadosPix((atual) => ({ ...atual, [plano.id]: { ...resultado, customerEmail: dados.customerEmail, pagoPeloContador: dados.pagoPeloContador } }));
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
     } finally {
@@ -314,9 +290,9 @@ export default function ContabilAssinatura() {
                       podeGerenciar={ehContador}
                       ehSuperAdmin={ehSuperAdmin}
                       onAtivarManual={aoAtivarManual}
-                      onCobrarPix={aoCobrarPix}
+                      onCobrar={aoCobrar}
                       processando={processandoPlanoId === plano.id}
-                      resultadoPix={resultadosPix[plano.id]}
+                      resultadoPagamento={resultadosPix[plano.id]}
                     />
                   ))}
                 </div>

@@ -17,7 +17,7 @@ export const atualizarVencimentoAssinatura = (contadorId, empresaId, fimEm) =>
 export const iniciarPagamentoAssinatura = (
   contadorId,
   empresaId,
-  { planoId, metodo, cardEncrypted, installments, customerEmail, customerTelefoneE164 },
+  { planoId, metodo, cardEncrypted, installments, customerEmail, customerTelefoneE164, pagoPeloContador },
 ) =>
   api.post(`/contadores/${contadorId}/empresas/${empresaId}/assinatura/iniciar-pagamento`, {
     planoId,
@@ -26,6 +26,7 @@ export const iniciarPagamentoAssinatura = (
     installments,
     customerEmail,
     customerTelefoneE164,
+    pagoPeloContador,
   });
 
 export const listarPlanosRevendaCreditos = (contadorId) => api.get(`/contadores/${contadorId}/planos-revenda-creditos`);
