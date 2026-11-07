@@ -52,7 +52,12 @@ const TODOS_OS_PAPEIS: { valor: string; escopo: 'plataforma' | 'contador' | 'emp
 // Papéis oferecidos na criação, por papel de quem cria -- espelha resolverVinculoPermitido()
 // do AuthController (backend), mas só como conveniência de UI: o backend revalida tudo.
 function opcoesPapelPara(papelCriador: string) {
-  if (papelCriador === 'SUPER_ADMIN') return TODOS_OS_PAPEIS;
+  if (papelCriador === 'SUPER_ADMIN') {
+    // CONTADOR_DONO/OPERADOR_CONTADOR ficam fora -- escopo 'contador' exige escolher QUAL
+    // contador, campo que não existe neste form (CONTADOR_DONO já tem fluxo próprio e mais
+    // completo em "Contadores"; OPERADOR_CONTADOR é sempre criado pelo próprio contador).
+    return TODOS_OS_PAPEIS.filter((p) => p.escopo !== 'contador');
+  }
   if (papelCriador === 'CONTADOR_DONO') {
     return TODOS_OS_PAPEIS.filter((p) => ['OPERADOR_CONTADOR', 'EMPRESARIO_DONO', 'OPERADOR_EMPRESA'].includes(p.valor));
   }
@@ -482,10 +487,7 @@ export default function GerenciarUsuarios() {
         <h1 className="flex items-center text-2xl font-bold md:text-3xl">
           <Users className="mr-2 h-6 w-6" /> Gerenciar Usuários
         </h1>
-        <Button
-          onClick={() => setDialogNovoAberto(true)}
-          disabled={papelAtual === 'SUPER_ADMIN' && !contadorFiltro}
-        >
+        <Button onClick={() => setDialogNovoAberto(true)}>
           <PlusCircle className="mr-2 h-4 w-4" /> Novo Usuário
         </Button>
       </div>
