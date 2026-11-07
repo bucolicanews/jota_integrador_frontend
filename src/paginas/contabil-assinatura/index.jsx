@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import FormularioCheckoutPagbank from '../../components/pagbank/FormularioCheckoutPagbank';
@@ -111,6 +112,7 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, ehSuperAdmin, onAtivarM
 export default function ContabilAssinatura() {
   const { usuario } = useSelector((state) => state.autenticacao);
   const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
+  const podeConfigurarPagbankPlataforma = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'].includes(usuario?.papel);
   const { empresaId, empresaAtiva, ehContador, precisaSelecionarEmpresa } = useEmpresaAtiva();
   const [contadorId, setContadorId] = useState(null);
   const [ehEscritorioProprio, setEhEscritorioProprio] = useState(false);
@@ -226,7 +228,16 @@ export default function ContabilAssinatura() {
           Assinatura de Créditos{empresaAtiva?.razaoSocial ? ` — ${empresaAtiva.razaoSocial}` : ''}
         </h1>
 
-        {erro && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
+        {erro && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700">
+            <span>{erro}</span>
+            {erro.includes('Conta PagBank da plataforma não configurada') && podeConfigurarPagbankPlataforma && (
+              <Link to="/configuracoes" className="shrink-0 rounded-md border border-red-300 px-3 py-1 text-xs font-medium hover:bg-red-100">
+                Configurar agora
+              </Link>
+            )}
+          </div>
+        )}
 
         {precisaSelecionarEmpresa || !empresaId ? (
           <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
