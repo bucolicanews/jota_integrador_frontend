@@ -79,6 +79,7 @@ function FormNovoUsuario({
 }) {
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
+  const [confirmouPlataforma, setConfirmouPlataforma] = useState(false);
   const opcoesPapel = opcoesPapelPara(papelCriador);
 
   const {
@@ -94,11 +95,20 @@ function FormNovoUsuario({
   const papelSelecionado = watch('papel');
   const escopoSelecionado = TODOS_OS_PAPEIS.find((p) => p.valor === papelSelecionado)?.escopo;
   const precisaEmpresa = escopoSelecionado === 'empresa' && papelCriador !== 'EMPRESARIO_DONO';
+  const ehPlataforma = escopoSelecionado === 'plataforma';
+
+  useEffect(() => {
+    if (!ehPlataforma) setConfirmouPlataforma(false);
+  }, [ehPlataforma]);
 
   async function aoSubmeter(dados: DadosNovoUsuario) {
     setErroGeral(null);
     if (precisaEmpresa && !dados.empresaId) {
       setErroGeral('Selecione a empresa.');
+      return;
+    }
+    if (ehPlataforma && !confirmouPlataforma) {
+      setErroGeral('Confirme que entendeu o aviso acima antes de criar um usuário de plataforma.');
       return;
     }
     try {
@@ -162,6 +172,21 @@ function FormNovoUsuario({
         />
       </div>
 
+      {ehPlataforma && (
+        <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p>
+            ⚠️ Papel de <strong>plataforma</strong> -- nunca tem vínculo com um contador ou empresa, e tem acesso total ao
+            sistema inteiro (passa por cima de qualquer restrição de carteira). Se a intenção é um funcionário com acesso
+            só a um escritório ou empresa específica, use "Operador do escritório"/"Operador da empresa" + marque as
+            permissões de módulo depois de criar -- não este papel.
+          </p>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={confirmouPlataforma} onCheckedChange={(v) => setConfirmouPlataforma(Boolean(v))} />
+            Entendi, quero mesmo criar um usuário de plataforma.
+          </label>
+        </div>
+      )}
+
       {precisaEmpresa && (
         <div className="space-y-1.5">
           <Label>Empresa *</Label>
@@ -188,7 +213,7 @@ function FormNovoUsuario({
 
       {erroGeral && <p className="text-sm text-destructive">{erroGeral}</p>}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isSubmitting || (ehPlataforma && !confirmouPlataforma)}>
         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Criar usuário
       </Button>

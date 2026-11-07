@@ -1,8 +1,15 @@
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
+import { listarPermissoesUsuario } from '../../servicos/usuarios';
+
+// Só OPERADOR_CONTADOR/OPERADOR_EMPRESA são restritos por permissão granular -- espelha
+// papelExigeChecagemGranular() do backend (src/auth/dominio/permissao.ts). Dono/plataforma
+// nunca são restritos aqui, mesma regra do PermissoesGuard.
+const PAPEIS_RESTRITOS_POR_PERMISSAO = ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'];
 
 interface ItemMenu {
   nome: string;
@@ -14,6 +21,12 @@ interface ItemMenu {
   // Ausente = qualquer papel autenticado. Presente = só aparece pros papéis listados
   // (mesmo catálogo de src/auth/dominio/papel.ts do backend, que sempre revalida de novo).
   papeis?: string[];
+  // Ausente = não é restringível por permissão individual (dono sempre vê, operador também
+  // sempre vê). Presente = pra OPERADOR_CONTADOR/OPERADOR_EMPRESA, só aparece se esse
+  // usuário específico tiver "recurso:visualizar" concedido (usuario_permissoes, mesmo
+  // catálogo que o PermissoesGuard do backend já reforça em cada endpoint -- isso aqui é
+  // só UX, não é a camada de segurança real).
+  recurso?: string;
 }
 
 interface SecaoMenu {
@@ -58,12 +71,12 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Contabilidade',
     itens: [
       { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign },
-      { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria' },
-      { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos' },
+      { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
+      { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
       { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria' },
       { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria' },
-      { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt },
-      { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins },
+      { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, recurso: 'contas_a_pagar' },
+      { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, recurso: 'contas_a_receber' },
       { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen },
     ],
   },
@@ -86,33 +99,33 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Cadastros',
     itens: [
-      { nome: 'Clientes', caminho: '/clientes', icone: Users },
-      { nome: 'Fornecedores', caminho: '/fornecedores', icone: Truck },
-      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks },
+      { nome: 'Clientes', caminho: '/clientes', icone: Users, recurso: 'clientes' },
+      { nome: 'Fornecedores', caminho: '/fornecedores', icone: Truck, recurso: 'fornecedores' },
+      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks, recurso: 'historicos' },
     ],
   },
   {
     titulo: 'Atendimento',
     itens: [
-      { nome: 'Protocolos', caminho: '/protocolos', icone: FileStack, modulo: 'protocolos' },
-      { nome: 'Suporte', caminho: '/suporte', icone: LifeBuoy },
+      { nome: 'Protocolos', caminho: '/protocolos', icone: FileStack, modulo: 'protocolos', recurso: 'protocolos' },
+      { nome: 'Suporte', caminho: '/suporte', icone: LifeBuoy, recurso: 'suporte' },
     ],
   },
   {
     titulo: 'Contratos & Societário',
     itens: [
-      { nome: 'Contratos', caminho: '/contratos', icone: FileSignature, modulo: 'contratos' },
-      { nome: 'Documentos Societários', caminho: '/documentos-societarios', icone: Building2, modulo: 'documentos_societarios' },
+      { nome: 'Contratos', caminho: '/contratos', icone: FileSignature, modulo: 'contratos', recurso: 'contratos' },
+      { nome: 'Documentos Societários', caminho: '/documentos-societarios', icone: Building2, modulo: 'documentos_societarios', recurso: 'documentos_societarios' },
     ],
   },
   {
     titulo: 'Relatórios',
     itens: [
-      { nome: 'Fluxo de Caixa', caminho: '/relatorios/fluxo-caixa', icone: TrendingUp, modulo: 'relatorios' },
-      { nome: 'Balancete', caminho: '/relatorios/balancete', icone: FileTextIcon, modulo: 'relatorios' },
-      { nome: 'Balanço Patrimonial', caminho: '/relatorios/balanco', icone: Scale, modulo: 'relatorios' },
-      { nome: 'DRE', caminho: '/relatorios/dre', icone: BarChart3, modulo: 'relatorios' },
-      { nome: 'Razão', caminho: '/relatorios/razao', icone: BookOpen, modulo: 'relatorios' },
+      { nome: 'Fluxo de Caixa', caminho: '/relatorios/fluxo-caixa', icone: TrendingUp, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Balancete', caminho: '/relatorios/balancete', icone: FileTextIcon, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Balanço Patrimonial', caminho: '/relatorios/balanco', icone: Scale, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'DRE', caminho: '/relatorios/dre', icone: BarChart3, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Razão', caminho: '/relatorios/razao', icone: BookOpen, modulo: 'relatorios', recurso: 'relatorios' },
     ],
   },
   {
@@ -135,7 +148,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
-      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'] },
+      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'], recurso: 'ponto_eletronico' },
       {
         nome: 'Folha de Ponto',
         caminho: '/folha-ponto',
@@ -155,6 +168,26 @@ export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
   const { temModulo } = useModulosLicenciados();
   const { usuario } = useSelector((state: any) => state.autenticacao);
   const ehEmpresa = usuario?.papel === 'EMPRESARIO_DONO' || usuario?.papel === 'OPERADOR_EMPRESA';
+  const restrito = PAPEIS_RESTRITOS_POR_PERMISSAO.includes(usuario?.papel);
+
+  // null enquanto não sabe (carregando ou não-restrito) -- itens com `recurso` ficam
+  // ocultos até resolver, nunca aparecem "de relance" pra depois desaparecer.
+  const [minhasPermissoes, setMinhasPermissoes] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!restrito || !usuario?.id) {
+      setMinhasPermissoes(null);
+      return;
+    }
+    listarPermissoesUsuario(usuario.id)
+      .then((dados: any) => setMinhasPermissoes(new Set(dados.concedidas.map((p: any) => p.chave))))
+      .catch(() => setMinhasPermissoes(new Set()));
+  }, [restrito, usuario?.id]);
+
+  function temAcessoAoItem(item: ItemMenu): boolean {
+    if (!item.recurso || !restrito) return true;
+    return minhasPermissoes?.has(`${item.recurso}:visualizar`) ?? false;
+  }
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto py-4">
@@ -163,7 +196,10 @@ export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
       </div>
       {SECOES_MENU.map((secao) => {
         const itensVisiveis = secao.itens.filter(
-          (item) => (!item.modulo || temModulo(item.modulo)) && (!item.papeis || item.papeis.includes(usuario?.papel)),
+          (item) =>
+            (!item.modulo || temModulo(item.modulo)) &&
+            (!item.papeis || item.papeis.includes(usuario?.papel)) &&
+            temAcessoAoItem(item),
         );
         if (itensVisiveis.length === 0) return null;
         return (
