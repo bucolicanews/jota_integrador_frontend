@@ -11,4 +11,8 @@ export const MODULOS_DISPONIVEIS = [
   // Separado de "contabilidade" (núcleo, nunca entra aqui) -- cobre tudo que fala com
   // o SERPRO em nome da empresa: DAS, Caixa Postal, CCMEI, Procuração/Certificado.
   { valor: 'fiscal', rotulo: 'Fiscal' },
+  // Só gate pra EMPRESARIO_DONO/OPERADOR_EMPRESA (visão empresa) -- contador/admin usam o
+  // mesmo item de menu pro PRÓPRIO time, nunca depende de módulo de empresa-cliente nenhuma.
+  { valor: 'ponto_eletronico', rotulo: 'Ponto Eletrônico' },
+  { valor: 'usuarios', rotulo: 'Gerenciar Usuários' },
 ];

@@ -147,15 +147,28 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA, recurso: 'empresas_todas' },
       { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA, recurso: 'planos_credito' },
       { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA, recurso: 'creditos_avulsos' },
-      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
+      // "Usuários"/"Bater Ponto"/"Folha de Ponto" aparecem 2x -- contador/plataforma usam
+      // pro PRÓPRIO time (nunca depende de módulo de empresa-cliente nenhuma), empresa usa
+      // pro time dela (aí sim trava por módulo do plano assinado). Um usuário só bate com
+      // UM dos papeis de cada par, nunca os dois -- sem colisão de key em runtime.
+      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO'] },
+      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['EMPRESARIO_DONO'], modulo: 'usuarios' },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'], recurso: 'configuracoes' },
-      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'], recurso: 'ponto_eletronico' },
+      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR'], recurso: 'ponto_eletronico' },
+      { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_EMPRESA'], modulo: 'ponto_eletronico', recurso: 'ponto_eletronico' },
       {
         nome: 'Folha de Ponto',
         caminho: '/folha-ponto',
         icone: Clock,
-        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'EMPRESARIO_DONO'],
+        papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO'],
         recurso: 'folha_ponto',
+      },
+      {
+        nome: 'Folha de Ponto',
+        caminho: '/folha-ponto',
+        icone: Clock,
+        papeis: ['EMPRESARIO_DONO'],
+        modulo: 'ponto_eletronico',
       },
     ],
   },
