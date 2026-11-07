@@ -19,5 +19,7 @@ export const gerarLinkAcesso = (id) => api.post(`/auth/usuarios/${id}/link-acess
 export const atualizarEmailUsuario = (id, novoEmail) => api.patch(`/auth/usuarios/${id}/email`, { novoEmail });
 export const atualizarSenhaUsuario = (id, novaSenha) => api.patch(`/auth/usuarios/${id}/senha`, { novaSenha });
 export const listarPermissoesUsuario = (id) => api.get(`/auth/usuarios/${id}/permissoes`);
+/** Catálogo completo (todos os recursos/ações), sem filtrar por teto de nenhum papel -- usado por "Editar plano" (permissoesPadrao). */
+export const listarCatalogoPermissoes = () => api.get('/auth/permissoes-catalogo');
 export const concederPermissao = (id, permissaoId) => api.put(`/auth/usuarios/${id}/permissoes/${permissaoId}`);
 export const revogarPermissao = (id, permissaoId) => api.delete(`/auth/usuarios/${id}/permissoes/${permissaoId}`);

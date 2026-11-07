@@ -20,6 +20,7 @@ import {
   listarPlanos,
   removerConsultaIncluida,
 } from '../servicos/planos';
+import { listarCatalogoPermissoes } from '../servicos/usuarios';
 import { MODULOS_DISPONIVEIS } from '../constantes/modulosLicenciaveis';
 import { SISTEMAS_SERPRO } from '../constantes/sistemasSerpro';
 import { showError, showSuccess } from '../utils/toast';
@@ -28,6 +29,7 @@ interface DadosFormulario {
   nome: string;
   descricao: string;
   modulos: string[];
+  permissoesPadrao: string[];
   preco: number;
   periodicidade: 'mensal' | 'anual';
   dataValidade: string;
@@ -37,6 +39,13 @@ interface DadosFormulario {
 function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null; onSaveComplete: () => void }) {
   const isEditing = !!planoInicial;
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [catalogoPermissoes, setCatalogoPermissoes] = useState<any[]>([]);
+
+  useEffect(() => {
+    listarCatalogoPermissoes()
+      .then(setCatalogoPermissoes)
+      .catch(() => setCatalogoPermissoes([]));
+  }, []);
 
   const {
     register,
@@ -49,6 +58,7 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
       nome: planoInicial?.nome ?? '',
       descricao: planoInicial?.descricao ?? '',
       modulos: planoInicial?.modulos ?? [],
+      permissoesPadrao: planoInicial?.permissoesPadrao ?? [],
       preco: planoInicial?.preco ?? 0,
       periodicidade: planoInicial?.periodicidade ?? 'mensal',
       dataValidade: planoInicial?.dataValidade ?? '',
@@ -58,12 +68,19 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
 
   const gratuito = watch('gratuito');
 
+  const permissoesPorRecurso = catalogoPermissoes.reduce<Record<string, any[]>>((acc, p) => {
+    if (!acc[p.recurso]) acc[p.recurso] = [];
+    acc[p.recurso].push(p);
+    return acc;
+  }, {});
+
   async function aoSubmeter(dados: DadosFormulario) {
     setErroGeral(null);
     const payload = {
       nome: dados.nome,
       descricao: dados.descricao || null,
       modulos: dados.modulos ?? [],
+      permissoesPadrao: dados.permissoesPadrao ?? [],
       preco: dados.gratuito ? 0 : dados.preco,
       periodicidade: dados.periodicidade,
       dataValidade: dados.dataValidade || null,
@@ -118,6 +135,45 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
                   {m.rotulo}
                 </label>
               ))}
+            </div>
+          )}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Permissões incluídas</Label>
+        <p className="text-xs text-muted-foreground">
+          Todo OPERADOR_EMPRESA criado enquanto a empresa está neste plano já nasce com essas permissões concedidas --
+          só na criação, nunca retroativo pra quem já existe. Não afeta operador do escritório nem admin de plataforma.
+        </p>
+        <Controller
+          control={control}
+          name="permissoesPadrao"
+          render={({ field }) => (
+            <div className="max-h-64 space-y-3 overflow-y-auto rounded-md border p-3">
+              {Object.keys(permissoesPorRecurso).length === 0 ? (
+                <p className="text-xs text-muted-foreground">Carregando catálogo...</p>
+              ) : (
+                Object.entries(permissoesPorRecurso).map(([recurso, permissoes]) => (
+                  <div key={recurso} className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{recurso}</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {permissoes.map((p) => (
+                        <label key={p.id} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={field.value?.includes(p.chave)}
+                            onCheckedChange={(marcado) => {
+                              const atual = field.value ?? [];
+                              field.onChange(marcado ? [...atual, p.chave] : atual.filter((v) => v !== p.chave));
+                            }}
+                          />
+                          {p.acao}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         />
