@@ -6,10 +6,11 @@ import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 import { listarPermissoesUsuario } from '../../servicos/usuarios';
 
-// Só OPERADOR_CONTADOR/OPERADOR_EMPRESA são restritos por permissão granular -- espelha
-// papelExigeChecagemGranular() do backend (src/auth/dominio/permissao.ts). Dono/plataforma
-// nunca são restritos aqui, mesma regra do PermissoesGuard.
-const PAPEIS_RESTRITOS_POR_PERMISSAO = ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'];
+// Espelha papelExigeChecagemGranular() do backend (src/auth/dominio/permissao.ts) --
+// OPERADOR_CONTADOR/OPERADOR_EMPRESA (funcionário) e ADMIN_FINANCEIRO/ADMIN_SUPORTE
+// (admin de plataforma, não o dono) são restritos. SUPER_ADMIN/CONTADOR_DONO/
+// EMPRESARIO_DONO nunca são restritos aqui, mesma regra do PermissoesGuard.
+const PAPEIS_RESTRITOS_POR_PERMISSAO = ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
 
 interface ItemMenu {
   nome: string;
@@ -142,18 +143,19 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Administração',
     itens: [
-      { nome: 'Contadores', caminho: '/contabil/contadores', icone: Users, papeis: PAPEIS_PLATAFORMA },
-      { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA },
-      { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA },
-      { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA },
+      { nome: 'Contadores', caminho: '/contabil/contadores', icone: Users, papeis: PAPEIS_PLATAFORMA, recurso: 'contadores' },
+      { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA, recurso: 'empresas_todas' },
+      { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA, recurso: 'planos_credito' },
+      { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA, recurso: 'creditos_avulsos' },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
-      { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'] },
+      { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'], recurso: 'configuracoes' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR', 'OPERADOR_EMPRESA'], recurso: 'ponto_eletronico' },
       {
         nome: 'Folha de Ponto',
         caminho: '/folha-ponto',
         icone: Clock,
         papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE', 'CONTADOR_DONO', 'EMPRESARIO_DONO'],
+        recurso: 'folha_ponto',
       },
     ],
   },
