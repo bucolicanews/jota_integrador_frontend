@@ -1,21 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { AlternadorVisualizacao } from '../../componentes/admin/AlternadorVisualizacao';
 import ModalCadastrarEmpresa from '../../components/empresas/ModalCadastrarEmpresa';
-import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { listarContadores } from '../../servicos/contadores';
 import { creditarManualmente, debitarManualmente, obterSaldoCreditos } from '../../servicos/creditos';
-import {
-  atualizarEmpresa,
-  bloquearEmpresa,
-  corrigirCnpjEmpresa,
-  desbloquearEmpresa,
-  listarEmpresas,
-  transferirCarteiraEmpresa,
-} from '../../servicos/empresas';
-import { atualizarEmailUsuario, atualizarSenhaUsuario } from '../../servicos/usuarios';
+import { bloquearEmpresa, desbloquearEmpresa, listarEmpresas } from '../../servicos/empresas';
 import { validarCnpj } from '../../utils/validarCnpj';
 
 const ROTULO_MODO_ACESSO = { procuracao: 'Procuração', certificado_proprio: 'Certificado próprio' };
@@ -34,201 +26,6 @@ function BadgeStatus({ bloqueado }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
       🟢 Ativa
     </span>
-  );
-}
-
-/** Só edição -- criar empresa agora é ModalCadastrarEmpresa (plano+login obrigatórios). Transferir carteira só pra SUPER_ADMIN. */
-function ModalEmpresa({ empresa, contadores, ehSuperAdmin, aoFechar, aoSalvar }) {
-  const [corrigindoCnpj, setCorrigindoCnpj] = useState(false);
-  const [transferindoCarteira, setTransferindoCarteira] = useState(false);
-  const [novoEmailLogin, setNovoEmailLogin] = useState(empresa.emailLogin ?? '');
-  const [novaSenhaLogin, setNovaSenhaLogin] = useState('');
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setError,
-  } = useForm({
-    defaultValues: {
-      contadorId: empresa?.contadorId ?? contadores[0]?.id ?? '',
-      razaoSocial: empresa?.razaoSocial ?? '',
-      nomeFantasia: empresa?.nomeFantasia ?? '',
-      cnpj: empresa?.cnpj ?? '',
-      regimeTributario: empresa?.regimeTributario ?? '',
-      modoAcessoSerpro: empresa?.modoAcessoSerpro ?? 'procuracao',
-    },
-  });
-
-  function aoClicarCorrigirCnpj() {
-    const confirmado = window.confirm(
-      'Corrigir o CNPJ muda a identidade legal desta empresa perante a Receita/SERPRO. ' +
-        'Só faça isso se o CNPJ foi cadastrado errado -- qualquer certificado, procuração ou consulta SERPRO já sincronizada continua associada ao CNPJ antigo. Continuar?',
-    );
-    if (confirmado) setCorrigindoCnpj(true);
-  }
-
-  function aoClicarTransferirCarteira() {
-    const confirmado = window.confirm(
-      'Transferir a carteira muda qual contador é responsável por esta empresa. ' +
-        'O contador atual perde acesso imediatamente; honorários e licenças futuras passam a ser do novo contador. Continuar?',
-    );
-    if (confirmado) setTransferindoCarteira(true);
-  }
-
-  async function aoSubmeter(dados) {
-    try {
-      if (transferindoCarteira && dados.contadorId !== empresa.contadorId) {
-        await transferirCarteiraEmpresa(empresa.id, dados.contadorId);
-      }
-      if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
-        await corrigirCnpjEmpresa(empresa.id, dados.cnpj);
-      }
-      if (empresa.usuarioLoginId && novoEmailLogin.trim() && novoEmailLogin.trim() !== empresa.emailLogin) {
-        await atualizarEmailUsuario(empresa.usuarioLoginId, novoEmailLogin.trim());
-      }
-      if (empresa.usuarioLoginId && novaSenhaLogin.trim()) {
-        await atualizarSenhaUsuario(empresa.usuarioLoginId, novaSenhaLogin.trim());
-      }
-      await atualizarEmpresa(empresa.id, {
-        razaoSocial: dados.razaoSocial,
-        nomeFantasia: dados.nomeFantasia || null,
-        regimeTributario: dados.regimeTributario || null,
-      });
-      aoSalvar();
-    } catch (erro) {
-      setError('root', { message: erro.message ?? 'Não foi possível salvar' });
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Editar empresa</h2>
-        <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Contador da carteira *</label>
-              {ehSuperAdmin && !transferindoCarteira && (
-                <button type="button" onClick={aoClicarTransferirCarteira} className="text-xs font-medium text-blue-700 hover:underline">
-                  Transferir carteira
-                </button>
-              )}
-            </div>
-            <select
-              {...register('contadorId', { required: true })}
-              disabled={!transferindoCarteira}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-            >
-              {contadores.map((contador) => (
-                <option key={contador.id} value={contador.id}>
-                  {contador.nome}
-                </option>
-              ))}
-            </select>
-            {!transferindoCarteira && !ehSuperAdmin && (
-              <p className="mt-1 text-xs text-gray-400">Só o admin pode transferir uma empresa entre carteiras.</p>
-            )}
-            {transferindoCarteira && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa transferência é registrada em auditoria.</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Razão social *</label>
-            <input
-              {...register('razaoSocial', { required: 'Obrigatório', minLength: { value: 2, message: 'Muito curto' } })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            {errors.razaoSocial && <p className="mt-1 text-xs text-red-600">{errors.razaoSocial.message}</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia</label>
-            <input {...register('nomeFantasia')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
-              {!corrigindoCnpj && (
-                <button type="button" onClick={aoClicarCorrigirCnpj} className="text-xs font-medium text-blue-700 hover:underline">
-                  Corrigir CNPJ
-                </button>
-              )}
-            </div>
-            <input
-              {...register('cnpj', { required: 'Obrigatório' })}
-              disabled={!corrigindoCnpj}
-              placeholder="00.000.000/0000-00"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-            />
-            {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
-            {!corrigindoCnpj && !validarCnpj(empresa.cnpj) && (
-              <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este CNPJ não passa na validação de formato -- considere corrigir.</p>
-            )}
-            {corrigindoCnpj && <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa correção é registrada em auditoria.</p>}
-          </div>
-
-          <div className="space-y-2 rounded-md border border-gray-200 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Login de acesso da empresa</p>
-            {empresa.usuarioLoginId ? (
-              <>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">E-mail de login</label>
-                  <input
-                    type="email"
-                    value={novoEmailLogin}
-                    onChange={(e) => setNovoEmailLogin(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Nova senha (deixe em branco pra não alterar)</label>
-                  <input
-                    type="password"
-                    value={novaSenhaLogin}
-                    onChange={(e) => setNovaSenhaLogin(e.target.value)}
-                    placeholder="Mínimo 9 caracteres"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-gray-400">Esta empresa ainda não tem login criado.</p>
-            )}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Regime tributário</label>
-            <select {...register('regimeTributario')} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <option value="">Selecione...</option>
-              {REGIMES_TRIBUTARIOS.map((regime) => (
-                <option key={regime.valor} value={regime.valor}>
-                  {regime.rotulo}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
-
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={aoFechar}
-              className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 rounded-md bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 
@@ -399,6 +196,7 @@ function ModalCreditos({ empresa, aoFechar }) {
 }
 
 export default function ContabilAdminEmpresas() {
+  const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
   const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
 
@@ -411,7 +209,6 @@ export default function ContabilAdminEmpresas() {
   const [filtroCnpj, setFiltroCnpj] = useState('');
   const [filtroContadorId, setFiltroContadorId] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
-  const [modalEmpresa, setModalEmpresa] = useState(null); // edição de empresa existente
   const [modalNovaEmpresa, setModalNovaEmpresa] = useState(false);
   const [modalBloqueio, setModalBloqueio] = useState(null);
   const [modalCreditos, setModalCreditos] = useState(null);
@@ -476,7 +273,7 @@ export default function ContabilAdminEmpresas() {
     return (
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setModalEmpresa({ empresa })}
+          onClick={() => navegar(`/contabil/empresas/${empresa.id}`)}
           className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           Editar
@@ -665,19 +462,6 @@ export default function ContabilAdminEmpresas() {
           aoFechar={() => setModalNovaEmpresa(false)}
           aoCriar={() => {
             setModalNovaEmpresa(false);
-            carregar();
-          }}
-        />
-      )}
-
-      {modalEmpresa && (
-        <ModalEmpresa
-          empresa={modalEmpresa.empresa}
-          contadores={contadores}
-          ehSuperAdmin={ehSuperAdmin}
-          aoFechar={() => setModalEmpresa(null)}
-          aoSalvar={() => {
-            setModalEmpresa(null);
             carregar();
           }}
         />

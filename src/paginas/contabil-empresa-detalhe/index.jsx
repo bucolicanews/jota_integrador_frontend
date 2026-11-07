@@ -17,8 +17,9 @@ import {
   corrigirCnpjEmpresa,
   desbloquearEmpresa,
   obterEmpresa,
+  transferirCarteiraEmpresa,
 } from '../../servicos/empresas';
-import { obterContador } from '../../servicos/contadores';
+import { listarContadores, obterContador } from '../../servicos/contadores';
 import { testarConexaoSerpro } from '../../servicos/acessoSerpro';
 import { notificarSaldoCreditosAtualizado } from '../../servicos/creditos';
 import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
@@ -53,6 +54,9 @@ export default function ContabilEmpresaDetalhe() {
   const { id } = useParams();
   const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
+  const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
+  const [contadores, setContadores] = useState([]);
+  const [transferindoCarteira, setTransferindoCarteira] = useState(false);
   const [empresa, setEmpresa] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -103,8 +107,10 @@ export default function ContabilEmpresaDetalhe() {
         cnpj: dados.cnpj,
         tipoPessoa: dados.tipoPessoa ?? 'juridica',
         crc: dados.crc ?? '',
+        contadorId: dados.contadorId,
       });
       setCorrigindoCnpj(false);
+      setTransferindoCarteira(false);
       setErro(null);
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
@@ -117,6 +123,22 @@ export default function ContabilEmpresaDetalhe() {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    if (ehSuperAdmin) {
+      listarContadores()
+        .then(setContadores)
+        .catch((erroRequisicao) => setErro(erroRequisicao.message));
+    }
+  }, [ehSuperAdmin]);
+
+  function aoClicarTransferirCarteira() {
+    const confirmado = window.confirm(
+      'Transferir a carteira muda qual contador é responsável por esta empresa. ' +
+        'O contador atual perde acesso imediatamente; honorários e licenças futuras passam a ser do novo contador. Continuar?',
+    );
+    if (confirmado) setTransferindoCarteira(true);
+  }
 
   // Pessoa física da empresa interna costuma ser literalmente o mesmo cadastro do
   // contador (nome + CPF) -- evita digitar de novo o que já existe em `contadores`.
@@ -146,6 +168,9 @@ export default function ContabilEmpresaDetalhe() {
     setSalvandoDados(true);
     setMensagemSalvo(null);
     try {
+      if (transferindoCarteira && dados.contadorId !== empresa.contadorId) {
+        await transferirCarteiraEmpresa(id, dados.contadorId);
+      }
       if (corrigindoCnpj && dados.cnpj.replace(/\D/g, '') !== empresa.cnpj) {
         await corrigirCnpjEmpresa(id, dados.cnpj);
       }
@@ -296,6 +321,32 @@ export default function ContabilEmpresaDetalhe() {
         {abaAtiva === 'dados' && (
           <div className="rounded-lg bg-white p-6 shadow">
             <form onSubmit={handleSubmit(aoSalvarDados)} className="space-y-3">
+              {ehSuperAdmin && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Contador da carteira</label>
+                    {!transferindoCarteira && (
+                      <button type="button" onClick={aoClicarTransferirCarteira} className="text-xs font-medium text-blue-700 hover:underline">
+                        Transferir carteira
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    {...register('contadorId', { required: true })}
+                    disabled={!transferindoCarteira}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  >
+                    {contadores.map((contador) => (
+                      <option key={contador.id} value={contador.id}>
+                        {contador.nome}
+                      </option>
+                    ))}
+                  </select>
+                  {transferindoCarteira && (
+                    <p className="mt-1 text-xs text-amber-600">Confira bem antes de salvar -- essa transferência é registrada em auditoria.</p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Razão social</label>
                 <input

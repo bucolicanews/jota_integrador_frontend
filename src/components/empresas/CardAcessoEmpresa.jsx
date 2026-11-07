@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import CartaoLinkAcesso from '../auth/CartaoLinkAcesso';
-import { criarUsuario, gerarLinkAcesso, listarUsuarios } from '../../servicos/usuarios';
+import { atualizarEmailUsuario, atualizarSenhaUsuario, criarUsuario, gerarLinkAcesso, listarUsuarios } from '../../servicos/usuarios';
 
 /**
  * Login do EMPRESARIO_DONO desta empresa, direto na tela de cadastro dela -- antes só
@@ -16,6 +16,11 @@ export default function CardAcessoEmpresa({ empresaId, empresaNome }) {
   const [erro, setErro] = useState(null);
   const [linkGerado, setLinkGerado] = useState(null);
   const [processando, setProcessando] = useState(false);
+  const [editandoLogin, setEditandoLogin] = useState(false);
+  const [novoEmailLogin, setNovoEmailLogin] = useState('');
+  const [novaSenhaLogin, setNovaSenhaLogin] = useState('');
+  const [salvandoLogin, setSalvandoLogin] = useState(false);
+  const [erroLogin, setErroLogin] = useState(null);
 
   const {
     register,
@@ -52,6 +57,32 @@ export default function CardAcessoEmpresa({ empresaId, empresaNome }) {
     }
   }
 
+  function aoClicarEditarLogin() {
+    setNovoEmailLogin(usuario.email);
+    setNovaSenhaLogin('');
+    setErroLogin(null);
+    setEditandoLogin(true);
+  }
+
+  async function aoSalvarLogin() {
+    setSalvandoLogin(true);
+    setErroLogin(null);
+    try {
+      if (novoEmailLogin.trim() && novoEmailLogin.trim() !== usuario.email) {
+        await atualizarEmailUsuario(usuario.id, novoEmailLogin.trim());
+      }
+      if (novaSenhaLogin.trim()) {
+        await atualizarSenhaUsuario(usuario.id, novaSenhaLogin.trim());
+      }
+      setEditandoLogin(false);
+      carregar();
+    } catch (e) {
+      setErroLogin(e.message ?? 'Não foi possível salvar o login');
+    } finally {
+      setSalvandoLogin(false);
+    }
+  }
+
   async function aoGerarLink() {
     setProcessando(true);
     setErro(null);
@@ -73,21 +104,71 @@ export default function CardAcessoEmpresa({ empresaId, empresaNome }) {
       {erro && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
 
       {usuario ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-gray-700">
-            Login: <span className="font-medium">{usuario.email}</span>{' '}
-            <span className={usuario.bloqueado ? 'text-red-600' : 'text-green-700'}>
-              {usuario.bloqueado ? '(bloqueado)' : '(ativo)'}
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={aoGerarLink}
-            disabled={processando}
-            className="rounded-md border border-blue-300 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
-          >
-            {processando ? 'Gerando...' : 'Gerar link de acesso'}
-          </button>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-gray-700">
+              Login: <span className="font-medium">{usuario.email}</span>{' '}
+              <span className={usuario.bloqueado ? 'text-red-600' : 'text-green-700'}>
+                {usuario.bloqueado ? '(bloqueado)' : '(ativo)'}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={aoGerarLink}
+              disabled={processando}
+              className="rounded-md border border-blue-300 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+            >
+              {processando ? 'Gerando...' : 'Gerar link de acesso'}
+            </button>
+            {!editandoLogin && (
+              <button type="button" onClick={aoClicarEditarLogin} className="text-sm font-medium text-blue-700 hover:underline">
+                Editar e-mail/senha
+              </button>
+            )}
+          </div>
+
+          {editandoLogin && (
+            <div className="space-y-2 rounded-md border border-gray-200 p-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">E-mail de login</label>
+                <input
+                  type="email"
+                  value={novoEmailLogin}
+                  onChange={(e) => setNovoEmailLogin(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Nova senha (deixe em branco pra não alterar)</label>
+                <input
+                  type="password"
+                  value={novaSenhaLogin}
+                  onChange={(e) => setNovaSenhaLogin(e.target.value)}
+                  placeholder="Mínimo 9 caracteres"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+              {erroLogin && <p className="text-xs text-red-600">{erroLogin}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditandoLogin(false)}
+                  disabled={salvandoLogin}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={aoSalvarLogin}
+                  disabled={salvandoLogin}
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {salvandoLogin ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <form onSubmit={handleSubmit(aoCriar)} className="space-y-2">
