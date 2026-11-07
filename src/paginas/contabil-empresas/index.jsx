@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { PAPEIS_PLATAFORMA } from '../../componentes/contabil/CabecalhoContabil';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import ModalCadastrarEmpresa from '../../components/empresas/ModalCadastrarEmpresa';
-import { listarEmpresas } from '../../servicos/empresas';
+import { bloquearEmpresa, desbloquearEmpresa, listarEmpresas } from '../../servicos/empresas';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 
 const ROTULO_MODO_ACESSO = {
@@ -25,6 +25,62 @@ function BadgeStatus({ bloqueado }) {
 }
 
 
+function ModalBloqueio({ empresa, aoFechar, aoConfirmar }) {
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  async function confirmar() {
+    if (!motivo.trim()) {
+      setErro('Informe o motivo do bloqueio.');
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      await bloquearEmpresa(empresa.id, motivo.trim());
+      aoConfirmar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message ?? 'Não foi possível bloquear');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Bloquear {empresa.razaoSocial}</h2>
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Motivo do bloqueio *</label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={3}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          {erro && <p className="text-sm text-red-600">{erro}</p>}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={aoFechar} className="flex-1 rounded-md border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmar}
+              disabled={enviando}
+              className="flex-1 rounded-md bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {enviando ? 'Bloqueando...' : 'Bloquear'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContabilEmpresas() {
   const navegar = useNavigate();
   const { usuario } = useSelector((state) => state.autenticacao);
@@ -35,6 +91,8 @@ export default function ContabilEmpresas() {
   const [erro, setErro] = useState(null);
   const [busca, setBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
+  const [empresaParaBloquear, setEmpresaParaBloquear] = useState(null);
+  const [acaoEmAndamento, setAcaoEmAndamento] = useState(null);
 
   async function carregar() {
     setCarregando(true);
@@ -86,6 +144,25 @@ export default function ContabilEmpresas() {
     evento.stopPropagation();
     selecionarEmpresa(empresa);
     navegar('/painel');
+  }
+
+  function aoClicarEditar(evento, empresa) {
+    evento.stopPropagation();
+    navegar(`/contabil/empresas/${empresa.id}`);
+  }
+
+  async function aoDesbloquear(evento, empresa) {
+    evento.stopPropagation();
+    if (!window.confirm(`Desbloquear ${empresa.razaoSocial}?`)) return;
+    setAcaoEmAndamento(empresa.id);
+    try {
+      await desbloquearEmpresa(empresa.id);
+      await carregar();
+    } catch (erroRequisicao) {
+      setErro(erroRequisicao.message);
+    } finally {
+      setAcaoEmAndamento(null);
+    }
   }
 
   return (
@@ -158,14 +235,44 @@ export default function ContabilEmpresas() {
                       <BadgeStatus bloqueado={empresa.bloqueado} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={(evento) => aoAbrirPainel(evento, empresa)}
-                        title="Ir direto pro painel desta empresa (Lançamentos, Plano de Contas, etc.)"
-                        className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
-                      >
-                        Abrir Painel →
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(evento) => aoClicarEditar(evento, empresa)}
+                          className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Editar
+                        </button>
+                        {empresa.bloqueado ? (
+                          <button
+                            type="button"
+                            onClick={(evento) => aoDesbloquear(evento, empresa)}
+                            disabled={acaoEmAndamento === empresa.id}
+                            className="rounded-md border border-green-300 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-50"
+                          >
+                            Desbloquear
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(evento) => {
+                              evento.stopPropagation();
+                              setEmpresaParaBloquear(empresa);
+                            }}
+                            className="rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                          >
+                            Bloquear
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(evento) => aoAbrirPainel(evento, empresa)}
+                          title="Ir direto pro painel desta empresa (Lançamentos, Plano de Contas, etc.)"
+                          className="rounded-md border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                        >
+                          Abrir Painel →
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -181,6 +288,17 @@ export default function ContabilEmpresas() {
           meuContadorId={usuario?.contadorId}
           aoFechar={() => setModalAberto(false)}
           aoCriar={aoCriarEmpresa}
+        />
+      )}
+
+      {empresaParaBloquear && (
+        <ModalBloqueio
+          empresa={empresaParaBloquear}
+          aoFechar={() => setEmpresaParaBloquear(null)}
+          aoConfirmar={() => {
+            setEmpresaParaBloquear(null);
+            carregar();
+          }}
         />
       )}
     </LayoutPrincipal>
