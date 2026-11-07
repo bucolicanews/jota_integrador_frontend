@@ -15,4 +15,7 @@ export const MODULOS_DISPONIVEIS = [
   // mesmo item de menu pro PRÓPRIO time, nunca depende de módulo de empresa-cliente nenhuma.
   { valor: 'ponto_eletronico', rotulo: 'Ponto Eletrônico' },
   { valor: 'usuarios', rotulo: 'Gerenciar Usuários' },
+  { valor: 'clientes', rotulo: 'Clientes' },
+  { valor: 'fornecedores', rotulo: 'Fornecedores' },
+  { valor: 'historicos', rotulo: 'Históricos' },
 ];

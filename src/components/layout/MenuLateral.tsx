@@ -100,9 +100,9 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Cadastros',
     itens: [
-      { nome: 'Clientes', caminho: '/clientes', icone: Users, recurso: 'clientes' },
-      { nome: 'Fornecedores', caminho: '/fornecedores', icone: Truck, recurso: 'fornecedores' },
-      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks, recurso: 'historicos' },
+      { nome: 'Clientes', caminho: '/clientes', icone: Users, modulo: 'clientes', recurso: 'clientes' },
+      { nome: 'Fornecedores', caminho: '/fornecedores', icone: Truck, modulo: 'fornecedores', recurso: 'fornecedores' },
+      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks, modulo: 'historicos', recurso: 'historicos' },
     ],
   },
   {
