@@ -58,9 +58,7 @@ export default function ContabilEmpresas() {
       return;
     }
     carregar();
-  }, [ehPlataforma]);
-
-  if (ehPlataforma) return null;
+  }, [ehPlataforma, navegar]);
 
   const empresasFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -69,6 +67,8 @@ export default function ContabilEmpresas() {
       (empresa) => empresa.razaoSocial.toLowerCase().includes(termo) || empresa.cnpj.includes(termo),
     );
   }, [empresas, busca]);
+
+  if (ehPlataforma) return null;
 
   const totalAtivas = empresas.filter((e) => !e.bloqueado).length;
   const totalBloqueadas = empresas.length - totalAtivas;

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { lancarFaltaOuAbono } from '../../servicos/pontoEletronico';
-import { showError, showSuccess } from '../../utils/toast';
+import { showSuccess } from '../../utils/toast';
 
 const JORNADA_DIARIA_PADRAO_HORAS = 8;
 

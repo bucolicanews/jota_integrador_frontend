@@ -14,7 +14,7 @@ export const formatarData = (dateString: string): string => {
         
         const date = new Date(dateString);
         return date.toLocaleDateString('pt-BR');
-    } catch (e) {
+    } catch {
         return dateString;
     }
 };
@@ -25,7 +25,7 @@ export const formatarData = (dateString: string): string => {
  * @returns Data no formato YYYY-MM-DD ou null se inválida.
  */
 export const formatDDMMYYYYToISO = (dateString: string): string | null => {
-    const parts = dateString.split(/[\/\-]/);
+    const parts = dateString.split(/[/-]/);
     if (parts.length === 3) {
         const [day, month, year] = parts.map(Number);
         // Verifica se é um formato DD/MM/YYYY válido

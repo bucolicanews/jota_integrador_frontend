@@ -38,7 +38,7 @@ export default function ListaPicklistExtrato({ empresaId, placeholder, listar, c
       .catch((erro) => showError(erro.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, [empresaId]);
+  useEffect(carregar, [empresaId, listar]);
 
   async function aoCriar() {
     if (!novoTexto.trim()) return;

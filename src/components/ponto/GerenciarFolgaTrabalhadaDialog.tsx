@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { lancarFolgaTrabalhada } from '../../servicos/pontoEletronico';
-import { showError, showSuccess } from '../../utils/toast';
+import { showSuccess } from '../../utils/toast';
 
 interface GerenciarFolgaTrabalhadaDialogProps {
   funcionarioId: string;
@@ -31,7 +31,6 @@ export default function GerenciarFolgaTrabalhadaDialog({ funcionarioId, data: da
       setDataCompensacaoFutura('');
       setErro(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, dataInicial]);
 
   async function salvar() {

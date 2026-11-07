@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { criarLancamento } from '../../servicos/lancamentos';
-import { showError, showSuccess } from '../../utils/toast';
+import { showSuccess } from '../../utils/toast';
 
 interface Conta {
   id: string;

@@ -1,63 +1,74 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
 import { RotaProtegida } from './componentes/RotaProtegida';
 import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
-import DefinirSenha from './paginas/definir-senha';
-import Contabil from './paginas/contabil';
-import Fiscal from './paginas/fiscal';
-import ContabilEmpresas from './paginas/contabil-empresas';
-import ContabilEmpresaDetalhe from './paginas/contabil-empresa-detalhe';
-import ContabilAssinatura from './paginas/contabil-assinatura';
-import ContabilHonorarios from './paginas/contabil-honorarios';
-import ContabilCreditos from './paginas/contabil-creditos';
-import ContabilEmpresaCaixaPostal from './paginas/contabil-empresa-caixa-postal';
-import ContabilAuditoria from './paginas/contabil-auditoria';
-import ContabilConfiguracoesFiscais from './paginas/contabil-configuracoes-fiscais';
-import ContabilAdminContadores from './paginas/contabil-admin-contadores';
-import ContabilAdminEmpresas from './paginas/contabil-admin-empresas';
-import PlanoContas from './pages/PlanoContas';
-import Lancamentos from './pages/Lancamentos';
-import Balancete from './pages/Balancete';
-import BalancoPatrimonial from './pages/BalancoPatrimonial';
-import DRE from './pages/DRE';
-import Razao from './pages/Razao';
-import FluxoCaixa from './pages/FluxoCaixa';
-import Conciliacao from './pages/Conciliacao';
-import Painel from './pages/Painel';
-import ContasAPagar from './pages/ContasAPagar';
-import ContasAReceber from './pages/ContasAReceber';
-import Clientes from './pages/Clientes';
-import Fornecedores from './pages/Fornecedores';
-import Historicos from './pages/Historicos';
-import Das from './pages/Das';
-import CaixaPostal from './pages/CaixaPostal';
-import Protocolos from './pages/Protocolos';
-import Bancos from './pages/Bancos';
-import PicklistsExtrato from './pages/PicklistsExtrato';
-import Mapeamento from './pages/Mapeamento';
-import Perfil from './pages/Perfil';
-import Contratos from './pages/Contratos';
-import ContratoNovo from './pages/ContratoNovo';
-import ContratoPreencher from './pages/ContratoPreencher';
-import ContratoDetalhe from './pages/ContratoDetalhe';
-import ContratoModelos from './pages/ContratoModelos';
-import AssinarContrato from './pages/AssinarContrato';
-import DocumentosSocietarios from './pages/DocumentosSocietarios';
-import DocumentosSocietariosModelos from './pages/DocumentosSocietariosModelos';
-import DocumentosSocietariosBlocos from './pages/DocumentosSocietariosBlocos';
-import DocumentoSocietarioGerar from './pages/DocumentoSocietarioGerar';
-import DocumentoSocietarioDetalhe from './pages/DocumentoSocietarioDetalhe';
-import MinhasLicencas from './pages/MinhasLicencas';
-import Creditos from './pages/Creditos';
-import MinhaAssinatura from './pages/MinhaAssinatura';
-import AdminPlanos from './pages/AdminPlanos';
-import AdminCreditosAvulsos from './pages/AdminCreditosAvulsos';
-import GerenciarUsuarios from './pages/GerenciarUsuarios';
-import Configuracoes from './pages/Configuracoes';
-import Suporte from './pages/Suporte';
-import PontoEletronico from './pages/PontoEletronico';
-import FolhaPonto from './pages/FolhaPonto';
+
+const DefinirSenha = lazy(() => import('./paginas/definir-senha'));
+const Contabil = lazy(() => import('./paginas/contabil'));
+const Fiscal = lazy(() => import('./paginas/fiscal'));
+const ContabilEmpresas = lazy(() => import('./paginas/contabil-empresas'));
+const ContabilEmpresaDetalhe = lazy(() => import('./paginas/contabil-empresa-detalhe'));
+const ContabilAssinatura = lazy(() => import('./paginas/contabil-assinatura'));
+const ContabilHonorarios = lazy(() => import('./paginas/contabil-honorarios'));
+const ContabilCreditos = lazy(() => import('./paginas/contabil-creditos'));
+const ContabilEmpresaCaixaPostal = lazy(() => import('./paginas/contabil-empresa-caixa-postal'));
+const ContabilAuditoria = lazy(() => import('./paginas/contabil-auditoria'));
+const ContabilConfiguracoesFiscais = lazy(() => import('./paginas/contabil-configuracoes-fiscais'));
+const ContabilAdminContadores = lazy(() => import('./paginas/contabil-admin-contadores'));
+const ContabilAdminEmpresas = lazy(() => import('./paginas/contabil-admin-empresas'));
+const PlanoContas = lazy(() => import('./pages/PlanoContas'));
+const Lancamentos = lazy(() => import('./pages/Lancamentos'));
+const Balancete = lazy(() => import('./pages/Balancete'));
+const BalancoPatrimonial = lazy(() => import('./pages/BalancoPatrimonial'));
+const DRE = lazy(() => import('./pages/DRE'));
+const Razao = lazy(() => import('./pages/Razao'));
+const FluxoCaixa = lazy(() => import('./pages/FluxoCaixa'));
+const Conciliacao = lazy(() => import('./pages/Conciliacao'));
+const Painel = lazy(() => import('./pages/Painel'));
+const ContasAPagar = lazy(() => import('./pages/ContasAPagar'));
+const ContasAReceber = lazy(() => import('./pages/ContasAReceber'));
+const Clientes = lazy(() => import('./pages/Clientes'));
+const Fornecedores = lazy(() => import('./pages/Fornecedores'));
+const Historicos = lazy(() => import('./pages/Historicos'));
+const Das = lazy(() => import('./pages/Das'));
+const CaixaPostal = lazy(() => import('./pages/CaixaPostal'));
+const Protocolos = lazy(() => import('./pages/Protocolos'));
+const Bancos = lazy(() => import('./pages/Bancos'));
+const PicklistsExtrato = lazy(() => import('./pages/PicklistsExtrato'));
+const Mapeamento = lazy(() => import('./pages/Mapeamento'));
+const Perfil = lazy(() => import('./pages/Perfil'));
+const Contratos = lazy(() => import('./pages/Contratos'));
+const ContratoNovo = lazy(() => import('./pages/ContratoNovo'));
+const ContratoPreencher = lazy(() => import('./pages/ContratoPreencher'));
+const ContratoDetalhe = lazy(() => import('./pages/ContratoDetalhe'));
+const ContratoModelos = lazy(() => import('./pages/ContratoModelos'));
+const AssinarContrato = lazy(() => import('./pages/AssinarContrato'));
+const DocumentosSocietarios = lazy(() => import('./pages/DocumentosSocietarios'));
+const DocumentosSocietariosModelos = lazy(() => import('./pages/DocumentosSocietariosModelos'));
+const DocumentosSocietariosBlocos = lazy(() => import('./pages/DocumentosSocietariosBlocos'));
+const DocumentoSocietarioGerar = lazy(() => import('./pages/DocumentoSocietarioGerar'));
+const DocumentoSocietarioDetalhe = lazy(() => import('./pages/DocumentoSocietarioDetalhe'));
+const MinhasLicencas = lazy(() => import('./pages/MinhasLicencas'));
+const Creditos = lazy(() => import('./pages/Creditos'));
+const MinhaAssinatura = lazy(() => import('./pages/MinhaAssinatura'));
+const AdminPlanos = lazy(() => import('./pages/AdminPlanos'));
+const AdminCreditosAvulsos = lazy(() => import('./pages/AdminCreditosAvulsos'));
+const GerenciarUsuarios = lazy(() => import('./pages/GerenciarUsuarios'));
+const Configuracoes = lazy(() => import('./pages/Configuracoes'));
+const Suporte = lazy(() => import('./pages/Suporte'));
+const PontoEletronico = lazy(() => import('./pages/PontoEletronico'));
+const FolhaPonto = lazy(() => import('./pages/FolhaPonto'));
+
+function CarregandoPagina() {
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    </div>
+  );
+}
 
 function RedirecionamentoInicial() {
   // Todo papel entra pelo mesmo /painel (LayoutPrincipal+MenuLateral) -- cada um vê só o
@@ -69,6 +80,7 @@ function RedirecionamentoInicial() {
 export default function App() {
   return (
     <Router>
+      <Suspense fallback={<CarregandoPagina />}>
       <Routes>
         <Route
           path="/login"
@@ -523,6 +535,7 @@ export default function App() {
         {/* Qualquer rota não mapeada (ex: link antigo salvo no navegador) volta pro início em vez de dar tela branca. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       <Toaster richColors closeButton />
     </Router>
   );

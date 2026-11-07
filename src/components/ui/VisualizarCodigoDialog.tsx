@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 interface VisualizarCodigoDialogProps {
   open: boolean;
@@ -28,7 +27,7 @@ export function VisualizarCodigoDialog({
       setCopied(true);
       toast.success('Código copiado!');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Erro ao copiar');
     }
   };

@@ -382,7 +382,7 @@ export default function GerenciarUsuarios() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, [papelAtual, contadorFiltro]);
+  useEffect(carregar, [papelAtual, contadorFiltro, contadorId]);
 
   async function alternarBloqueio(alvo: any) {
     if (!alvo.bloqueado) {

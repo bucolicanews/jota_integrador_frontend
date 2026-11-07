@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { criarConfiguracao, atualizarConfiguracao } from '../../servicos/conciliacaoBancaria';
-import { showError, showSuccess } from '../../utils/toast';
+import { showSuccess } from '../../utils/toast';
 
 interface ConfiguracaoConciliacao {
   id: string;

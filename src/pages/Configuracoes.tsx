@@ -57,7 +57,7 @@ function CardComissaoHonorarios() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, []);
+  useEffect(carregar, [reset]);
 
   async function aoSalvar(dados: DadosComissao) {
     try {
@@ -121,7 +121,7 @@ function CardComissaoContratos() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, []);
+  useEffect(carregar, [reset]);
 
   async function aoSalvar(dados: DadosComissaoContratos) {
     try {
@@ -197,7 +197,7 @@ function CardConfiguracaoPagbank() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, []);
+  useEffect(carregar, [reset]);
 
   async function aoSalvar(dados: DadosPagbank) {
     setSalvando(true);
