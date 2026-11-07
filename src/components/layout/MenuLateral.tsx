@@ -53,7 +53,7 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Geral',
     itens: [
       { nome: 'Painel', caminho: '/painel', icone: Home },
-      { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA, recurso: 'carteira_empresas' },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
       { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
       { nome: 'Minha Assinatura', caminho: '/minha-assinatura', icone: CreditCard, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
@@ -65,20 +65,20 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_ESCRITORIO_CONTADOR },
       { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_ESCRITORIO_CONTADOR },
       { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_ESCRITORIO_CONTADOR },
-      { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA, recurso: 'auditoria' },
     ],
   },
   {
     titulo: 'Contabilidade',
     itens: [
-      { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign },
+      { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign, recurso: 'lancamentos' },
       { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
       { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
-      { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria' },
-      { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria' },
+      { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria', recurso: 'sugestoes_extrato' },
+      { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria', recurso: 'mapeamento' },
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, recurso: 'contas_a_pagar' },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, recurso: 'contas_a_receber' },
-      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen },
+      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen, recurso: 'plano_contas' },
     ],
   },
   // Tudo que fala com o SERPRO em nome da empresa entra aqui -- mesmo módulo "fiscal"
@@ -87,14 +87,14 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Fiscal',
     itens: [
-      { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal' },
-      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal' },
+      { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal', recurso: 'das' },
+      { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal', recurso: 'caixa_postal' },
     ],
   },
   {
     titulo: 'Configurações',
     itens: [
-      { nome: 'Fiscais', caminho: '/contabil/configuracoes-fiscais', icone: Settings, papeis: PAPEIS_CARTEIRA },
+      { nome: 'Fiscais', caminho: '/contabil/configuracoes-fiscais', icone: Settings, papeis: PAPEIS_CARTEIRA, recurso: 'configuracoes_fiscais' },
     ],
   },
   {
