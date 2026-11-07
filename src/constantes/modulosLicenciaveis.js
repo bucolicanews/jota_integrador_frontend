@@ -18,4 +18,8 @@ export const MODULOS_DISPONIVEIS = [
   { valor: 'clientes', rotulo: 'Clientes' },
   { valor: 'fornecedores', rotulo: 'Fornecedores' },
   { valor: 'historicos', rotulo: 'Históricos' },
+  { valor: 'lancamentos', rotulo: 'Lançamentos' },
+  { valor: 'contas_a_pagar', rotulo: 'Contas a Pagar' },
+  { valor: 'contas_a_receber', rotulo: 'Contas a Receber' },
+  { valor: 'plano_contas', rotulo: 'Plano de Contas' },
 ];

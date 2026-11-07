@@ -71,14 +71,14 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Contabilidade',
     itens: [
-      { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign, recurso: 'lancamentos' },
+      { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign, modulo: 'lancamentos', recurso: 'lancamentos' },
       { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
       { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
       { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria', recurso: 'sugestoes_extrato' },
       { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria', recurso: 'mapeamento' },
-      { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, recurso: 'contas_a_pagar' },
-      { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, recurso: 'contas_a_receber' },
-      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen, recurso: 'plano_contas' },
+      { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, modulo: 'contas_a_pagar', recurso: 'contas_a_pagar' },
+      { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, modulo: 'contas_a_receber', recurso: 'contas_a_receber' },
+      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen, modulo: 'plano_contas', recurso: 'plano_contas' },
     ],
   },
   // Tudo que fala com o SERPRO em nome da empresa entra aqui -- mesmo módulo "fiscal"
