@@ -118,6 +118,7 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobra
 export default function ContabilAssinatura() {
   const { empresaId, empresaAtiva, ehContador, precisaSelecionarEmpresa } = useEmpresaAtiva();
   const [contadorId, setContadorId] = useState(null);
+  const [ehEscritorioProprio, setEhEscritorioProprio] = useState(false);
   const [assinatura, setAssinatura] = useState(null);
   const [planos, setPlanos] = useState([]);
   const [planosRevenda, setPlanosRevenda] = useState([]);
@@ -133,6 +134,17 @@ export default function ContabilAssinatura() {
     try {
       const empresa = await obterEmpresa(empresaId);
       setContadorId(empresa.contadorId);
+
+      // Empresa interna_contador (o próprio escritório) nunca tem assinatura de verdade --
+      // sempre liberada direto, sem precisar "assinar" nada (ver migration
+      // 20260912000002/empresa_interna_contador_padrao). Sem essa checagem a tela mostrava
+      // o grid de planos como se o contador pudesse assinar o próprio escritório.
+      if (empresa.tipo === 'interna_contador') {
+        setEhEscritorioProprio(true);
+        setErro(null);
+        return;
+      }
+      setEhEscritorioProprio(false);
 
       const [dadosAssinatura, dadosPlanos, dadosPlanosRevenda] = await Promise.all([
         obterAssinatura(empresa.contadorId, empresaId),
@@ -227,6 +239,11 @@ export default function ContabilAssinatura() {
           </p>
         ) : carregando ? (
           <p className="text-sm text-gray-500">Carregando...</p>
+        ) : ehEscritorioProprio ? (
+          <p className="rounded-lg bg-white p-6 text-sm text-gray-500 shadow">
+            Esta é a empresa do seu próprio escritório -- ela não assina plano de créditos SERPRO, sempre fica liberada.
+            Assinatura se aplica só às empresas-cliente da sua carteira.
+          </p>
         ) : (
           <>
             {assinatura && (
