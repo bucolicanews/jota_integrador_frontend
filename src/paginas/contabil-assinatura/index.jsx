@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import LayoutPrincipal from '../../components/layout/LayoutPrincipal';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
@@ -48,9 +49,15 @@ function FormularioCobrarPix({ onConfirmar, onCancelar, enviando }) {
   );
 }
 
-function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobrarPix, processando, resultadoPix }) {
+function CardPlano({ plano, planoRevenda, podeGerenciar, ehSuperAdmin, onAtivarManual, onCobrarPix, processando, resultadoPix }) {
   const expirado = plano.dataValidade && plano.dataValidade < new Date().toISOString().slice(0, 10);
   const [mostrandoFormPix, setMostrandoFormPix] = useState(false);
+
+  const linkMailto = resultadoPix?.customerEmail
+    ? `mailto:${resultadoPix.customerEmail}?subject=${encodeURIComponent(`Pagamento -- ${plano.nome}`)}&body=${encodeURIComponent(
+        `Olá! Segue o código PIX pra ativar o plano "${plano.nome}":\n\n${resultadoPix.pixCode ?? ''}`,
+      )}`
+    : null;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -66,13 +73,15 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobra
 
       {podeGerenciar && !expirado && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => onAtivarManual(plano, planoRevenda)}
-            disabled={processando}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            Ativar sem cobrar
-          </button>
+          {ehSuperAdmin && (
+            <button
+              onClick={() => onAtivarManual(plano, planoRevenda)}
+              disabled={processando}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Ativar sem cobrar
+            </button>
+          )}
           {planoRevenda ? (
             <button
               onClick={() => setMostrandoFormPix(true)}
@@ -109,6 +118,14 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobra
               rows={3}
             />
           )}
+          {linkMailto && (
+            <a
+              href={linkMailto}
+              className="mt-2 inline-block rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Enviar por e-mail pro cliente
+            </a>
+          )}
         </div>
       )}
     </div>
@@ -116,6 +133,8 @@ function CardPlano({ plano, planoRevenda, podeGerenciar, onAtivarManual, onCobra
 }
 
 export default function ContabilAssinatura() {
+  const { usuario } = useSelector((state) => state.autenticacao);
+  const ehSuperAdmin = usuario?.papel === 'SUPER_ADMIN';
   const { empresaId, empresaAtiva, ehContador, precisaSelecionarEmpresa } = useEmpresaAtiva();
   const [contadorId, setContadorId] = useState(null);
   const [ehEscritorioProprio, setEhEscritorioProprio] = useState(false);
@@ -186,7 +205,7 @@ export default function ContabilAssinatura() {
     setErro(null);
     try {
       const resultado = await iniciarPagamentoAssinatura(contadorId, empresaId, { planoId: plano.id, metodo: 'pix', customerEmail });
-      setResultadosPix((atual) => ({ ...atual, [plano.id]: resultado }));
+      setResultadosPix((atual) => ({ ...atual, [plano.id]: { ...resultado, customerEmail } }));
     } catch (erroRequisicao) {
       setErro(erroRequisicao.message);
     } finally {
@@ -293,6 +312,7 @@ export default function ContabilAssinatura() {
                       plano={plano}
                       planoRevenda={planoRevendaPorPlano(plano.id)}
                       podeGerenciar={ehContador}
+                      ehSuperAdmin={ehSuperAdmin}
                       onAtivarManual={aoAtivarManual}
                       onCobrarPix={aoCobrarPix}
                       processando={processandoPlanoId === plano.id}
