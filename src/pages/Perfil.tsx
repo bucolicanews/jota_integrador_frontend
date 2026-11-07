@@ -114,7 +114,7 @@ export default function Perfil() {
       .catch((erro) => showError(erro.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregarPerfil, []);
+  useEffect(carregarPerfil, [resetNome]);
 
   useEffect(() => {
     if (ehContador) carregarEscritorio();
@@ -278,7 +278,12 @@ export default function Perfil() {
                     </button>
                   )}
                 </div>
-                <Input {...registrarEscritorio('cnpjCpf', { required: true })} disabled={!corrigindoDoc} />
+                {corrigindoDoc ? (
+                  <Input {...registrarEscritorio('cnpjCpf', { required: true, validate: (v) => validarCpfOuCnpj(v) || 'CPF/CNPJ inválido' })} />
+                ) : (
+                  <Input value={formatarCnpjCpf(escritorio.cnpjCpf)} disabled />
+                )}
+                {errosEscritorio.cnpjCpf && <p className="text-xs text-destructive">{errosEscritorio.cnpjCpf.message}</p>}
                 {!corrigindoDoc && !validarCpfOuCnpj(escritorio.cnpjCpf) && (
                   <p className="text-xs font-medium text-destructive">⚠️ Este documento não passa na validação de formato -- considere corrigir.</p>
                 )}

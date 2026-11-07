@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { criarFornecedor, atualizarFornecedor } from '../../servicos/fornecedores';
 import { showSuccess } from '../../utils/toast';
+import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
 interface Fornecedor {
   id: string;
@@ -116,7 +117,8 @@ export default function FormFornecedor({ empresaId, fornecedorInicial, onSaveCom
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label>CPF/CNPJ</Label>
-          <Input {...register('documento')} />
+          <Input {...register('documento', { validate: (v) => !v || validarCpfOuCnpj(v) || 'CPF/CNPJ inválido' })} />
+          {errors.documento && <p className="text-xs text-destructive">{errors.documento.message}</p>}
         </div>
         <div className="space-y-1.5">
           <Label>E-mail</Label>

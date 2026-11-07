@@ -7,6 +7,7 @@ import { listarPlanos, listarPlanosRevendaCreditos } from '../../servicos/assina
 import { obterStatusPagbankConta } from '../../servicos/pagbankLicencas';
 import FormularioCheckoutPagbank from '../pagbank/FormularioCheckoutPagbank';
 import CartaoLinkAcesso from '../auth/CartaoLinkAcesso';
+import { validarCnpj } from '../../utils/validarCnpj';
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 
@@ -156,7 +157,7 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
               <input
-                {...register('cnpj', { required: 'Obrigatório' })}
+                {...register('cnpj', { required: 'Obrigatório', validate: (v) => validarCnpj(v) || 'CNPJ inválido' })}
                 placeholder="00.000.000/0000-00"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />

@@ -146,12 +146,19 @@ function ModalContador({ contador, aoFechar, aoSalvar }) {
                 </button>
               )}
             </div>
-            <input
-              {...register('cnpjCpf', { required: 'Obrigatório', minLength: { value: 11, message: 'Documento inválido' } })}
-              disabled={editando && !corrigindoDoc}
-              placeholder="Só números ou com máscara"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-            />
+            {editando && !corrigindoDoc ? (
+              <input
+                value={formatarCnpjCpf(contador.cnpjCpf)}
+                disabled
+                className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-500"
+              />
+            ) : (
+              <input
+                {...register('cnpjCpf', { required: 'Obrigatório', validate: (v) => validarCpfOuCnpj(v) || 'CPF/CNPJ inválido' })}
+                placeholder="Só números ou com máscara"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            )}
             {editando && !corrigindoDoc && <p className="mt-1 text-xs text-gray-400">CPF/CNPJ não pode ser alterado depois de criado.</p>}
             {editando && !corrigindoDoc && !validarCpfOuCnpj(contador.cnpjCpf) && (
               <p className="mt-1 text-xs font-medium text-red-600">⚠️ Este documento não passa na validação de formato -- considere corrigir.</p>

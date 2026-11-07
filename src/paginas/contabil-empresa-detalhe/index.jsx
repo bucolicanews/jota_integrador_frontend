@@ -342,11 +342,19 @@ export default function ContabilEmpresaDetalhe() {
                     )}
                   </div>
                 </div>
-                <input
-                  {...register('cnpj', { required: 'Obrigatório' })}
-                  disabled={!corrigindoCnpj}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-                />
+                {corrigindoCnpj ? (
+                  <input
+                    {...register('cnpj', { required: 'Obrigatório', validate: (v) => validarCpfOuCnpj(v) || `${tipoPessoaForm === 'fisica' ? 'CPF' : 'CNPJ'} inválido` })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  />
+                ) : (
+                  <input
+                    value={formatarDocumento(empresa.cnpj, empresa.tipoPessoa)}
+                    disabled
+                    className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-500"
+                  />
+                )}
+                {errors.cnpj && <p className="mt-1 text-xs font-medium text-red-600">{errors.cnpj.message}</p>}
                 {!corrigindoCnpj && !validarCpfOuCnpj(empresa.cnpj) && (
                   <p className="mt-1 text-xs font-medium text-red-600">
                     ⚠️ Este {empresa.tipoPessoa === 'fisica' ? 'CPF' : 'CNPJ'} não passa na validação de formato -- considere corrigir.
