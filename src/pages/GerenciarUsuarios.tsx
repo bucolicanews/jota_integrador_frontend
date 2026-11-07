@@ -39,6 +39,9 @@ const ROTULO_PAPEL: Record<string, string> = {
   OPERADOR_EMPRESA: 'Operador da empresa',
 };
 
+// Sentinela pro Select do filtro -- nunca colide com um id real de contador (uuid).
+const FILTRO_PLATAFORMA = '__plataforma__';
+
 const TODOS_OS_PAPEIS: { valor: string; escopo: 'plataforma' | 'contador' | 'empresa' }[] = [
   { valor: 'SUPER_ADMIN', escopo: 'plataforma' },
   { valor: 'ADMIN_FINANCEIRO', escopo: 'plataforma' },
@@ -411,7 +414,8 @@ export default function GerenciarUsuarios() {
     }
   }, [papelAtual]);
 
-  const contadorId = papelAtual === 'SUPER_ADMIN' ? contadorFiltro : undefined;
+  const ehFiltroPlataforma = contadorFiltro === FILTRO_PLATAFORMA;
+  const contadorId = papelAtual === 'SUPER_ADMIN' && !ehFiltroPlataforma ? contadorFiltro : undefined;
 
   function carregar() {
     if (papelAtual === 'SUPER_ADMIN' && !contadorFiltro) {
@@ -421,8 +425,8 @@ export default function GerenciarUsuarios() {
     }
     setCarregando(true);
     Promise.all([
-      listarUsuarios(contadorId ? { contadorId } : {}),
-      papelAtual !== 'EMPRESARIO_DONO' ? listarEmpresas(contadorId) : Promise.resolve([]),
+      listarUsuarios(ehFiltroPlataforma ? { plataforma: true } : contadorId ? { contadorId } : {}),
+      !ehFiltroPlataforma && papelAtual !== 'EMPRESARIO_DONO' ? listarEmpresas(contadorId) : Promise.resolve([]),
     ])
       .then(([listaUsuarios, listaEmpresas]) => {
         setUsuarios(listaUsuarios);
@@ -431,7 +435,7 @@ export default function GerenciarUsuarios() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, [papelAtual, contadorFiltro, contadorId]);
+  useEffect(carregar, [papelAtual, contadorFiltro, contadorId, ehFiltroPlataforma]);
 
   async function alternarBloqueio(alvo: any) {
     if (!alvo.bloqueado) {
@@ -494,12 +498,13 @@ export default function GerenciarUsuarios() {
 
       {papelAtual === 'SUPER_ADMIN' && (
         <div className="mb-4 max-w-xs space-y-1.5">
-          <Label>Contador</Label>
+          <Label>Contador ou plataforma</Label>
           <Select value={contadorFiltro} onValueChange={setContadorFiltro}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecione um contador pra ver a carteira" />
+              <SelectValue placeholder="Selecione um contador ou Plataforma pra ver usuários" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={FILTRO_PLATAFORMA}>Plataforma</SelectItem>
               {contadores.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.nome ?? c.razaoSocial}
@@ -534,7 +539,7 @@ export default function GerenciarUsuarios() {
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         {papelAtual === 'SUPER_ADMIN' && !contadorFiltro
-                          ? 'Selecione um contador pra ver os usuários.'
+                          ? 'Selecione um contador ou Plataforma pra ver os usuários.'
                           : 'Nenhum usuário cadastrado.'}
                       </TableCell>
                     </TableRow>
