@@ -57,6 +57,7 @@ const MinhaAssinatura = lazy(() => import('./pages/MinhaAssinatura'));
 const AdminPlanos = lazy(() => import('./pages/AdminPlanos'));
 const AdminCreditosAvulsos = lazy(() => import('./pages/AdminCreditosAvulsos'));
 const GerenciarUsuarios = lazy(() => import('./pages/GerenciarUsuarios'));
+const GerenciarPapeis = lazy(() => import('./pages/GerenciarPapeis'));
 const Configuracoes = lazy(() => import('./pages/Configuracoes'));
 const Suporte = lazy(() => import('./pages/Suporte'));
 const PontoEletronico = lazy(() => import('./pages/PontoEletronico'));
@@ -495,6 +496,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <GerenciarUsuarios />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/admin/papeis"
+          element={
+            <RotaProtegida>
+              <GerenciarPapeis />
             </RotaProtegida>
           }
         />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, ReceiptText, Scale, Settings, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 import { listarPermissoesUsuario } from '../../servicos/usuarios';
@@ -153,6 +153,7 @@ const SECOES_MENU: SecaoMenu[] = [
       // UM dos papeis de cada par, nunca os dois -- sem colisão de key em runtime.
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO'] },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['EMPRESARIO_DONO'], modulo: 'usuarios' },
+      { nome: 'Papéis e Permissões', caminho: '/admin/papeis', icone: ShieldCheck, papeis: ['SUPER_ADMIN'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'], recurso: 'configuracoes' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR'], recurso: 'ponto_eletronico' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_EMPRESA'], modulo: 'ponto_eletronico', recurso: 'ponto_eletronico' },

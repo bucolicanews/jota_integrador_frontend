@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { listarContadores } from '../servicos/contadores';
 import { listarEmpresas } from '../servicos/empresas';
+import { listarPapeis } from '../servicos/papeis';
 import {
   atualizarEmailUsuario,
   bloquearUsuario,
@@ -28,7 +29,8 @@ import {
 } from '../servicos/usuarios';
 import { showError, showSuccess } from '../utils/toast';
 
-// Mesmo catálogo do backend (src/auth/dominio/papel.ts)
+// Rótulo amigável só pros 7 papéis de sistema -- papel customizado (criado em
+// /admin/papeis) exibe a própria `descricao` cadastrada, ou o nome crú se não tiver.
 const ROTULO_PAPEL: Record<string, string> = {
   SUPER_ADMIN: 'Administrador da plataforma',
   ADMIN_FINANCEIRO: 'Administrador financeiro',
@@ -39,33 +41,30 @@ const ROTULO_PAPEL: Record<string, string> = {
   OPERADOR_EMPRESA: 'Operador da empresa',
 };
 
+function rotuloDe(papel: any): string {
+  return ROTULO_PAPEL[papel.nome] ?? papel.descricao ?? papel.nome;
+}
+
 // Sentinela pro Select do filtro -- nunca colide com um id real de contador (uuid).
 const FILTRO_PLATAFORMA = '__plataforma__';
 
-const TODOS_OS_PAPEIS: { valor: string; escopo: 'plataforma' | 'contador' | 'empresa' }[] = [
-  { valor: 'SUPER_ADMIN', escopo: 'plataforma' },
-  { valor: 'ADMIN_FINANCEIRO', escopo: 'plataforma' },
-  { valor: 'ADMIN_SUPORTE', escopo: 'plataforma' },
-  { valor: 'CONTADOR_DONO', escopo: 'contador' },
-  { valor: 'OPERADOR_CONTADOR', escopo: 'contador' },
-  { valor: 'EMPRESARIO_DONO', escopo: 'empresa' },
-  { valor: 'OPERADOR_EMPRESA', escopo: 'empresa' },
-];
-
 // Papéis oferecidos na criação, por papel de quem cria -- espelha resolverVinculoPermitido()
-// do AuthController (backend), mas só como conveniência de UI: o backend revalida tudo.
-function opcoesPapelPara(papelCriador: string) {
+// do AuthController (backend): filtra por ESCOPO (não por nome), então papel customizado
+// novo aparece automaticamente pra quem tem autoridade sobre aquele escopo. Só conveniência
+// de UI, o backend revalida tudo de novo.
+function opcoesPapelPara(papelCriador: string, todosOsPapeis: any[]) {
   if (papelCriador === 'SUPER_ADMIN') {
-    // CONTADOR_DONO/OPERADOR_CONTADOR ficam fora -- escopo 'contador' exige escolher QUAL
-    // contador, campo que não existe neste form (CONTADOR_DONO já tem fluxo próprio e mais
-    // completo em "Contadores"; OPERADOR_CONTADOR é sempre criado pelo próprio contador).
-    return TODOS_OS_PAPEIS.filter((p) => p.escopo !== 'contador');
+    // Escopo 'contador' fica fora -- exige escolher QUAL contador, campo que não existe
+    // neste form (CONTADOR_DONO já tem fluxo próprio e mais completo em "Contadores";
+    // OPERADOR_CONTADOR é sempre criado pelo próprio contador).
+    return todosOsPapeis.filter((p) => p.escopo !== 'contador');
   }
   if (papelCriador === 'CONTADOR_DONO') {
-    return TODOS_OS_PAPEIS.filter((p) => ['OPERADOR_CONTADOR', 'EMPRESARIO_DONO', 'OPERADOR_EMPRESA'].includes(p.valor));
+    // Nunca o próprio papel de dono (contador não cria outro dono do próprio escritório).
+    return todosOsPapeis.filter((p) => (p.escopo === 'contador' || p.escopo === 'empresa') && p.nome !== 'CONTADOR_DONO');
   }
   if (papelCriador === 'EMPRESARIO_DONO') {
-    return TODOS_OS_PAPEIS.filter((p) => p.valor === 'OPERADOR_EMPRESA');
+    return todosOsPapeis.filter((p) => p.escopo === 'empresa' && p.nome !== 'EMPRESARIO_DONO');
   }
   return [];
 }
@@ -79,17 +78,19 @@ interface DadosNovoUsuario {
 
 function FormNovoUsuario({
   papelCriador,
+  todosOsPapeis,
   empresas,
   onSaveComplete,
 }: {
   papelCriador: string;
+  todosOsPapeis: any[];
   empresas: any[];
   onSaveComplete: () => void;
 }) {
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [linkGerado, setLinkGerado] = useState<string | null>(null);
   const [confirmouPlataforma, setConfirmouPlataforma] = useState(false);
-  const opcoesPapel = opcoesPapelPara(papelCriador);
+  const opcoesPapel = opcoesPapelPara(papelCriador, todosOsPapeis);
 
   const {
     register,
@@ -98,11 +99,11 @@ function FormNovoUsuario({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<DadosNovoUsuario>({
-    defaultValues: { nome: '', email: '', papel: opcoesPapel[0]?.valor ?? '' },
+    defaultValues: { nome: '', email: '', papel: opcoesPapel[0]?.nome ?? '' },
   });
 
   const papelSelecionado = watch('papel');
-  const escopoSelecionado = TODOS_OS_PAPEIS.find((p) => p.valor === papelSelecionado)?.escopo;
+  const escopoSelecionado = todosOsPapeis.find((p) => p.nome === papelSelecionado)?.escopo;
   const precisaEmpresa = escopoSelecionado === 'empresa' && papelCriador !== 'EMPRESARIO_DONO';
   const ehPlataforma = escopoSelecionado === 'plataforma';
 
@@ -171,8 +172,8 @@ function FormNovoUsuario({
               </SelectTrigger>
               <SelectContent>
                 {opcoesPapel.map((p) => (
-                  <SelectItem key={p.valor} value={p.valor}>
-                    {ROTULO_PAPEL[p.valor]}
+                  <SelectItem key={p.nome} value={p.nome}>
+                    {rotuloDe(p)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -422,6 +423,7 @@ export default function GerenciarUsuarios() {
 
   const [contadores, setContadores] = useState<any[]>([]);
   const [contadorFiltro, setContadorFiltro] = useState<string>('');
+  const [todosOsPapeis, setTodosOsPapeis] = useState<any[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -439,6 +441,12 @@ export default function GerenciarUsuarios() {
         .catch((e) => showError(e.message));
     }
   }, [papelAtual]);
+
+  useEffect(() => {
+    listarPapeis()
+      .then(setTodosOsPapeis)
+      .catch((e) => showError(e.message));
+  }, []);
 
   const ehFiltroPlataforma = contadorFiltro === FILTRO_PLATAFORMA;
   const contadorId = papelAtual === 'SUPER_ADMIN' && !ehFiltroPlataforma ? contadorFiltro : undefined;
@@ -574,7 +582,9 @@ export default function GerenciarUsuarios() {
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
-                        <TableCell className="text-sm">{ROTULO_PAPEL[u.papel] ?? u.papel}</TableCell>
+                        <TableCell className="text-sm">
+                          {ROTULO_PAPEL[u.papel] ?? todosOsPapeis.find((p) => p.nome === u.papel)?.descricao ?? u.papel}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{vinculoDe(u)}</TableCell>
                         <TableCell>
                           <Badge variant={u.bloqueado ? 'destructive' : 'success'}>{u.bloqueado ? 'Bloqueado' : 'Ativo'}</Badge>
@@ -630,14 +640,21 @@ export default function GerenciarUsuarios() {
           <DialogHeader>
             <DialogTitle>Novo Usuário</DialogTitle>
           </DialogHeader>
-          <FormNovoUsuario
-            papelCriador={papelAtual}
-            empresas={empresas}
-            onSaveComplete={() => {
-              setDialogNovoAberto(false);
-              carregar();
-            }}
-          />
+          {todosOsPapeis.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <FormNovoUsuario
+              papelCriador={papelAtual}
+              todosOsPapeis={todosOsPapeis}
+              empresas={empresas}
+              onSaveComplete={() => {
+                setDialogNovoAberto(false);
+                carregar();
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
