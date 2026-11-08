@@ -153,7 +153,7 @@ const SECOES_MENU: SecaoMenu[] = [
       // UM dos papeis de cada par, nunca os dois -- sem colisão de key em runtime.
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO'] },
       { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['EMPRESARIO_DONO'], modulo: 'usuarios' },
-      { nome: 'Papéis e Permissões', caminho: '/admin/papeis', icone: ShieldCheck, papeis: ['SUPER_ADMIN'] },
+      { nome: 'Papéis e Permissões', caminho: '/admin/papeis', icone: ShieldCheck, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'], recurso: 'configuracoes' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR'], recurso: 'ponto_eletronico' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_EMPRESA'], modulo: 'ponto_eletronico', recurso: 'ponto_eletronico' },

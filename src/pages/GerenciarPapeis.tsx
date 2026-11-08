@@ -30,7 +30,17 @@ interface DadosFormulario {
   permissaoIds: string[];
 }
 
-function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null; onSaveComplete: () => void }) {
+function FormPapel({
+  papelInicial,
+  papelCriador,
+  onSaveComplete,
+}: {
+  papelInicial?: any | null;
+  papelCriador: string;
+  onSaveComplete: () => void;
+}) {
+  const podeEscolherEscopo = papelCriador === 'SUPER_ADMIN';
+  const escopoFixo = papelCriador === 'CONTADOR_DONO' ? 'contador' : papelCriador === 'EMPRESARIO_DONO' ? 'empresa' : null;
   const isEditing = !!papelInicial;
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [catalogoPermissoes, setCatalogoPermissoes] = useState<any[]>([]);
@@ -57,7 +67,7 @@ function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null
   } = useForm<DadosFormulario>({
     defaultValues: {
       nome: papelInicial?.nome ?? '',
-      escopo: papelInicial?.escopo ?? 'plataforma',
+      escopo: papelInicial?.escopo ?? escopoFixo ?? 'plataforma',
       descricao: papelInicial?.descricao ?? '',
       permissaoIds: [],
     },
@@ -105,23 +115,30 @@ function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null
 
       <div className="space-y-1.5">
         <Label>Escopo *</Label>
-        <Controller
-          control={control}
-          name="escopo"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="plataforma">Plataforma</SelectItem>
-                <SelectItem value="contador">Escritório de contador</SelectItem>
-                <SelectItem value="empresa">Empresa cliente</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {isEditing && <p className="text-xs text-muted-foreground">Escopo não pode ser alterado depois de criado.</p>}
+        {podeEscolherEscopo ? (
+          <Controller
+            control={control}
+            name="escopo"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="plataforma">Plataforma</SelectItem>
+                  <SelectItem value="contador">Escritório de contador</SelectItem>
+                  <SelectItem value="empresa">Empresa cliente</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        ) : (
+          <Input disabled value={ROTULO_ESCOPO[escopoFixo ?? '']} />
+        )}
+        {isEditing && podeEscolherEscopo && <p className="text-xs text-muted-foreground">Escopo não pode ser alterado depois de criado.</p>}
+        {!podeEscolherEscopo && (
+          <p className="text-xs text-muted-foreground">Papel criado por você vale só pra sua própria equipe.</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -130,18 +147,25 @@ function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Label>Permissões</Label>
           <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="px-2 text-xs sm:px-3 sm:text-sm"
               onClick={() => setValue('permissaoIds', catalogoPermissoes.map((p) => p.id))}
             >
               Marcar todos
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setValue('permissaoIds', [])}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="px-2 text-xs sm:px-3 sm:text-sm"
+              onClick={() => setValue('permissaoIds', [])}
+            >
               Desmarcar todos
             </Button>
           </div>
@@ -154,16 +178,16 @@ function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null
           control={control}
           name="permissaoIds"
           render={({ field }) => (
-            <div className="max-h-64 space-y-3 overflow-y-auto rounded-md border p-3">
+            <div className="rounded-md border p-2">
               {carregandoCatalogo ? (
-                <p className="text-xs text-muted-foreground">Carregando catálogo...</p>
+                <p className="p-2 text-xs text-muted-foreground">Carregando catálogo...</p>
               ) : (
                 Object.entries(permissoesPorRecurso).map(([recurso, permissoes]) => (
-                  <div key={recurso} className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{recurso}</p>
-                    <div className="grid grid-cols-2 gap-1">
+                  <div key={recurso} className="border-b py-1 last:border-0">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{recurso}</span>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                       {permissoes.map((p) => (
-                        <label key={p.id} className="flex items-center gap-2 text-sm">
+                        <label key={p.id} className="flex items-center gap-1.5 text-sm">
                           <Checkbox
                             checked={field.value?.includes(p.id)}
                             onCheckedChange={(marcado) => {
@@ -196,7 +220,8 @@ function FormPapel({ papelInicial, onSaveComplete }: { papelInicial?: any | null
 
 export default function GerenciarPapeis() {
   const { usuario } = useSelector((state: any) => state.autenticacao);
-  const podeGerenciar = usuario?.papel === 'SUPER_ADMIN';
+  const papelAtual = usuario?.papel;
+  const podeGerenciar = ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'].includes(papelAtual);
 
   const [papeis, setPapeis] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -211,6 +236,22 @@ export default function GerenciarPapeis() {
       .finally(() => setCarregando(false));
   }
   useEffect(carregar, []);
+
+  // Backend já devolve global+próprio pra esse ator -- aqui só escondemos as linhas
+  // globais/sistema da TABELA de gestão de contador/empresa (eles nunca editam essas, só
+  // as próprias); SUPER_ADMIN vê tudo que recebeu (só global mesmo). Cuidado: `p.contadorId`
+  // e `usuario.contadorId` são AMBOS null pra linha global quando quem está logado é
+  // EMPRESARIO_DONO (contadorId null) -- `null === null` dava falso positivo e mostrava
+  // todo papel global/de outro dono. Só conta como "meu" se o campo do papel não for null
+  // E bater com o meu.
+  const papeisExibidos =
+    papelAtual === 'SUPER_ADMIN'
+      ? papeis
+      : papeis.filter(
+          (p) =>
+            (p.contadorId !== null && p.contadorId === usuario?.contadorId) ||
+            (p.empresaId !== null && p.empresaId === usuario?.empresaId),
+        );
 
   if (!podeGerenciar) {
     return (
@@ -255,7 +296,14 @@ export default function GerenciarPapeis() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {papeis.map((p) => (
+                  {papeisExibidos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                        Nenhum papel próprio cadastrado ainda.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                  papeisExibidos.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.nome}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{ROTULO_ESCOPO[p.escopo] ?? p.escopo}</TableCell>
@@ -277,7 +325,8 @@ export default function GerenciarPapeis() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -286,12 +335,13 @@ export default function GerenciarPapeis() {
       </Card>
 
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto md:max-w-[85%]">
+        <DialogContent className="h-fit max-h-[90vh] max-w-md overflow-y-auto md:max-w-[85%]">
           <DialogHeader>
             <DialogTitle>{papelParaEditar ? `Editar papel -- ${papelParaEditar.nome}` : 'Novo papel'}</DialogTitle>
           </DialogHeader>
           <FormPapel
             papelInicial={papelParaEditar}
+            papelCriador={papelAtual}
             onSaveComplete={() => {
               setDialogAberto(false);
               carregar();
