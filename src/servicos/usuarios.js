@@ -1,12 +1,15 @@
 import { api } from './api';
 
-// contadorId/empresaId só fazem sentido pra SUPER_ADMIN (filtra carteira/empresa
-// específica); contador/empresário vendo a própria equipe não precisam passar nada.
-export const listarUsuarios = ({ contadorId, empresaId, plataforma } = {}) => {
+// contadorId só faz sentido pra SUPER_ADMIN (filtra carteira específica). empresaId
+// filtra pra só a equipe de UMA empresa (cliente do contador, ou a própria do
+// EMPRESARIO_DONO). somenteProprio filtra pra só a equipe do próprio escritório do
+// contador (exclui a equipe de toda empresa-cliente) -- ignorado se empresaId vier junto.
+export const listarUsuarios = ({ contadorId, empresaId, plataforma, somenteProprio } = {}) => {
   const parametros = new URLSearchParams();
   if (contadorId) parametros.set('contadorId', contadorId);
   if (empresaId) parametros.set('empresaId', empresaId);
   if (plataforma) parametros.set('plataforma', 'true');
+  if (somenteProprio) parametros.set('somenteProprio', 'true');
   const query = parametros.toString();
   return api.get(query ? `/auth/usuarios?${query}` : '/auth/usuarios');
 };

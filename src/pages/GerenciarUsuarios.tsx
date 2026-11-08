@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import { listarContadores } from '../servicos/contadores';
 import { listarEmpresas } from '../servicos/empresas';
 import { listarPapeis } from '../servicos/papeis';
@@ -420,6 +421,14 @@ export default function GerenciarUsuarios() {
   const { usuario } = useSelector((state: any) => state.autenticacao);
   const papelAtual = usuario?.papel;
   const podeGerenciar = ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'].includes(papelAtual);
+  const { empresaAtiva, carteira } = useEmpresaAtiva();
+
+  // CONTADOR_DONO com uma empresa-CLIENTE selecionada no Header (não a própria
+  // contabilidade) vê só a equipe DAQUELA empresa; sem seleção ou com a própria
+  // selecionada, vê só o próprio escritório (nunca mais o combinado de antes).
+  const propria = (carteira as any[]).find((e: any) => e.ehPropria);
+  const agindoComoEmpresa =
+    papelAtual === 'CONTADOR_DONO' && empresaAtiva && empresaAtiva.id !== propria?.id ? empresaAtiva : null;
 
   const [contadores, setContadores] = useState<any[]>([]);
   const [contadorFiltro, setContadorFiltro] = useState<string>('');
@@ -458,8 +467,17 @@ export default function GerenciarUsuarios() {
       return;
     }
     setCarregando(true);
+    const filtroUsuarios = ehFiltroPlataforma
+      ? { plataforma: true }
+      : contadorId
+        ? { contadorId }
+        : papelAtual === 'CONTADOR_DONO'
+          ? agindoComoEmpresa
+            ? { empresaId: agindoComoEmpresa.id }
+            : { somenteProprio: true }
+          : {};
     Promise.all([
-      listarUsuarios(ehFiltroPlataforma ? { plataforma: true } : contadorId ? { contadorId } : {}),
+      listarUsuarios(filtroUsuarios),
       !ehFiltroPlataforma && papelAtual !== 'EMPRESARIO_DONO' ? listarEmpresas(contadorId) : Promise.resolve([]),
     ])
       .then(([listaUsuarios, listaEmpresas]) => {
@@ -469,7 +487,7 @@ export default function GerenciarUsuarios() {
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, [papelAtual, contadorFiltro, contadorId, ehFiltroPlataforma]);
+  useEffect(carregar, [papelAtual, contadorFiltro, contadorId, ehFiltroPlataforma, agindoComoEmpresa?.id]);
 
   async function alternarBloqueio(alvo: any) {
     if (!alvo.bloqueado) {
@@ -522,9 +540,14 @@ export default function GerenciarUsuarios() {
   return (
     <LayoutPrincipal>
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-          <Users className="mr-2 h-6 w-6" /> Gerenciar Usuários
-        </h1>
+        <div>
+          <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+            <Users className="mr-2 h-6 w-6" /> Gerenciar Usuários
+          </h1>
+          {agindoComoEmpresa && (
+            <p className="text-sm text-muted-foreground">Equipe de {agindoComoEmpresa.razaoSocial}</p>
+          )}
+        </div>
         <Button onClick={() => setDialogNovoAberto(true)}>
           <PlusCircle className="mr-2 h-4 w-4" /> Novo Usuário
         </Button>

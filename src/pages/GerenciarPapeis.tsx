@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import { atualizarPapel, criarPapel, listarPapeis, obterPermissoesDoPapel } from '../servicos/papeis';
 import { listarCatalogoPermissoes } from '../servicos/usuarios';
 import { showError, showSuccess } from '../utils/toast';
@@ -33,14 +34,22 @@ interface DadosFormulario {
 function FormPapel({
   papelInicial,
   papelCriador,
+  agindoComoEmpresaId,
   onSaveComplete,
 }: {
   papelInicial?: any | null;
   papelCriador: string;
+  agindoComoEmpresaId?: string | null;
   onSaveComplete: () => void;
 }) {
   const podeEscolherEscopo = papelCriador === 'SUPER_ADMIN';
-  const escopoFixo = papelCriador === 'CONTADOR_DONO' ? 'contador' : papelCriador === 'EMPRESARIO_DONO' ? 'empresa' : null;
+  const escopoFixo = agindoComoEmpresaId
+    ? 'empresa'
+    : papelCriador === 'CONTADOR_DONO'
+      ? 'contador'
+      : papelCriador === 'EMPRESARIO_DONO'
+        ? 'empresa'
+        : null;
   const isEditing = !!papelInicial;
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [catalogoPermissoes, setCatalogoPermissoes] = useState<any[]>([]);
@@ -95,6 +104,7 @@ function FormPapel({
           escopo: dados.escopo,
           descricao: dados.descricao || null,
           permissaoIds: dados.permissaoIds ?? [],
+          empresaId: agindoComoEmpresaId ?? undefined,
         });
       }
       showSuccess(`Papel ${isEditing ? 'atualizado' : 'criado'} com sucesso.`);
@@ -222,6 +232,15 @@ export default function GerenciarPapeis() {
   const { usuario } = useSelector((state: any) => state.autenticacao);
   const papelAtual = usuario?.papel;
   const podeGerenciar = ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'].includes(papelAtual);
+  const { empresaAtiva, carteira } = useEmpresaAtiva();
+
+  // CONTADOR_DONO com uma empresa-CLIENTE selecionada no Header (não a própria
+  // contabilidade) está "agindo em nome dela" -- gerencia o papel PRIVADO daquela
+  // empresa, não o próprio. Selecionar "a própria contabilidade" (ehPropria) ou nada
+  // ainda volta pro modo normal (papel do próprio contador).
+  const propria = (carteira as any[]).find((e: any) => e.ehPropria);
+  const agindoComoEmpresa =
+    papelAtual === 'CONTADOR_DONO' && empresaAtiva && empresaAtiva.id !== propria?.id ? empresaAtiva : null;
 
   const [papeis, setPapeis] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -230,28 +249,30 @@ export default function GerenciarPapeis() {
 
   function carregar() {
     setCarregando(true);
-    listarPapeis()
+    listarPapeis(agindoComoEmpresa?.id)
       .then(setPapeis)
       .catch((e) => showError(e.message))
       .finally(() => setCarregando(false));
   }
-  useEffect(carregar, []);
+  useEffect(carregar, [agindoComoEmpresa?.id]);
 
-  // Backend já devolve global+próprio pra esse ator -- aqui só escondemos as linhas
-  // globais/sistema da TABELA de gestão de contador/empresa (eles nunca editam essas, só
-  // as próprias); SUPER_ADMIN vê tudo que recebeu (só global mesmo). Cuidado: `p.contadorId`
-  // e `usuario.contadorId` são AMBOS null pra linha global quando quem está logado é
-  // EMPRESARIO_DONO (contadorId null) -- `null === null` dava falso positivo e mostrava
-  // todo papel global/de outro dono. Só conta como "meu" se o campo do papel não for null
-  // E bater com o meu.
+  // Backend já devolve global+próprio (ou global+da empresa, se agindoComoEmpresa) pra
+  // esse ator -- aqui só escondemos as linhas globais/sistema da TABELA de gestão de
+  // contador/empresa (eles nunca editam essas, só as próprias); SUPER_ADMIN vê tudo que
+  // recebeu (só global mesmo). Cuidado: `p.contadorId`/`p.empresaId` são AMBOS null pra
+  // linha global -- `null === null` dava falso positivo antes. Só conta como "meu" se o
+  // campo do papel não for null E bater com o alvo certo (próprio, ou a empresa em nome
+  // de quem estou agindo).
   const papeisExibidos =
     papelAtual === 'SUPER_ADMIN'
       ? papeis
-      : papeis.filter(
-          (p) =>
-            (p.contadorId !== null && p.contadorId === usuario?.contadorId) ||
-            (p.empresaId !== null && p.empresaId === usuario?.empresaId),
-        );
+      : agindoComoEmpresa
+        ? papeis.filter((p) => p.empresaId === agindoComoEmpresa.id)
+        : papeis.filter(
+            (p) =>
+              (p.contadorId !== null && p.contadorId === usuario?.contadorId) ||
+              (p.empresaId !== null && p.empresaId === usuario?.empresaId),
+          );
 
   if (!podeGerenciar) {
     return (
@@ -264,9 +285,14 @@ export default function GerenciarPapeis() {
   return (
     <LayoutPrincipal>
       <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <h1 className="flex items-center text-2xl font-bold md:text-3xl">
-          <ShieldCheck className="mr-2 h-6 w-6" /> Papéis e Permissões
-        </h1>
+        <div>
+          <h1 className="flex items-center text-2xl font-bold md:text-3xl">
+            <ShieldCheck className="mr-2 h-6 w-6" /> Papéis e Permissões
+          </h1>
+          {agindoComoEmpresa && (
+            <p className="text-sm text-muted-foreground">Gerenciando em nome de {agindoComoEmpresa.razaoSocial}</p>
+          )}
+        </div>
         <Button
           onClick={() => {
             setPapelParaEditar(null);
@@ -342,6 +368,7 @@ export default function GerenciarPapeis() {
           <FormPapel
             papelInicial={papelParaEditar}
             papelCriador={papelAtual}
+            agindoComoEmpresaId={agindoComoEmpresa?.id ?? null}
             onSaveComplete={() => {
               setDialogAberto(false);
               carregar();
