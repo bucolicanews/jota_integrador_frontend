@@ -59,26 +59,30 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Minha Assinatura', caminho: '/minha-assinatura', icone: CreditCard, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
     ],
   },
-  {
-    titulo: 'Escritório',
-    itens: [
-      { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_ESCRITORIO_CONTADOR },
-      { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_ESCRITORIO_CONTADOR },
-      { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_ESCRITORIO_CONTADOR },
-      { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA, recurso: 'auditoria' },
-    ],
-  },
+  // Contabilidade reúne lançamento + todo relatório contábil (balancete/DRE/balanço/
+  // razão vieram da antiga seção "Relatórios", removida -- não sobrava nada nela depois
+  // de Fluxo de Caixa ir pra "Caixa"). Históricos veio de "Cadastros" (é histórico de
+  // lançamento, não cadastro).
   {
     titulo: 'Contabilidade',
     itens: [
       { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign, modulo: 'lancamentos', recurso: 'lancamentos' },
-      { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
-      { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
-      { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria', recurso: 'sugestoes_extrato' },
-      { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria', recurso: 'mapeamento' },
+      { nome: 'Balancete', caminho: '/relatorios/balancete', icone: FileTextIcon, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'DRE', caminho: '/relatorios/dre', icone: BarChart3, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Balanço Patrimonial', caminho: '/relatorios/balanco', icone: Scale, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen, modulo: 'plano_contas', recurso: 'plano_contas' },
+      { nome: 'Razão', caminho: '/relatorios/razao', icone: BookOpen, modulo: 'relatorios', recurso: 'relatorios' },
+      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks, modulo: 'historicos', recurso: 'historicos' },
+    ],
+  },
+  // Caixa separado de Contabilidade -- fluxo de caixa/contas a pagar/receber é operação
+  // de caixa do dia a dia, não relatório/lançamento contábil.
+  {
+    titulo: 'Caixa',
+    itens: [
+      { nome: 'Fluxo de Caixa', caminho: '/relatorios/fluxo-caixa', icone: TrendingUp, modulo: 'relatorios', recurso: 'relatorios' },
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, modulo: 'contas_a_pagar', recurso: 'contas_a_pagar' },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, modulo: 'contas_a_receber', recurso: 'contas_a_receber' },
-      { nome: 'Plano de Contas', caminho: '/plano-contas', icone: BookOpen, modulo: 'plano_contas', recurso: 'plano_contas' },
     ],
   },
   // Tudo que fala com o SERPRO em nome da empresa entra aqui -- mesmo módulo "fiscal"
@@ -97,12 +101,38 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Fiscais', caminho: '/contabil/configuracoes-fiscais', icone: Settings, papeis: PAPEIS_CARTEIRA, recurso: 'configuracoes_fiscais' },
     ],
   },
+  // Banco separado de Caixa -- é conciliação/mapeamento bancário, não a visão de caixa
+  // (contas a pagar/receber) nem a contábil.
   {
-    titulo: 'Cadastros',
+    titulo: 'Banco',
+    itens: [
+      { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
+      { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
+      { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria', recurso: 'sugestoes_extrato' },
+      { nome: 'Mapeamento', caminho: '/mapeamento', icone: Link2, modulo: 'conciliacao_bancaria', recurso: 'mapeamento' },
+    ],
+  },
+  // Usuários veio de "Administração" pra cá -- é cadastro de gente, igual Cliente/
+  // Fornecedor. "Usuários" aparece 2x: contador/plataforma gerencia o PRÓPRIO time (nunca
+  // depende de módulo de empresa-cliente), empresa gerencia o time dela (trava por módulo
+  // do plano assinado). Um usuário só bate com UM dos papeis do par, nunca os dois -- sem
+  // colisão de key em runtime.
+  {
+    titulo: 'Cadastro',
     itens: [
       { nome: 'Clientes', caminho: '/clientes', icone: Users, modulo: 'clientes', recurso: 'clientes' },
       { nome: 'Fornecedores', caminho: '/fornecedores', icone: Truck, modulo: 'fornecedores', recurso: 'fornecedores' },
-      { nome: 'Históricos', caminho: '/historicos', icone: ListChecks, modulo: 'historicos', recurso: 'historicos' },
+      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO'] },
+      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['EMPRESARIO_DONO'], modulo: 'usuarios' },
+    ],
+  },
+  {
+    titulo: 'Escritório',
+    itens: [
+      { nome: 'Assinatura', caminho: '/contabil/assinatura', icone: CreditCard, papeis: PAPEIS_ESCRITORIO_CONTADOR },
+      { nome: 'Honorários', caminho: '/contabil/honorarios', icone: Coins, papeis: PAPEIS_ESCRITORIO_CONTADOR },
+      { nome: 'Créditos', caminho: '/contabil/creditos', icone: Banknote, papeis: PAPEIS_ESCRITORIO_CONTADOR },
+      { nome: 'Auditoria', caminho: '/contabil/auditoria', icone: ClipboardList, papeis: PAPEIS_CARTEIRA, recurso: 'auditoria' },
     ],
   },
   {
@@ -117,16 +147,6 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'Contratos', caminho: '/contratos', icone: FileSignature, modulo: 'contratos', recurso: 'contratos' },
       { nome: 'Documentos Societários', caminho: '/documentos-societarios', icone: Building2, modulo: 'documentos_societarios', recurso: 'documentos_societarios' },
-    ],
-  },
-  {
-    titulo: 'Relatórios',
-    itens: [
-      { nome: 'Fluxo de Caixa', caminho: '/relatorios/fluxo-caixa', icone: TrendingUp, modulo: 'relatorios', recurso: 'relatorios' },
-      { nome: 'Balancete', caminho: '/relatorios/balancete', icone: FileTextIcon, modulo: 'relatorios', recurso: 'relatorios' },
-      { nome: 'Balanço Patrimonial', caminho: '/relatorios/balanco', icone: Scale, modulo: 'relatorios', recurso: 'relatorios' },
-      { nome: 'DRE', caminho: '/relatorios/dre', icone: BarChart3, modulo: 'relatorios', recurso: 'relatorios' },
-      { nome: 'Razão', caminho: '/relatorios/razao', icone: BookOpen, modulo: 'relatorios', recurso: 'relatorios' },
     ],
   },
   {
@@ -147,14 +167,16 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Empresas (todas)', caminho: '/contabil/empresas-todas', icone: LayoutDashboard, papeis: PAPEIS_PLATAFORMA, recurso: 'empresas_todas' },
       { nome: 'Planos de Créditos', caminho: '/admin/planos', icone: CreditCard, papeis: PAPEIS_PLATAFORMA, recurso: 'planos_credito' },
       { nome: 'Pacotes de Crédito Avulso', caminho: '/admin/creditos-avulsos', icone: Coins, papeis: PAPEIS_PLATAFORMA, recurso: 'creditos_avulsos' },
-      // "Usuários"/"Bater Ponto"/"Folha de Ponto" aparecem 2x -- contador/plataforma usam
-      // pro PRÓPRIO time (nunca depende de módulo de empresa-cliente nenhuma), empresa usa
-      // pro time dela (aí sim trava por módulo do plano assinado). Um usuário só bate com
-      // UM dos papeis de cada par, nunca os dois -- sem colisão de key em runtime.
-      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO'] },
-      { nome: 'Usuários', caminho: '/admin/usuarios', icone: UserCog, papeis: ['EMPRESARIO_DONO'], modulo: 'usuarios' },
       { nome: 'Papéis e Permissões', caminho: '/admin/papeis', icone: ShieldCheck, papeis: ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'] },
       { nome: 'Configurações', caminho: '/configuracoes', icone: Settings, papeis: ['SUPER_ADMIN', 'ADMIN_FINANCEIRO'], recurso: 'configuracoes' },
+    ],
+  },
+  // Empregados reúne Bater Ponto + Folha de Ponto (vieram de "Administração") -- é RH do
+  // time próprio (contador/plataforma) ou do time da empresa-cliente, não administração
+  // de plataforma. Mesmo raciocínio de "aparece 2x" do Cadastro acima.
+  {
+    titulo: 'Empregados',
+    itens: [
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR'], recurso: 'ponto_eletronico' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_EMPRESA'], modulo: 'ponto_eletronico', recurso: 'ponto_eletronico' },
       {
