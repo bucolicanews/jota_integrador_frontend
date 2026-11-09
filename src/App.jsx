@@ -7,6 +7,8 @@ import { RotaPublica } from './componentes/RotaPublica';
 import Login from './paginas/login';
 
 const DefinirSenha = lazy(() => import('./paginas/definir-senha'));
+const ConfigurarMfa = lazy(() => import('./paginas/configurar-mfa'));
+const VerificarMfa = lazy(() => import('./paginas/verificar-mfa'));
 const Contabil = lazy(() => import('./paginas/contabil'));
 const Fiscal = lazy(() => import('./paginas/fiscal'));
 const ContabilEmpresas = lazy(() => import('./paginas/contabil-empresas'));
@@ -96,6 +98,22 @@ export default function App() {
           element={
             <RotaProtegida>
               <DefinirSenha />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/configurar-mfa"
+          element={
+            <RotaProtegida>
+              <ConfigurarMfa />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/verificar-mfa"
+          element={
+            <RotaProtegida>
+              <VerificarMfa />
             </RotaProtegida>
           }
         />

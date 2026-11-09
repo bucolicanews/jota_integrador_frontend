@@ -57,21 +57,29 @@ export function useEmpresaAtiva() {
       .finally(() => setCarregandoCarteira(false));
   }, [ehContador]);
 
-  // Plataforma não escolhe nada -- auto-seleciona o workspace fixo uma vez, se ainda não
-  // houver seleção persistida VÁLIDA (do próprio usuário) -- ex: troca de usuário no
-  // mesmo navegador, já tratada pelo efeito de cima, mas só depois de um re-render.
+  // Plataforma não escolhe nada -- sempre revalida o workspace fixo contra o backend a
+  // cada mount, mesmo já havendo algo persistido: diferente do contador (que tem uma
+  // carteira pra escolher e por isso pode confiar no id salvo até ele sair da lista),
+  // aqui NUNCA houve uma UI de troca -- qualquer valor persistido divergente do que
+  // `obterEmpresaInterna()` resolve agora é sempre um resíduo stale (ex: de uma sessão
+  // de teste anterior), nunca uma escolha válida do usuário. Bug real encontrado em
+  // 2026-11-09: admin via banco cadastrado numa empresa errada em /bancos (usa este
+  // hook) enquanto Configurações Fiscais > PagBank (chama obterEmpresaInterna() direto,
+  // sem este hook) mostrava a empresa certa.
   useEffect(() => {
-    if (!ehPlataforma || empresaAtivaPersistida) return;
+    if (!ehPlataforma || !usuario) return;
     setCarregandoCarteira(true);
     obterEmpresaInterna()
-      .then((empresa) =>
+      .then((empresa) => {
+        if (empresaAtivaPersistida?.id === empresa.id) return;
         dispatch(
           definirEmpresaAtiva({ usuarioId: usuario.id, empresa: { id: empresa.id, razaoSocial: empresa.razaoSocial, cnpj: empresa.cnpj } }),
-        ),
-      )
+        );
+      })
       .catch(() => {})
       .finally(() => setCarregandoCarteira(false));
-  }, [ehPlataforma, empresaAtivaPersistida, usuario, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ehPlataforma, usuario?.id, dispatch]);
 
   // Se a empresa ativa persistida não existe mais na carteira (ex: foi removida da
   // carteira deste contador), limpa em vez de deixar um id órfão. Só vale pra contador --

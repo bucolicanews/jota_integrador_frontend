@@ -213,7 +213,7 @@ export default function MenuLateral({ onLinkClick }: MenuLateralProps) {
       {SECOES_MENU.map((secao) => {
         const itensVisiveis = secao.itens.filter(
           (item) =>
-            (!item.modulo || temModulo(item.modulo)) &&
+            (!item.modulo || PAPEIS_PLATAFORMA.includes(usuario?.papel) || temModulo(item.modulo)) &&
             (!item.papeis || item.papeis.includes(usuario?.papel)) &&
             temAcessoAoItem(item),
         );

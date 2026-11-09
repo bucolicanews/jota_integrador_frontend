@@ -8,6 +8,11 @@ const estadoInicial = {
   // senão o usuário fica "logado" sem nunca ter definido senha nenhuma (ver
   // useAutenticacao.js e RotaProtegida.jsx).
   precisaDefinirSenha: false,
+  // MFA obrigatório pra papel de plataforma (docs/SEGURANCA.md do backend, exigeMfa()) --
+  // 'nenhum' (não se aplica ou já está em dia), 'configurar' (nunca cadastrou fator) ou
+  // 'desafio' (já tem fator verificado, mas a sessão atual ainda é aal1 -- precisa só do
+  // código, não de cadastrar de novo). Ver useAutenticacao.js e RotaProtegida.jsx.
+  mfaPendente: 'nenhum',
 };
 
 const autenticacaoSlice = createSlice({
@@ -22,6 +27,7 @@ const autenticacaoSlice = createSlice({
       state.usuario = null;
       state.carregando = false;
       state.precisaDefinirSenha = false;
+      state.mfaPendente = 'nenhum';
     },
     marcarPrecisaDefinirSenha(state) {
       state.precisaDefinirSenha = true;
@@ -29,8 +35,17 @@ const autenticacaoSlice = createSlice({
     limparPrecisaDefinirSenha(state) {
       state.precisaDefinirSenha = false;
     },
+    definirMfaPendente(state, action) {
+      state.mfaPendente = action.payload;
+    },
   },
 });
 
-export const { definirUsuario, limparUsuario, marcarPrecisaDefinirSenha, limparPrecisaDefinirSenha } = autenticacaoSlice.actions;
+export const {
+  definirUsuario,
+  limparUsuario,
+  marcarPrecisaDefinirSenha,
+  limparPrecisaDefinirSenha,
+  definirMfaPendente,
+} = autenticacaoSlice.actions;
 export default autenticacaoSlice.reducer;

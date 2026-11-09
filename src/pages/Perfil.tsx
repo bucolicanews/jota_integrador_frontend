@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Building2, KeyRound, Loader2, UserCog } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, KeyRound, Loader2, ShieldCheck, UserCog } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '../servicos/supabase';
+import { api } from '../servicos/api';
 import { obterMeuPerfil, atualizarMeuNome, atualizarMeuEmail, atualizarMeuAvatar } from '../servicos/perfil';
 import { atualizarContador, corrigirCnpjCpfContador, obterMeuContador } from '../servicos/contadores';
 import { validarCpfOuCnpj } from '../utils/validarCpfOuCnpj';
@@ -45,8 +47,15 @@ interface DadosEscritorio {
  * restrita a papel de plataforma.
  */
 export default function Perfil() {
+  const navigate = useNavigate();
   const [perfil, setPerfil] = useState<any | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [fatorTotp, setFatorTotp] = useState<{ id: string } | null>(null);
+  const [carregandoFatorTotp, setCarregandoFatorTotp] = useState(true);
+  const [salvandoMetodo2fa, setSalvandoMetodo2fa] = useState(false);
+  const [aguardandoCodigoEmail, setAguardandoCodigoEmail] = useState(false);
+  const [codigoEmail2fa, setCodigoEmail2fa] = useState('');
+  const [erro2fa, setErro2fa] = useState<string | null>(null);
   const [escritorio, setEscritorio] = useState<any | null>(null);
   const [corrigindoDoc, setCorrigindoDoc] = useState(false);
   const [enviandoAvatar, setEnviandoAvatar] = useState(false);
@@ -119,6 +128,81 @@ export default function Perfil() {
       .finally(() => setCarregando(false));
   }
   useEffect(carregarPerfil, [resetNome]);
+
+  function carregarFatorTotp() {
+    setCarregandoFatorTotp(true);
+    supabase.auth.mfa
+      .listFactors()
+      .then(({ data }) => {
+        const verificado = data?.totp?.find((fator) => fator.status === 'verified');
+        setFatorTotp(verificado ? { id: verificado.id } : null);
+      })
+      .finally(() => setCarregandoFatorTotp(false));
+  }
+  useEffect(carregarFatorTotp, []);
+
+  async function aoEscolherNenhum() {
+    setErro2fa(null);
+    setSalvandoMetodo2fa(true);
+    try {
+      await api.post('/auth/me/2fa/nenhum', {});
+      setPerfil((atual: any) => ({ ...atual, metodo2fa: 'nenhum' }));
+      showSuccess('Segundo fator desativado.');
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível desativar o segundo fator');
+    } finally {
+      setSalvandoMetodo2fa(false);
+    }
+  }
+
+  async function aoEscolherTotp() {
+    if (!fatorTotp) {
+      navigate('/configurar-mfa');
+      return;
+    }
+    // Já tem fator verificado no Supabase (ex: trocou pra email e quer voltar pro app
+    // autenticador sem reinscrever) -- só confirma de novo, sem passar pelo QR code.
+    setErro2fa(null);
+    setSalvandoMetodo2fa(true);
+    try {
+      await api.post('/auth/me/2fa/totp/confirmar', { factorId: fatorTotp.id });
+      setPerfil((atual: any) => ({ ...atual, metodo2fa: 'totp' }));
+      showSuccess('App autenticador ativado.');
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível ativar o app autenticador');
+    } finally {
+      setSalvandoMetodo2fa(false);
+    }
+  }
+
+  async function aoEscolherEmail() {
+    setErro2fa(null);
+    setSalvandoMetodo2fa(true);
+    try {
+      await api.post('/auth/me/2fa/email/enviar-codigo', {});
+      setAguardandoCodigoEmail(true);
+      setCodigoEmail2fa('');
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível enviar o código por email');
+    } finally {
+      setSalvandoMetodo2fa(false);
+    }
+  }
+
+  async function aoConfirmarCodigoEmail() {
+    setErro2fa(null);
+    setSalvandoMetodo2fa(true);
+    try {
+      await api.post('/auth/me/2fa/email/verificar', { codigo: codigoEmail2fa });
+      setPerfil((atual: any) => ({ ...atual, metodo2fa: 'email' }));
+      setAguardandoCodigoEmail(false);
+      showSuccess('Verificação por email ativada.');
+    } catch (erro: any) {
+      setErro2fa(erro.message ?? 'Código inválido ou expirado');
+    } finally {
+      setSalvandoMetodo2fa(false);
+    }
+  }
 
   useEffect(() => {
     if (ehContador) carregarEscritorio();
@@ -298,6 +382,73 @@ export default function Perfil() {
                 Alterar senha
               </Button>
             </form>
+
+            <div className="mt-6 border-t pt-4">
+              <span className="mb-2 flex items-center text-sm font-medium">
+                <ShieldCheck className="mr-2 h-4 w-4" /> Verificação em duas etapas
+              </span>
+              <p className="mb-3 text-xs text-muted-foreground">Opcional -- escolha como confirmar sua identidade a cada login.</p>
+
+              {carregandoFatorTotp ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant={perfil.metodo2fa === 'nenhum' ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={aoEscolherNenhum}
+                    disabled={salvandoMetodo2fa || perfil.metodo2fa === 'nenhum'}
+                  >
+                    Nenhuma
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={perfil.metodo2fa === 'totp' ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={aoEscolherTotp}
+                    disabled={salvandoMetodo2fa || perfil.metodo2fa === 'totp'}
+                  >
+                    App autenticador (TOTP){fatorTotp && perfil.metodo2fa !== 'totp' ? ' -- já cadastrado' : ''}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={perfil.metodo2fa === 'email' ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={aoEscolherEmail}
+                    disabled={salvandoMetodo2fa || perfil.metodo2fa === 'email'}
+                  >
+                    Código por email
+                  </Button>
+                </div>
+              )}
+
+              {aguardandoCodigoEmail && (
+                <div className="mt-3 space-y-2 rounded-md border p-3">
+                  <Label>Código enviado para {perfil.email}</Label>
+                  <Input
+                    value={codigoEmail2fa}
+                    onChange={(e) => setCodigoEmail2fa(e.target.value)}
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="000000"
+                  />
+                  {erro2fa && <p className="text-xs text-destructive">{erro2fa}</p>}
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setAguardandoCodigoEmail(false)} disabled={salvandoMetodo2fa}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" size="sm" onClick={aoConfirmarCodigoEmail} disabled={salvandoMetodo2fa || codigoEmail2fa.length !== 6}>
+                      {salvandoMetodo2fa && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Confirmar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
