@@ -12,5 +12,7 @@ export const obterLancamento = (empresaId, id) => api.get(`/empresas/${empresaId
 export const criarLancamento = (empresaId, dados) => api.post(`/empresas/${empresaId}/lancamentos-contabeis`, dados);
 export const estornarLancamento = (empresaId, id, motivo) =>
   api.post(`/empresas/${empresaId}/lancamentos-contabeis/${id}/estornar`, { motivo });
+export const atualizarLancamento = (empresaId, id, dados) =>
+  api.patch(`/empresas/${empresaId}/lancamentos-contabeis/${id}`, dados);
 export const obterSaldoConta = (empresaId, contaId) =>
   api.get(`/empresas/${empresaId}/lancamentos-contabeis/saldo/${contaId}`);

@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import ModalEditarLancamento from './ModalEditarLancamento';
 import { estornarLancamento, listarLancamentos } from '../../servicos/lancamentos';
 import { listarPlanoContas } from '../../servicos/planoContas';
 import { showError, showSuccess } from '../../utils/toast';
@@ -31,6 +32,7 @@ export default function TabelaLancamentos({ empresaId, somenteOrigem, refreshKey
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [motivoEstorno, setMotivoEstorno] = useState<Record<string, string>>({});
   const [estornando, setEstornando] = useState<string | null>(null);
+  const [lancamentoEditando, setLancamentoEditando] = useState<any | null>(null);
 
   const mapaContas = useMemo(() => Object.fromEntries(contas.map((c) => [c.id, c])), [contas]);
 
@@ -87,6 +89,7 @@ export default function TabelaLancamentos({ empresaId, somenteOrigem, refreshKey
   }
 
   return (
+    <>
     <div className="overflow-x-auto rounded-lg border">
       <Table>
         <TableHeader>
@@ -119,6 +122,14 @@ export default function TabelaLancamentos({ empresaId, somenteOrigem, refreshKey
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {!lancamento.estornado && lancamento.origem !== 'estorno' && (
                     <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-amber-700"
+                        onClick={() => setLancamentoEditando(lancamento)}
+                      >
+                        Editar
+                      </Button>
                       <input
                         placeholder="Motivo do estorno"
                         className="h-8 w-40 rounded-md border border-input bg-background px-2 text-xs"
@@ -169,5 +180,18 @@ export default function TabelaLancamentos({ empresaId, somenteOrigem, refreshKey
         </TableBody>
       </Table>
     </div>
+    {lancamentoEditando && (
+      <ModalEditarLancamento
+        empresaId={empresaId}
+        lancamento={lancamentoEditando}
+        contas={contas}
+        aoFechar={() => setLancamentoEditando(null)}
+        aoSalvar={() => {
+          setLancamentoEditando(null);
+          carregar();
+        }}
+      />
+    )}
+    </>
   );
 }

@@ -1,16 +1,18 @@
-import { useMemo } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Check, ChevronsUpDown, Loader2, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { criarLancamento } from '../../servicos/lancamentos';
 import { showError, showSuccess } from '../../utils/toast';
 
 const formatarMoeda = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 
-interface Conta {
+export interface Conta {
   id: string;
   codigo: string;
   nome: string;
@@ -43,6 +45,59 @@ interface DadosFormulario {
   partidas: CampoPartida[];
 }
 
+interface SeletorContaProps {
+  value: string;
+  onChange: (value: string) => void;
+  contas: Conta[];
+}
+
+export function SeletorConta({ value, onChange, contas }: SeletorContaProps) {
+  const [aberto, setAberto] = useState(false);
+  const contaSelecionada = contas.find((c) => c.id === value);
+
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={aberto}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {contaSelecionada ? `${contaSelecionada.codigo} — ${contaSelecionada.nome}` : 'Selecione a conta'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Buscar conta pelo nome..." />
+          <CommandList>
+            <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+            <CommandGroup>
+              {contas.map((conta) => (
+                <CommandItem
+                  key={conta.id}
+                  value={`${conta.codigo} ${conta.nome}`}
+                  onSelect={() => {
+                    onChange(conta.id);
+                    setAberto(false);
+                  }}
+                >
+                  <Check className={cn('mr-2 h-4 w-4', conta.id === value ? 'opacity-100' : 'opacity-0')} />
+                  {conta.codigo} — {conta.nome}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function FormLancamentoManual({ empresaId, contas, historicos, onSaveComplete }: FormLancamentoManualProps) {
   const contasAnaliticas = contas.filter((c) => !c.sintetica && c.ativa);
 
@@ -50,7 +105,6 @@ export default function FormLancamentoManual({ empresaId, contas, historicos, on
     register,
     control,
     handleSubmit,
-    watch,
     reset,
     formState: { errors, isSubmitting },
     setError,
@@ -66,7 +120,7 @@ export default function FormLancamentoManual({ empresaId, contas, historicos, on
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'partidas' });
-  const partidasAtuais = watch('partidas');
+  const partidasAtuais = useWatch({ control, name: 'partidas' });
 
   const { totalDebito, totalCredito } = useMemo(() => {
     let debito = 0;
@@ -153,18 +207,7 @@ export default function FormLancamentoManual({ empresaId, contas, historicos, on
                 name={`partidas.${index}.contaId`}
                 rules={{ required: true }}
                 render={({ field: campo }) => (
-                  <Select value={campo.value} onValueChange={campo.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Conta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contasAnaliticas.map((conta) => (
-                        <SelectItem key={conta.id} value={conta.id}>
-                          {conta.codigo} — {conta.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SeletorConta value={campo.value} onChange={campo.onChange} contas={contasAnaliticas} />
                 )}
               />
             </div>
@@ -187,7 +230,7 @@ export default function FormLancamentoManual({ empresaId, contas, historicos, on
         ))}
 
         <p className={`text-sm font-medium ${fecha ? 'text-green-700' : 'text-destructive'}`}>
-          Débito: {formatarMoeda(totalDebito)} · Crédito: {formatarMoeda(totalCredito)} {fecha ? '✓ fecha' : '— precisa fechar antes de salvar'}
+          Débito: {formatarMoeda(totalDebito)} · Crédito: {formatarMoeda(totalCredito)} {fecha ? '✓ fecha' : '— débito e crédito precisam ser iguais e maiores que zero'}
         </p>
       </div>
 
