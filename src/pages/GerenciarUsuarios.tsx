@@ -44,8 +44,12 @@ const ROTULO_PAPEL: Record<string, string> = {
   OPERADOR_EMPRESA: 'Operador da empresa',
 };
 
+// `papel.nome` é o campo editável em /admin/papeis (inclusive nos 7 de sistema, desde
+// 2026-11-12) -- mostra ele direto aqui. Antes o ROTULO_PAPEL hardcoded sempre ganhava,
+// então renomear um papel de sistema nunca aparecia neste select (a edição ficava sem
+// efeito visível). ROTULO_PAPEL só socorre papel sem nome (não deveria existir).
 function rotuloDe(papel: any): string {
-  return ROTULO_PAPEL[papel.nome] ?? papel.descricao ?? papel.nome;
+  return papel.nome || ROTULO_PAPEL[papel.nome] || papel.descricao;
 }
 
 // Sentinela pro Select do filtro -- nunca colide com um id real de contador (uuid).
@@ -711,9 +715,7 @@ export default function GerenciarUsuarios() {
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
-                        <TableCell className="text-sm">
-                          {ROTULO_PAPEL[u.papel] ?? todosOsPapeis.find((p) => p.nome === u.papel)?.descricao ?? u.papel}
-                        </TableCell>
+                        <TableCell className="text-sm">{u.papel}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{vinculoDe(u)}</TableCell>
                         <TableCell>
                           <Badge variant={u.bloqueado ? 'destructive' : 'success'}>{u.bloqueado ? 'Bloqueado' : 'Ativo'}</Badge>

@@ -8,3 +8,5 @@ export const listarPapeis = (empresaId) => api.get(empresaId ? `/auth/papeis?emp
 export const obterPermissoesDoPapel = (id) => api.get(`/auth/papeis/${id}/permissoes`);
 export const criarPapel = (dados) => api.post('/auth/papeis', dados);
 export const atualizarPapel = (id, dados) => api.put(`/auth/papeis/${id}`, dados);
+/** Só papel customizado sem usuário vinculado -- backend bloqueia os 7 de sistema e qualquer um em uso. */
+export const deletarPapel = (id) => api.delete(`/auth/papeis/${id}`);

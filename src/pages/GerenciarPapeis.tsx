@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
-import { Loader2, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, PlusCircle, ShieldCheck, Trash2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
-import { atualizarPapel, criarPapel, listarPapeis, obterPermissoesDoPapel } from '../servicos/papeis';
+import { atualizarPapel, criarPapel, deletarPapel, listarPapeis, obterPermissoesDoPapel } from '../servicos/papeis';
 import { listarCatalogoPermissoes } from '../servicos/usuarios';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -252,6 +263,7 @@ export default function GerenciarPapeis() {
   const [carregando, setCarregando] = useState(false);
   const [dialogAberto, setDialogAberto] = useState(false);
   const [papelParaEditar, setPapelParaEditar] = useState<any | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
 
   function carregar() {
     setCarregando(true);
@@ -261,6 +273,19 @@ export default function GerenciarPapeis() {
       .finally(() => setCarregando(false));
   }
   useEffect(carregar, [agindoComoEmpresa?.id]);
+
+  async function aoExcluir(id: string) {
+    setExcluindo(id);
+    try {
+      await deletarPapel(id);
+      showSuccess('Papel excluído.');
+      carregar();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível excluir o papel');
+    } finally {
+      setExcluindo(null);
+    }
+  }
 
   // Backend já devolve global+próprio (ou global+da empresa, se agindoComoEmpresa) pra
   // esse ator -- aqui só escondemos as linhas globais/sistema da TABELA de gestão de
@@ -344,17 +369,41 @@ export default function GerenciarPapeis() {
                         <Badge variant={p.sistema ? 'secondary' : 'success'}>{p.sistema ? 'Sistema' : 'Customizado'}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="Editar descrição e permissões"
-                          onClick={() => {
-                            setPapelParaEditar(p);
-                            setDialogAberto(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Editar nome, escopo, descrição e permissões"
+                            onClick={() => {
+                              setPapelParaEditar(p);
+                              setDialogAberto(true);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          {!p.sistema && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" disabled={excluindo === p.id} title="Excluir">
+                                  {excluindo === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir o papel "{p.nome}"?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Essa ação não pode ser desfeita. Se algum usuário ainda estiver com este papel, a exclusão é bloqueada --
+                                    reatribua o papel dele antes.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => aoExcluir(p.id)}>Confirmar exclusão</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
