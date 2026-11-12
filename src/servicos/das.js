@@ -23,3 +23,14 @@ export const estimarSincronizacaoDas = (empresaId, filtro = {}) => {
 // SERPRO exige estritamente futura.
 export const gerarSegundaViaDas = (empresaId, dasId, dataConsolidacao) =>
   api.post(`${base(empresaId)}/${dasId}/segunda-via`, dataConsolidacao ? { dataConsolidacao } : {});
+
+export const obterConfiguracaoLancamentosDas = (empresaId) => api.get(`${base(empresaId)}/configuracao-lancamentos`);
+
+export const salvarConfiguracaoLancamentosDas = (empresaId, dados) => api.put(`${base(empresaId)}/configuracao-lancamentos`, dados);
+
+export const listarPendenciasBaixaDas = (empresaId) => api.get(`${base(empresaId)}/pendencias-baixa`);
+
+export const baixarDas = (empresaId, dasId, dados) => api.post(`${base(empresaId)}/${dasId}/baixa`, dados);
+
+// Gatilho manual pra gerar a provisão de um DAS que ficou sem lançamento (geralmente porque a config não existia na hora do sync) -- nunca chama SERPRO, zero crédito.
+export const gerarProvisaoDas = (empresaId, dasId) => api.post(`${base(empresaId)}/${dasId}/provisao`);

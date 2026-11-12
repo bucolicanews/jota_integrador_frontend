@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react';
-import { Coins, Loader2, ReceiptText, RefreshCw } from 'lucide-react';
+import { Coins, Landmark, Loader2, ReceiptText, RefreshCw } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
-import { estimarSincronizacaoDas, gerarSegundaViaDas, listarDas, obterUrlPdfDas, sincronizarDas } from '../servicos/das';
+import {
+  baixarDas,
+  estimarSincronizacaoDas,
+  gerarProvisaoDas,
+  gerarSegundaViaDas,
+  listarDas,
+  listarPendenciasBaixaDas,
+  obterConfiguracaoLancamentosDas,
+  obterUrlPdfDas,
+  sincronizarDas,
+} from '../servicos/das';
+import { listarBancos } from '../servicos/bancos';
 import { executarComAvisoDeCredito } from '../servicos/creditos';
-import { showError } from '../utils/toast';
+import { showError, showSuccess } from '../utils/toast';
+import SecaoLancamentosDas from '../components/empresas/SecaoLancamentosDas';
 
 /** AAAA-MM (valor de <input type="month">) do mês atual menos `offsetMeses`. */
 function mesInput(offsetMeses: number): string {
@@ -74,6 +87,17 @@ export default function Das() {
   // Guarda de regime vem do próprio backend (400 se a empresa não for MEI/Simples
   // Nacional) -- evita uma chamada extra só pra checar `regimeTributario` antes.
   const [naoAplicavel, setNaoAplicavel] = useState(false);
+  const [configAberta, setConfigAberta] = useState(false);
+  const [pendenciasBaixa, setPendenciasBaixa] = useState<any[]>([]);
+  const [bancos, setBancos] = useState<any[]>([]);
+  const [dialogBaixa, setDialogBaixa] = useState<{ dasId: string; competencia: string } | null>(null);
+  const [tipoBaixa, setTipoBaixa] = useState<'caixa' | 'banco'>('banco');
+  const [bancoBaixaId, setBancoBaixaId] = useState('');
+  const [resolvendoBaixa, setResolvendoBaixa] = useState(false);
+  const [configLancamentos, setConfigLancamentos] = useState<any>(null);
+  const [selecionadosProvisao, setSelecionadosProvisao] = useState<Set<string>>(new Set());
+  const [gerandoProvisaoId, setGerandoProvisaoId] = useState<string | null>(null);
+  const [gerandoEmLote, setGerandoEmLote] = useState(false);
 
   function carregar() {
     if (!empresaId) return;
@@ -86,8 +110,86 @@ export default function Das() {
         else showError(erro.message);
       })
       .finally(() => setCarregando(false));
+    listarPendenciasBaixaDas(empresaId).then(setPendenciasBaixa).catch(() => setPendenciasBaixa([]));
+    listarBancos(empresaId, true).then(setBancos).catch(() => setBancos([]));
+    obterConfiguracaoLancamentosDas(empresaId).then(setConfigLancamentos).catch(() => setConfigLancamentos(null));
   }
   useEffect(carregar, [empresaId]);
+
+  // Vencido/a vencer sem lançamento de provisão ainda -- normalmente porque a config não
+  // existia na hora do sync (nunca bloqueia o sync, só avisa aqui).
+  const itensSemProvisao = itens.filter((item) => item.statusApresentacao !== 'pago' && !item.contaPagarProvisaoId);
+
+  function alternarSelecaoProvisao(id: string) {
+    setSelecionadosProvisao((prev) => {
+      const novo = new Set(prev);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
+
+  function alternarSelecionarTodos() {
+    setSelecionadosProvisao((prev) =>
+      prev.size === itensSemProvisao.length ? new Set() : new Set(itensSemProvisao.map((i) => i.id)),
+    );
+  }
+
+  async function gerarProvisaoUnica(dasId: string) {
+    if (!empresaId) return;
+    setGerandoProvisaoId(dasId);
+    try {
+      await gerarProvisaoDas(empresaId, dasId);
+      showSuccess('Conta a pagar gerada.');
+      carregar();
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível gerar a conta a pagar');
+    } finally {
+      setGerandoProvisaoId(null);
+    }
+  }
+
+  async function gerarProvisaoEmLote() {
+    if (!empresaId || selecionadosProvisao.size === 0) return;
+    setGerandoEmLote(true);
+    let sucesso = 0;
+    let falha = 0;
+    for (const dasId of selecionadosProvisao) {
+      try {
+        await gerarProvisaoDas(empresaId, dasId);
+        sucesso++;
+      } catch {
+        falha++;
+      }
+    }
+    setGerandoEmLote(false);
+    setSelecionadosProvisao(new Set());
+    showSuccess(falha > 0 ? `${sucesso} conta(s) a pagar gerada(s), ${falha} falharam.` : `${sucesso} conta(s) a pagar gerada(s).`);
+    carregar();
+  }
+
+  const bancosDoTipo = bancos.filter((b: any) => b.tipo === tipoBaixa);
+
+  function abrirDialogBaixa(item: any) {
+    setDialogBaixa({ dasId: item.id, competencia: item.competencia });
+    setTipoBaixa('banco');
+    setBancoBaixaId('');
+  }
+
+  async function resolverBaixa() {
+    if (!empresaId || !dialogBaixa || !bancoBaixaId) return;
+    setResolvendoBaixa(true);
+    try {
+      await baixarDas(empresaId, dialogBaixa.dasId, { tipo: tipoBaixa, bancoId: bancoBaixaId });
+      showSuccess('Baixa do DAS registrada.');
+      setDialogBaixa(null);
+      carregar();
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível registrar a baixa');
+    } finally {
+      setResolvendoBaixa(false);
+    }
+  }
 
   /** Intervalo escolhido, convertido pra AAAA-MM-01 (dia fixo -- competência sempre é 1º do mês). */
   function filtroAtual() {
@@ -187,6 +289,21 @@ export default function Das() {
 
       {!naoAplicavel && (
         <Card className="mb-6">
+          <CardContent className="space-y-3 p-4">
+            <Button type="button" variant="link" className="h-auto p-0" onClick={() => setConfigAberta((a) => !a)}>
+              {configAberta ? 'Ocultar' : 'Configurar'} contas do lançamento automático
+            </Button>
+            {configAberta && (
+              <div className="rounded-md border p-4">
+                <SecaoLancamentosDas empresaId={empresaId} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!naoAplicavel && (
+        <Card className="mb-6">
           <CardContent className="flex flex-col gap-4 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-1">
@@ -247,6 +364,52 @@ export default function Das() {
         </Card>
       )}
 
+      {itensSemProvisao.length > 0 && (
+        <Card className="mb-6 border-amber-300">
+          <CardContent className="space-y-3 p-4">
+            <p className="text-sm font-medium text-amber-800">
+              {itensSemProvisao.length} DAS sem conta a pagar de provisão
+              {!configLancamentos && ' -- configure as contas do lançamento automático antes de gerar'}.
+            </p>
+            {configLancamentos && (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selecionadosProvisao.size === itensSemProvisao.length}
+                    onCheckedChange={alternarSelecionarTodos}
+                  />
+                  <Label className="text-sm font-normal">Selecionar todos</Label>
+                </div>
+                <Button size="sm" disabled={selecionadosProvisao.size === 0 || gerandoEmLote} onClick={gerarProvisaoEmLote}>
+                  {gerandoEmLote ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Gerar contas a pagar selecionadas ({selecionadosProvisao.size})
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {pendenciasBaixa.length > 0 && (
+        <Card className="mb-6 border-amber-300">
+          <CardContent className="space-y-3 p-4">
+            <p className="flex items-center text-sm font-medium text-amber-800">
+              <Landmark className="mr-2 h-4 w-4" /> {pendenciasBaixa.length} DAS pago(s) aguardando baixa contábil
+            </p>
+            {pendenciasBaixa.map((item: any) => (
+              <div key={item.id} className="flex flex-col gap-2 rounded-md border bg-amber-50/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm">
+                  <span className="font-medium">{formatarCompetencia(item.competencia)}</span> -- {formatarMoeda(item.valor)}
+                </div>
+                <Button size="sm" variant="outline" onClick={() => abrirDialogBaixa(item)}>
+                  Dar baixa
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0">
           {naoAplicavel ? (
@@ -288,7 +451,26 @@ export default function Das() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2">
+                            {item.statusApresentacao !== 'pago' && !item.contaPagarProvisaoId && (
+                              <>
+                                {configLancamentos && (
+                                  <Checkbox
+                                    checked={selecionadosProvisao.has(item.id)}
+                                    onCheckedChange={() => alternarSelecaoProvisao(item.id)}
+                                  />
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!configLancamentos || gerandoProvisaoId === item.id}
+                                  title={!configLancamentos ? 'Configure as contas do lançamento automático antes' : undefined}
+                                  onClick={() => gerarProvisaoUnica(item.id)}
+                                >
+                                  {gerandoProvisaoId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Gerar conta a pagar'}
+                                </Button>
+                              </>
+                            )}
                             <Button variant="outline" size="sm" disabled={baixandoId === item.id} onClick={() => baixar(item.id)}>
                               {baixandoId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Relatório'}
                             </Button>
@@ -337,6 +519,69 @@ export default function Das() {
           </div>
           <Button onClick={gerarSegundaVia} disabled={!dataConsolidacao || gerandoSegundaViaId === dialogSegundaVia?.dasId} className="w-full">
             {gerandoSegundaViaId === dialogSegundaVia?.dasId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Gerar 2ª via'}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!dialogBaixa} onOpenChange={(aberto) => !aberto && setDialogBaixa(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dar baixa -- {dialogBaixa ? formatarCompetencia(dialogBaixa.competencia) : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Pago via</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={tipoBaixa === 'banco' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => {
+                    setTipoBaixa('banco');
+                    setBancoBaixaId('');
+                  }}
+                >
+                  Banco
+                </Button>
+                <Button
+                  type="button"
+                  variant={tipoBaixa === 'caixa' ? 'default' : 'outline'}
+                  className="flex-1"
+                  onClick={() => {
+                    setTipoBaixa('caixa');
+                    setBancoBaixaId('');
+                  }}
+                >
+                  Caixa
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>{tipoBaixa === 'banco' ? 'Qual banco' : 'Qual caixa'}</Label>
+              <select
+                value={bancoBaixaId}
+                onChange={(e) => setBancoBaixaId(e.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="">Selecione...</option>
+                {bancosDoTipo.map((b: any) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nome}
+                  </option>
+                ))}
+              </select>
+              {bancosDoTipo.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum {tipoBaixa} cadastrado -- cadastre em Bancos antes de dar baixa.</p>
+              )}
+            </div>
+            {tipoBaixa === 'banco' && (
+              <p className="text-xs text-muted-foreground">
+                Este lançamento fica marcado "pendente de conciliação" até ser casado com o extrato real.
+              </p>
+            )}
+          </div>
+          <Button onClick={resolverBaixa} disabled={!bancoBaixaId || resolvendoBaixa} className="w-full">
+            {resolvendoBaixa ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar baixa'}
           </Button>
         </DialogContent>
       </Dialog>

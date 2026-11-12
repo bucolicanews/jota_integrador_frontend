@@ -14,6 +14,7 @@ const ROTULO_ORIGEM: Record<string, string> = {
   contas_a_receber: 'Contas a receber',
   contrato: 'Contrato',
   conciliacao_bancaria: 'Conciliação bancária',
+  das: 'DAS',
   estorno: 'Estorno',
 };
 
@@ -111,13 +112,18 @@ export default function TabelaLancamentos({ empresaId, somenteOrigem, refreshKey
                 <TableCell>{lancamento.historico}</TableCell>
                 <TableCell className="text-muted-foreground">{ROTULO_ORIGEM[lancamento.origem] ?? lancamento.origem}</TableCell>
                 <TableCell>
-                  {lancamento.estornado ? (
-                    <Badge variant="secondary">Estornado</Badge>
-                  ) : lancamento.origem === 'estorno' ? (
-                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Estorno</Badge>
-                  ) : (
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ativo</Badge>
-                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {lancamento.estornado ? (
+                      <Badge variant="secondary">Estornado</Badge>
+                    ) : lancamento.origem === 'estorno' ? (
+                      <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Estorno</Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Ativo</Badge>
+                    )}
+                    {lancamento.pendenteConciliacao && (
+                      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Pendente de conciliação</Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {!lancamento.estornado && lancamento.origem !== 'estorno' && (

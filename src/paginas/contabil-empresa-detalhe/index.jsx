@@ -8,6 +8,7 @@ import SecaoProcuracaoSerpro from '../../components/empresas/SecaoProcuracaoSerp
 import CardComprarCreditosAvulsos from '../../components/empresas/CardComprarCreditosAvulsos';
 import CardAcessoEmpresa from '../../components/empresas/CardAcessoEmpresa';
 import CardGerenciarPlanoAssinatura from '../../components/empresas/CardGerenciarPlanoAssinatura';
+import SecaoLancamentosDas from '../../components/empresas/SecaoLancamentosDas';
 import { REGIMES_TRIBUTARIOS } from '../../constantes/regimesTributarios';
 import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import {
@@ -46,7 +47,11 @@ const ABAS = [
   { id: 'acesso-serpro', rotulo: 'Modo de acesso ao SERPRO' },
   { id: 'acesso-sistema', rotulo: 'Acesso ao sistema' },
   { id: 'creditos', rotulo: 'Comprar créditos' },
+  // Só aparece pra empresa MEI/Simples Nacional -- filtrado no render (ver `abasVisiveis`).
+  { id: 'lancamentos-das', rotulo: 'Lançamentos do DAS' },
 ];
+
+const REGIMES_COM_DAS = ['mei', 'simples_nacional'];
 
 const PAPEIS_PLATAFORMA = ['SUPER_ADMIN', 'ADMIN_FINANCEIRO', 'ADMIN_SUPORTE'];
 
@@ -301,7 +306,7 @@ export default function ContabilEmpresaDetalhe() {
 
         <div className="mb-4 -mx-4 overflow-x-auto border-b border-gray-200 px-4 sm:mx-0 sm:px-0">
           <div className="flex min-w-max gap-1">
-            {ABAS.map((aba) => (
+            {ABAS.filter((aba) => aba.id !== 'lancamentos-das' || REGIMES_COM_DAS.includes(empresa.regimeTributario)).map((aba) => (
               <button
                 key={aba.id}
                 type="button"
@@ -512,6 +517,12 @@ export default function ContabilEmpresaDetalhe() {
         {abaAtiva === 'creditos' && (
           <div className="rounded-lg bg-white p-6 shadow">
             <CardComprarCreditosAvulsos empresaId={id} />
+          </div>
+        )}
+
+        {abaAtiva === 'lancamentos-das' && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <SecaoLancamentosDas empresaId={id} />
           </div>
         )}
       </div>
