@@ -95,6 +95,8 @@ function FormPapel({
     try {
       if (isEditing) {
         await atualizarPapel(papelInicial.id, {
+          nome: dados.nome,
+          escopo: podeEscolherEscopo ? dados.escopo : undefined,
           descricao: dados.descricao || null,
           permissaoIds: dados.permissaoIds ?? [],
         });
@@ -116,11 +118,16 @@ function FormPapel({
 
   return (
     <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+      {isEditing && papelInicial.sistema && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+          Papel de sistema. Renomear ou trocar o escopo pode travar o acesso de quem já tem este papel -- só altere se
+          tiver certeza.
+        </p>
+      )}
       <div className="space-y-1.5">
         <Label>Nome *</Label>
-        <Input placeholder="Ex: Suporte N2" disabled={isEditing} {...register('nome', { required: true, minLength: 2 })} />
+        <Input placeholder="Ex: Suporte N2" {...register('nome', { required: true, minLength: 2 })} />
         {errors.nome && <p className="text-xs text-destructive">Obrigatório (mín. 2 caracteres)</p>}
-        {isEditing && <p className="text-xs text-muted-foreground">Nome não pode ser alterado depois de criado.</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -130,7 +137,7 @@ function FormPapel({
             control={control}
             name="escopo"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -145,7 +152,6 @@ function FormPapel({
         ) : (
           <Input disabled value={ROTULO_ESCOPO[escopoFixo ?? '']} />
         )}
-        {isEditing && podeEscolherEscopo && <p className="text-xs text-muted-foreground">Escopo não pode ser alterado depois de criado.</p>}
         {!podeEscolherEscopo && (
           <p className="text-xs text-muted-foreground">Papel criado por você vale só pra sua própria equipe.</p>
         )}
