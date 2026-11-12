@@ -1,17 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
-import { CreditCard, KeyRound, Loader2, PlusCircle } from 'lucide-react';
+import { CreditCard, Edit, KeyRound, Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { atualizarPagbankConta, obterStatusPagbankConta } from '../servicos/pagbankLicencas';
-import { criarPlanoRevendaCredito, listarPlanos, listarPlanosRevendaCreditos } from '../servicos/assinatura';
+import {
+  atualizarPlanoRevendaCredito,
+  criarPlanoRevendaCredito,
+  listarPlanos,
+  listarPlanosRevendaCreditos,
+} from '../servicos/assinatura';
 import { listarPacotesCreditosAvulsos } from '../servicos/creditosAvulsos';
 import { criarPlanoRevendaCreditoAvulso, listarPlanosRevendaCreditosAvulsos } from '../servicos/planosRevendaCreditosAvulsos';
 import { showError, showSuccess } from '../utils/toast';
@@ -115,6 +131,8 @@ function CardPlanosRevendaCreditos({
   onSalvo: () => void;
 }) {
   const [dialogAberto, setDialogAberto] = useState(false);
+  const [planoEmEdicao, setPlanoEmEdicao] = useState<any | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -126,15 +144,45 @@ function CardPlanosRevendaCreditos({
   const planoId = watch('planoId');
   const planoSelecionado = planosCreditos.find((p) => p.id === planoId);
 
+  function abrirNovo() {
+    setPlanoEmEdicao(null);
+    reset({ planoId: '', valorVenda: 0 });
+    setDialogAberto(true);
+  }
+
+  function abrirEdicao(plano: any) {
+    setPlanoEmEdicao(plano);
+    reset({ planoId: plano.planoId, valorVenda: plano.valorVenda });
+    setDialogAberto(true);
+  }
+
   async function aoSubmeter(dados: DadosFormPlanoRevendaCredito) {
     try {
-      await criarPlanoRevendaCredito(contadorId, { planoId: dados.planoId, nome: null, valorVenda: Number(dados.valorVenda) });
+      if (planoEmEdicao) {
+        await atualizarPlanoRevendaCredito(contadorId, planoEmEdicao.id, { valorVenda: Number(dados.valorVenda) });
+      } else {
+        await criarPlanoRevendaCredito(contadorId, { planoId: dados.planoId, nome: null, valorVenda: Number(dados.valorVenda) });
+      }
       showSuccess('Plano de revenda salvo.');
       setDialogAberto(false);
+      setPlanoEmEdicao(null);
       reset({ planoId: '', valorVenda: 0 });
       onSalvo();
     } catch (e: any) {
       showError(e.message ?? 'Não foi possível salvar o plano de revenda');
+    }
+  }
+
+  async function aoExcluir(id: string) {
+    setExcluindo(id);
+    try {
+      await atualizarPlanoRevendaCredito(contadorId, id, { ativo: false });
+      showSuccess('Plano de revenda excluído.');
+      onSalvo();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível excluir o plano de revenda');
+    } finally {
+      setExcluindo(null);
     }
   }
 
@@ -145,7 +193,7 @@ function CardPlanosRevendaCreditos({
           <CardTitle className="text-base">Meus planos de revenda — Créditos SERPRO</CardTitle>
           <CardDescription>Seu preço final pra cada plano de créditos -- a margem sobre o repasse da plataforma. Use em Assinatura, na empresa selecionada.</CardDescription>
         </div>
-        <Button size="sm" onClick={() => setDialogAberto(true)}>
+        <Button size="sm" onClick={abrirNovo}>
           <PlusCircle className="mr-2 h-4 w-4" /> Novo plano
         </Button>
       </CardHeader>
@@ -160,6 +208,7 @@ function CardPlanosRevendaCreditos({
                 <TableHead className="text-right">Repasse plataforma</TableHead>
                 <TableHead className="text-right">Meu preço de venda</TableHead>
                 <TableHead className="text-right">Minha margem</TableHead>
+                <TableHead className="w-20 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -173,6 +222,30 @@ function CardPlanosRevendaCreditos({
                     <TableCell className="text-right text-green-600">
                       {planoCredito ? formatarMoeda(plano.valorVenda - planoCredito.preco) : '—'}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => abrirEdicao(plano)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" disabled={excluindo === plano.id}>
+                              {excluindo === plano.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir este plano de revenda?</AlertDialogTitle>
+                              <AlertDialogDescription>Essa ação não pode ser desfeita. O plano deixa de aparecer na tela de Assinatura.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => aoExcluir(plano.id)}>Confirmar exclusão</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -184,19 +257,23 @@ function CardPlanosRevendaCreditos({
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Novo plano de revenda de créditos</DialogTitle>
+            <DialogTitle>{planoEmEdicao ? 'Alterar plano de revenda' : 'Novo plano de revenda de créditos'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
             <div className="space-y-1.5">
               <Label>Plano de créditos *</Label>
-              <select {...register('planoId', { required: true })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">Selecione...</option>
-                {planosCreditos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} ({formatarMoeda(p.preco)})
-                  </option>
-                ))}
-              </select>
+              {planoEmEdicao ? (
+                <p className="text-sm font-medium">{planosCreditos.find((p) => p.id === planoEmEdicao.planoId)?.nome ?? planoEmEdicao.planoId}</p>
+              ) : (
+                <select {...register('planoId', { required: true })} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="">Selecione...</option>
+                  {planosCreditos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} ({formatarMoeda(p.preco)})
+                    </option>
+                  ))}
+                </select>
+              )}
               {errors.planoId && <p className="text-xs text-destructive">Obrigatório</p>}
             </div>
             <div className="space-y-1.5">
