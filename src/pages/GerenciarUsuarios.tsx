@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
-import { Link2, Loader2, Lock, Mail, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
+import { Edit, Link2, Loader2, Lock, Mail, ShieldCheck, Unlock, Users, PlusCircle } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import CartaoLinkAcesso from '../components/auth/CartaoLinkAcesso';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +19,8 @@ import { listarEmpresas } from '../servicos/empresas';
 import { listarPapeis } from '../servicos/papeis';
 import {
   atualizarEmailUsuario,
+  atualizarNomeUsuario,
+  atualizarPapelUsuario,
   bloquearUsuario,
   concederPermissao,
   criarUsuario,
@@ -317,6 +319,109 @@ function DialogEditarEmail({ usuario, onClose, onAtualizado }: { usuario: any; o
   );
 }
 
+interface DadosEditarUsuario {
+  nome: string;
+  papel: string;
+}
+
+/**
+ * Nome sempre editável pela mesma autoridade de bloquear/e-mail. Papel só mostra as
+ * opções que o ATOR pode atribuir (opcoesPapelPara, igual criação) + o papel ATUAL do
+ * usuário (senão o Select abre vazio quando o papel dele não está no catálogo de quem tá
+ * editando). Vínculo nunca muda por aqui -- backend rejeita trocar contadorId/empresaId
+ * e nunca deixa CONTADOR_DONO/EMPRESARIO_DONO promoverem alguém a dono.
+ */
+function DialogEditarUsuario({
+  usuario,
+  papelAtor,
+  todosOsPapeis,
+  onClose,
+  onAtualizado,
+}: {
+  usuario: any;
+  papelAtor: string;
+  todosOsPapeis: any[];
+  onClose: () => void;
+  onAtualizado: () => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<DadosEditarUsuario>({ defaultValues: { nome: usuario.nome, papel: usuario.papel } });
+
+  const opcoesPapel = opcoesPapelPara(papelAtor, todosOsPapeis);
+  const opcoesComAtual = opcoesPapel.some((p) => p.nome === usuario.papel)
+    ? opcoesPapel
+    : [...opcoesPapel, { nome: usuario.papel, descricao: ROTULO_PAPEL[usuario.papel] ?? usuario.papel }];
+
+  async function aoSubmeter(dados: DadosEditarUsuario) {
+    setEnviando(true);
+    setErro(null);
+    try {
+      if (dados.nome.trim() !== usuario.nome) {
+        await atualizarNomeUsuario(usuario.id, dados.nome.trim());
+      }
+      if (dados.papel !== usuario.papel) {
+        await atualizarPapelUsuario(usuario.id, dados.papel, usuario.contadorId, usuario.empresaId);
+      }
+      showSuccess('Usuário atualizado.');
+      onAtualizado();
+    } catch (e: any) {
+      setErro(e.message ?? 'Não foi possível atualizar o usuário');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(aoSubmeter)} className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Nome *</Label>
+        <Input {...register('nome', { required: true, minLength: 2 })} />
+        {errors.nome && <p className="text-xs text-destructive">Obrigatório (mín. 2 caracteres)</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label>Papel *</Label>
+        <Controller
+          control={control}
+          name="papel"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoesComAtual.map((p) => (
+                  <SelectItem key={p.nome} value={p.nome}>
+                    {rotuloDe(p)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {papelAtor !== 'SUPER_ADMIN' && (
+          <p className="text-xs text-muted-foreground">Só papéis do próprio vínculo -- nunca dono nem plataforma.</p>
+        )}
+      </div>
+      {erro && <p className="text-sm text-destructive">{erro}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={enviando}>
+          {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function DialogPermissoes({ usuario }: { usuario: any }) {
   const [dados, setDados] = useState<{ catalogoDisponivel: any[]; concedidas: any[] } | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -438,6 +543,7 @@ export default function GerenciarUsuarios() {
   const [carregando, setCarregando] = useState(false);
   const [dialogNovoAberto, setDialogNovoAberto] = useState(false);
   const [usuarioParaBloquear, setUsuarioParaBloquear] = useState<any | null>(null);
+  const [usuarioParaEditar, setUsuarioParaEditar] = useState<any | null>(null);
   const [usuarioParaEditarEmail, setUsuarioParaEditarEmail] = useState<any | null>(null);
   const [usuarioParaPermissoes, setUsuarioParaPermissoes] = useState<any | null>(null);
   const [linkAcessoGerado, setLinkAcessoGerado] = useState<{ nome: string; link: string } | null>(null);
@@ -614,6 +720,9 @@ export default function GerenciarUsuarios() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setUsuarioParaEditar(u)} title="Editar nome e papel">
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setUsuarioParaPermissoes(u)} title="Permissões">
                               <ShieldCheck className="h-3.5 w-3.5" />
                             </Button>
@@ -692,6 +801,26 @@ export default function GerenciarUsuarios() {
               onClose={() => setUsuarioParaBloquear(null)}
               onBloqueado={() => {
                 setUsuarioParaBloquear(null);
+                carregar();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!usuarioParaEditar} onOpenChange={(aberto) => !aberto && setUsuarioParaEditar(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar usuário -- {usuarioParaEditar?.nome}</DialogTitle>
+          </DialogHeader>
+          {usuarioParaEditar && (
+            <DialogEditarUsuario
+              usuario={usuarioParaEditar}
+              papelAtor={papelAtual}
+              todosOsPapeis={todosOsPapeis}
+              onClose={() => setUsuarioParaEditar(null)}
+              onAtualizado={() => {
+                setUsuarioParaEditar(null);
                 carregar();
               }}
             />

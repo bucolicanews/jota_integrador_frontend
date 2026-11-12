@@ -21,6 +21,10 @@ export const desbloquearUsuario = (id) => api.post(`/auth/usuarios/${id}/desbloq
 export const gerarLinkAcesso = (id) => api.post(`/auth/usuarios/${id}/link-acesso`);
 export const atualizarEmailUsuario = (id, novoEmail) => api.patch(`/auth/usuarios/${id}/email`, { novoEmail });
 export const atualizarSenhaUsuario = (id, novaSenha) => api.patch(`/auth/usuarios/${id}/senha`, { novaSenha });
+export const atualizarNomeUsuario = (id, nome) => api.patch(`/auth/usuarios/${id}/nome`, { nome });
+/** CONTADOR_DONO/EMPRESARIO_DONO só trocam papel dentro do próprio vínculo (backend nega mudar vínculo ou promover a dono); SUPER_ADMIN pode tudo. */
+export const atualizarPapelUsuario = (id, papel, contadorId, empresaId) =>
+  api.patch(`/auth/usuarios/${id}/papel`, { papel, contadorId, empresaId });
 export const listarPermissoesUsuario = (id) => api.get(`/auth/usuarios/${id}/permissoes`);
 /** Catálogo completo (todos os recursos/ações), sem filtrar por teto de nenhum papel -- usado por "Editar plano" (permissoesPadrao). */
 export const listarCatalogoPermissoes = () => api.get('/auth/permissoes-catalogo');
