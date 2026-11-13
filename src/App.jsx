@@ -36,6 +36,7 @@ const Clientes = lazy(() => import('./pages/Clientes'));
 const Fornecedores = lazy(() => import('./pages/Fornecedores'));
 const Historicos = lazy(() => import('./pages/Historicos'));
 const Das = lazy(() => import('./pages/Das'));
+const Ccmei = lazy(() => import('./pages/Ccmei'));
 const CaixaPostal = lazy(() => import('./pages/CaixaPostal'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
 const Tarefas = lazy(() => import('./pages/Tarefas'));
@@ -302,6 +303,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Das />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/ccmei"
+          element={
+            <RotaProtegida>
+              <Ccmei />
             </RotaProtegida>
           }
         />

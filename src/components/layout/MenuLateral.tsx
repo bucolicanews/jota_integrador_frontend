@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, PiggyBank, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users, Wallet } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileCheck2, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, PiggyBank, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 import { listarPermissoesUsuario } from '../../servicos/usuarios';
@@ -95,6 +95,7 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal', recurso: 'das' },
       { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal', recurso: 'caixa_postal' },
+      { nome: 'CCMEI', caminho: '/ccmei', icone: FileCheck2, modulo: 'fiscal', recurso: 'ccmei' },
     ],
   },
   {
