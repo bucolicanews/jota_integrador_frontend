@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { BookOpen, ChevronDown, FileDown, FileUp, Loader2, PlusCircle, Upload } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronDown, FileDown, FileUp, Loader2, PlusCircle, Upload } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -56,10 +56,17 @@ interface Conta {
   sintetica: boolean;
   contaPaiId: string | null;
   contaCaixaBanco: boolean;
+  tipoCaixaBanco: 'caixa' | 'banco' | 'outra' | null;
   contaAReceber: boolean;
   contaAPagar: boolean;
   ativa: boolean;
 }
+
+const RÓTULO_TIPO_CAIXA_BANCO: Record<'caixa' | 'banco' | 'outra', string> = {
+  caixa: 'Caixa',
+  banco: 'Banco',
+  outra: 'Outra (aplicação, cartão, investimento...)',
+};
 
 function calcularNivel(conta: Conta, mapa: Map<string, Conta>): number {
   let nivel = 1;
@@ -80,6 +87,7 @@ interface DadosFormulario {
   sintetica: 'true' | 'false';
   contaPaiId: string;
   contaCaixaBanco: boolean;
+  tipoCaixaBanco: 'caixa' | 'banco' | 'outra' | '';
   contaAReceber: boolean;
   contaAPagar: boolean;
 }
@@ -87,12 +95,14 @@ interface DadosFormulario {
 function ModalConta({
   conta,
   contaPaiSugerida,
+  codigoSugerido,
   contasSinteticas,
   aoFechar,
   aoSalvar,
 }: {
   conta: Conta | null;
   contaPaiSugerida: Conta | null;
+  codigoSugerido?: string;
   contasSinteticas: Conta[];
   aoFechar: () => void;
   aoSalvar: (contaId: string | null, dados: any) => Promise<void>;
@@ -106,12 +116,13 @@ function ModalConta({
     setError,
   } = useForm<DadosFormulario>({
     defaultValues: {
-      codigo: conta?.codigo ?? '',
+      codigo: conta?.codigo ?? codigoSugerido ?? '',
       nome: conta?.nome ?? '',
       grupo: conta?.grupo ?? contaPaiSugerida?.grupo ?? 'ativo',
       sintetica: conta ? (conta.sintetica ? 'true' : 'false') : 'false',
       contaPaiId: conta?.contaPaiId ?? contaPaiSugerida?.id ?? '',
       contaCaixaBanco: conta?.contaCaixaBanco ?? false,
+      tipoCaixaBanco: conta?.tipoCaixaBanco ?? '',
       contaAReceber: conta?.contaAReceber ?? false,
       contaAPagar: conta?.contaAPagar ?? false,
     },
@@ -119,10 +130,13 @@ function ModalConta({
 
   async function aoSubmeter(dados: DadosFormulario) {
     try {
+      const tipoCaixaBanco = dados.contaCaixaBanco ? dados.tipoCaixaBanco || null : null;
       if (editando && conta) {
         await aoSalvar(conta.id, {
           nome: dados.nome,
+          sintetica: dados.sintetica === 'true',
           contaCaixaBanco: dados.contaCaixaBanco,
+          tipoCaixaBanco,
           contaAReceber: dados.contaAReceber,
           contaAPagar: dados.contaAPagar,
         });
@@ -134,6 +148,7 @@ function ModalConta({
           sintetica: dados.sintetica === 'true',
           contaPaiId: dados.contaPaiId || null,
           contaCaixaBanco: dados.contaCaixaBanco,
+          tipoCaixaBanco,
           contaAReceber: dados.contaAReceber,
           contaAPagar: dados.contaAPagar,
         });
@@ -162,40 +177,51 @@ function ModalConta({
           {errors.nome && <p className="text-xs text-destructive">{errors.nome.message}</p>}
         </div>
 
-        {!editando && (
-          <>
-            <div className="space-y-1.5">
-              <Label>Grupo *</Label>
-              <select {...register('grupo')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                {GRUPOS.map((grupo) => (
-                  <option key={grupo} value={grupo}>
-                    {ROTULO_GRUPO[grupo]}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="space-y-1.5">
+          <Label>Grupo *</Label>
+          <select
+            {...register('grupo')}
+            disabled={editando}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {GRUPOS.map((grupo) => (
+              <option key={grupo} value={grupo}>
+                {ROTULO_GRUPO[grupo]}
+              </option>
+            ))}
+          </select>
+          {editando && <p className="text-xs text-muted-foreground">Grupo não pode ser alterado depois de criado.</p>}
+        </div>
 
-            <div className="space-y-1.5">
-              <Label>Tipo *</Label>
-              <select {...register('sintetica')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                <option value="false">Analítica (recebe lançamento)</option>
-                <option value="true">Sintética (só agrupa outras contas)</option>
-              </select>
-            </div>
+        <div className="space-y-1.5">
+          <Label>Tipo *</Label>
+          <select {...register('sintetica')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <option value="false">Analítica (recebe lançamento)</option>
+            <option value="true">Sintética (só agrupa outras contas)</option>
+          </select>
+          {editando && (
+            <p className="text-xs text-muted-foreground">
+              Só pode trocar se esta conta não tiver contas filhas (p/ virar analítica) nem lançamento registrado (p/ virar sintética).
+            </p>
+          )}
+        </div>
 
-            <div className="space-y-1.5">
-              <Label>Conta pai (opcional)</Label>
-              <select {...register('contaPaiId')} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Nenhuma</option>
-                {contasSinteticas.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.codigo} — {c.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </>
-        )}
+        <div className="space-y-1.5">
+          <Label>Conta pai (opcional)</Label>
+          <select
+            {...register('contaPaiId')}
+            disabled={editando}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <option value="">Nenhuma</option>
+            {contasSinteticas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.codigo} — {c.nome}
+              </option>
+            ))}
+          </select>
+          {editando && <p className="text-xs text-muted-foreground">Conta pai não pode ser alterada depois de criada.</p>}
+        </div>
 
         {watch('sintetica') !== 'true' && (
           <div className="space-y-2 rounded-md border p-3">
@@ -203,6 +229,20 @@ function ModalConta({
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...register('contaCaixaBanco')} /> Caixa/Banco (usada na conciliação bancária)
             </label>
+            {watch('contaCaixaBanco') && (
+              <div className="space-y-1.5 pl-6">
+                <Label className="text-xs">Subtipo *</Label>
+                <select {...register('tipoCaixaBanco', { required: watch('contaCaixaBanco') })} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Selecione...</option>
+                  {(Object.keys(RÓTULO_TIPO_CAIXA_BANCO) as Array<'caixa' | 'banco' | 'outra'>).map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {RÓTULO_TIPO_CAIXA_BANCO[tipo]}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Define em qual tela (Bancos/Caixa/Contas e Saldos) esta conta aparece pra cadastro.</p>
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...register('contaAReceber')} /> Contas a receber
             </label>
@@ -236,6 +276,7 @@ export default function PlanoContas() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [contaEditando, setContaEditando] = useState<Conta | null>(null);
   const [contaPaiSugerida, setContaPaiSugerida] = useState<Conta | null>(null);
+  const [codigoSugerido, setCodigoSugerido] = useState<string>('');
   const [saldos, setSaldos] = useState<Record<string, number | 'carregando' | 'erro'>>({});
   const [dialogImportarAberto, setDialogImportarAberto] = useState(false);
   const [arquivoImportar, setArquivoImportar] = useState<File | null>(null);
@@ -368,10 +409,34 @@ export default function PlanoContas() {
     }
   }
 
-  function abrirNovaConta(contaPai: Conta | null = null) {
+  /** Auto-incrementa o último segmento entre os irmãos existentes (mesmo contaPaiId), preservando o padding (ex: "01"→"02"). Sem irmãos: "01" sob um pai, "1" na raiz. */
+  function proximoCodigo(contaPaiId: string | null): string {
+    const pai = contaPaiId ? mapaContas.get(contaPaiId) : null;
+    const prefixo = pai ? pai.codigo : '';
+    const irmaos = (contas ?? []).filter((c) => c.contaPaiId === contaPaiId);
+    const segmentos = irmaos.map((c) => (prefixo ? c.codigo.slice(prefixo.length + 1) : c.codigo));
+    const padding = segmentos.length > 0 ? Math.max(...segmentos.map((s) => s.length)) : prefixo ? 2 : 1;
+    const maiorNumero = segmentos.reduce((max, s) => Math.max(max, parseInt(s, 10) || 0), 0);
+    const novoSegmento = String(maiorNumero + 1).padStart(padding, '0');
+    return prefixo ? `${prefixo}.${novoSegmento}` : novoSegmento;
+  }
+
+  function abrirNovaConta(contaPai: Conta | null = null, codigo: string = '') {
     setContaEditando(null);
     setContaPaiSugerida(contaPai);
+    setCodigoSugerido(codigo);
     setDialogAberto(true);
+  }
+
+  /** "Mesmo nível" -- cria irmã da conta clicada (mesmo contaPaiId). */
+  function abrirContaMesmoNivel(conta: Conta) {
+    const pai = conta.contaPaiId ? mapaContas.get(conta.contaPaiId) ?? null : null;
+    abrirNovaConta(pai, proximoCodigo(conta.contaPaiId));
+  }
+
+  /** "Nível abaixo" -- cria filha da conta clicada (só sintética pode ser pai, regra do backend). */
+  function abrirContaNivelAbaixo(conta: Conta) {
+    abrirNovaConta(conta, proximoCodigo(conta.id));
   }
 
   if (!empresaId) return null;
@@ -388,8 +453,10 @@ export default function PlanoContas() {
               <PlusCircle className="mr-2 h-4 w-4" /> Nova conta
             </Button>
             <ModalConta
+              key={`${contaEditando?.id ?? 'novo'}-${contaPaiSugerida?.id ?? 'raiz'}-${codigoSugerido}`}
               conta={contaEditando}
               contaPaiSugerida={contaPaiSugerida}
+              codigoSugerido={codigoSugerido}
               contasSinteticas={contasSinteticas}
               aoFechar={() => setDialogAberto(false)}
               aoSalvar={aoSalvarConta}
@@ -586,17 +653,18 @@ export default function PlanoContas() {
                           </TableRow>
                     );
 
-                    if (!conta.sintetica) {
-                      return <Fragment key={conta.id}>{linha}</Fragment>;
-                    }
-
                     return (
                       <Popover key={conta.id}>
                         <PopoverTrigger asChild>{linha}</PopoverTrigger>
-                        <PopoverContent align="start" className="w-auto p-2">
-                          <Button variant="ghost" size="sm" onClick={() => abrirNovaConta(conta)}>
-                            <ChevronDown className="mr-2 h-4 w-4" /> Criar conta filha
+                        <PopoverContent align="start" className="w-auto space-y-1 p-2">
+                          <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => abrirContaMesmoNivel(conta)}>
+                            <ArrowRight className="mr-2 h-4 w-4" /> Criar conta no mesmo nível
                           </Button>
+                          {conta.sintetica && (
+                            <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => abrirContaNivelAbaixo(conta)}>
+                              <ChevronDown className="mr-2 h-4 w-4" /> Criar conta nível abaixo
+                            </Button>
+                          )}
                         </PopoverContent>
                       </Popover>
                     );

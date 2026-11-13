@@ -2,7 +2,13 @@ import { api } from './api';
 
 const base = (empresaId) => `/empresas/${empresaId}/bancos`;
 
-export const listarBancos = (empresaId, apenasAtivos) => api.get(`${base(empresaId)}${apenasAtivos ? '?apenasAtivos=true' : ''}`);
+export const listarBancos = (empresaId, apenasAtivos, tipo) => {
+  const parametros = new URLSearchParams();
+  if (apenasAtivos) parametros.set('apenasAtivos', 'true');
+  if (tipo) parametros.set('tipo', tipo);
+  const query = parametros.toString();
+  return api.get(`${base(empresaId)}${query ? `?${query}` : ''}`);
+};
 
 export const criarBanco = (empresaId, dados) => api.post(base(empresaId), dados);
 

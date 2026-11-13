@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, PiggyBank, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 import { listarPermissoesUsuario } from '../../servicos/usuarios';
@@ -53,6 +53,7 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Geral',
     itens: [
       { nome: 'Painel', caminho: '/painel', icone: Home },
+      { nome: 'Tarefas', caminho: '/tarefas', icone: ClipboardList, modulo: 'tarefas', recurso: 'tarefas' },
       { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA, recurso: 'carteira_empresas' },
       { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
       { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
@@ -80,6 +81,7 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Caixa',
     itens: [
+      { nome: 'Caixa', caminho: '/caixa', icone: Wallet, modulo: 'bancos', recurso: 'bancos' },
       { nome: 'Fluxo de Caixa', caminho: '/relatorios/fluxo-caixa', icone: TrendingUp, modulo: 'relatorios', recurso: 'relatorios' },
       { nome: 'Contas a Pagar', caminho: '/contas-a-pagar', icone: Receipt, modulo: 'contas_a_pagar', recurso: 'contas_a_pagar' },
       { nome: 'Contas a Receber', caminho: '/contas-a-receber', icone: HandCoins, modulo: 'contas_a_receber', recurso: 'contas_a_receber' },
@@ -106,6 +108,7 @@ const SECOES_MENU: SecaoMenu[] = [
   {
     titulo: 'Banco',
     itens: [
+      { nome: 'Contas e Saldos', caminho: '/contas-saldos', icone: PiggyBank, modulo: 'bancos', recurso: 'bancos' },
       { nome: 'Bancos', caminho: '/bancos', icone: Banknote, modulo: 'bancos', recurso: 'bancos' },
       { nome: 'Conciliação Bancária', caminho: '/conciliacao-bancaria', icone: Landmark, modulo: 'conciliacao_bancaria', recurso: 'conciliacao_bancaria' },
       { nome: 'Sugestões de Extrato', caminho: '/sugestoes-extrato', icone: ListPlus, modulo: 'conciliacao_bancaria', recurso: 'sugestoes_extrato' },

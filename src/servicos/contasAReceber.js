@@ -15,3 +15,5 @@ export const registrarRecebimento = (empresaId, parcelaId, dados) => api.post(`$
 export const listarRecebimentosDaParcela = (empresaId, parcelaId) => api.get(`${base(empresaId)}/parcelas/${parcelaId}/recebimentos`);
 
 export const estornarRecebimento = (empresaId, recebimentoId, motivo) => api.post(`${base(empresaId)}/recebimentos/${recebimentoId}/estornar`, { motivo });
+
+export const relancarLancamentoContaReceber = (empresaId, id) => api.post(`${base(empresaId)}/${id}/relancar`);

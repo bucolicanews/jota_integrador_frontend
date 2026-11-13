@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Coins, LogOut, Menu, Settings, User, UserCog } from 'lucide-react';
+import { Bell, Coins, LogOut, Menu, Settings, User, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -10,6 +10,7 @@ import { useEmpresaAtiva } from '../../hooks/useEmpresaAtiva';
 import { ROTULO_PAPEL } from '../../constantes/papeis';
 import { EVENTO_SALDO_CREDITOS_ATUALIZADO, obterSaldoCreditos } from '../../servicos/creditos';
 import { obterEmpresa } from '../../servicos/empresas';
+import { listarNotificacoes, marcarNotificacaoLida } from '../../servicos/notificacoes';
 import { obterMeuPerfil } from '../../servicos/perfil';
 import { supabase } from '../../servicos/supabase';
 import { limparUsuario } from '../../store/autenticacaoSlice';
@@ -68,6 +69,67 @@ function IndicadorCreditos({ empresaId }: { empresaId: string }) {
       <span>{saldo}</span>
       {critico && <span className="hidden sm:inline">· sem créditos</span>}
     </Link>
+  );
+}
+
+/** Poll leve (60s) -- não existe realtime/websocket neste app, mesmo padrão não-realtime de todo o resto. */
+function Sininho() {
+  const [notificacoes, setNotificacoes] = useState<any[]>([]);
+
+  useEffect(() => {
+    function buscar() {
+      listarNotificacoes()
+        .then(setNotificacoes)
+        .catch(() => {});
+    }
+    buscar();
+    const intervalo = setInterval(buscar, 60_000);
+    return () => clearInterval(intervalo);
+  }, []);
+
+  const naoLidas = notificacoes.filter((notificacao) => !notificacao.lida).length;
+
+  async function abrir(notificacao: any) {
+    if (notificacao.lida) return;
+    try {
+      await marcarNotificacaoLida(notificacao.id);
+      setNotificacoes((atual) => atual.map((n) => (n.id === notificacao.id ? { ...n, lida: true } : n)));
+    } catch {
+      // Falha ao marcar como lida não é crítica -- só tenta de novo na próxima abertura.
+    }
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
+          <Bell className="h-5 w-5" />
+          {naoLidas > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+              {naoLidas > 9 ? '9+' : naoLidas}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-80" align="end">
+        <DropdownMenuLabel>Notificações</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {notificacoes.length === 0 ? (
+          <p className="px-2 py-3 text-center text-sm text-muted-foreground">Nenhuma notificação.</p>
+        ) : (
+          notificacoes.slice(0, 20).map((notificacao) => (
+            <DropdownMenuItem
+              key={notificacao.id}
+              onClick={() => abrir(notificacao)}
+              className={cn('flex flex-col items-start gap-0.5 whitespace-normal', !notificacao.lida && 'bg-muted/50')}
+            >
+              <span className="text-sm">{notificacao.mensagem}</span>
+              <span className="text-xs text-muted-foreground">{new Date(notificacao.criadoEm).toLocaleString('pt-BR')}</span>
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -170,6 +232,8 @@ export default function Header() {
             ))}
           </select>
         )}
+
+        {usuario && <Sininho />}
 
         {usuario && (
           <DropdownMenu>

@@ -26,7 +26,7 @@ const ROTULO_TIPO = { humano: 'Escritório/Pessoa física', interno_jota: 'Inter
 // gateadas por módulo aparecem com badge; as demais seções não têm nenhum item com
 // `modulo:` (são núcleo ou gateadas só por papel), por isso ficam "sempre disponível".
 const GRUPOS_MODULO = [
-  { titulo: 'Geral', chaves: [] },
+  { titulo: 'Geral', chaves: ['tarefas'] },
   { titulo: 'Escritório', chaves: [] },
   { titulo: 'Contabilidade', chaves: ['conciliacao_bancaria', 'bancos'] },
   { titulo: 'Fiscal', chaves: ['fiscal'] },
@@ -38,6 +38,7 @@ const GRUPOS_MODULO = [
 ];
 
 const ROTULO_MODULO = {
+  tarefas: 'Tarefas (quadro Kanban)',
   conciliacao_bancaria: 'Conciliação Bancária',
   bancos: 'Bancos',
   fiscal: 'Fiscal (DAS/Caixa Postal)',

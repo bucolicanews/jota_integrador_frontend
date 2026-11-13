@@ -15,3 +15,5 @@ export const registrarPagamento = (empresaId, parcelaId, dados) => api.post(`${b
 export const listarPagamentosDaParcela = (empresaId, parcelaId) => api.get(`${base(empresaId)}/parcelas/${parcelaId}/pagamentos`);
 
 export const estornarPagamento = (empresaId, pagamentoId, motivo) => api.post(`${base(empresaId)}/pagamentos/${pagamentoId}/estornar`, { motivo });
+
+export const relancarLancamentoContaPagar = (empresaId, id) => api.post(`${base(empresaId)}/${id}/relancar`);

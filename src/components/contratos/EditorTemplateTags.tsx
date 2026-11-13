@@ -19,6 +19,7 @@ interface EditorTemplateTagsProps {
   tipoConteudo: 'html' | 'texto';
   onTipoConteudoChange: (valor: 'html' | 'texto') => void;
   tags: string[];
+  label?: string;
 }
 
 /**
@@ -28,7 +29,7 @@ interface EditorTemplateTagsProps {
  * dropdown (em vez de uma lista de botões sempre visível) pra não competir em largura com
  * o toggle HTML/texto no mobile -- os dois ficam lado a lado e quebram juntos como unidade.
  */
-export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoConteudo, onTipoConteudoChange, tags }: EditorTemplateTagsProps) {
+export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoConteudo, onTipoConteudoChange, tags, label = 'Conteúdo do modelo' }: EditorTemplateTagsProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function inserirTag(tag: string) {
@@ -52,7 +53,7 @@ export default function EditorTemplateTags({ conteudo, onConteudoChange, tipoCon
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>Conteúdo do modelo</Label>
+        <Label>{label}</Label>
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

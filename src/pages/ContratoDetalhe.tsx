@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Copy, Lock, LockOpen, Loader2, Mail, MessageCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Copy, Edit, Lock, LockOpen, Loader2, Mail, MessageCircle, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,15 +10,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import EditorTemplateTags from '../components/contratos/EditorTemplateTags';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import {
   obterContrato,
+  atualizarContrato,
   excluirContrato,
   bloquearContrato,
   desbloquearContrato,
   gerarLinkAssinatura,
   registrarAditivo,
   obterUrlSelfie,
+  obterCatalogoTags,
+  relancarLancamentoContrato,
 } from '../servicos/contratos';
 import { showError, showSuccess } from '../utils/toast';
 
@@ -140,6 +144,13 @@ export default function ContratoDetalhe() {
   const [linkAssinatura, setLinkAssinatura] = useState<string | null>(null);
   const [urlSelfie, setUrlSelfie] = useState<string | null>(null);
   const [dialogAditivoAberto, setDialogAditivoAberto] = useState(false);
+  const [dialogEditarAberto, setDialogEditarAberto] = useState(false);
+  const [tituloEdicao, setTituloEdicao] = useState('');
+  const [conteudoEdicao, setConteudoEdicao] = useState('');
+  const [tipoConteudoEdicao, setTipoConteudoEdicao] = useState<'html' | 'texto'>('texto');
+  const [tagsEdicao, setTagsEdicao] = useState<string[]>([]);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
 
   function carregar() {
     if (!empresaId || !id) return;
@@ -190,6 +201,36 @@ export default function ContratoDetalhe() {
     }
   }
 
+  function abrirEdicao() {
+    setTituloEdicao(contrato.titulo);
+    setConteudoEdicao(contrato.conteudoRenderizado);
+    setTipoConteudoEdicao('texto');
+    setErroEdicao(null);
+    setDialogEditarAberto(true);
+    obterCatalogoTags(empresaId!)
+      .then((catalogo: any[]) => setTagsEdicao(catalogo.map((t) => t.nome)))
+      .catch(() => setTagsEdicao([]));
+  }
+
+  async function salvarEdicao() {
+    if (!tituloEdicao.trim()) {
+      setErroEdicao('Título é obrigatório');
+      return;
+    }
+    setErroEdicao(null);
+    setSalvandoEdicao(true);
+    try {
+      await atualizarContrato(empresaId!, id!, { titulo: tituloEdicao, conteudoRenderizado: conteudoEdicao });
+      showSuccess('Contrato atualizado.');
+      setDialogEditarAberto(false);
+      carregar();
+    } catch (e: any) {
+      setErroEdicao(e.message ?? 'Não foi possível salvar as alterações');
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  }
+
   async function excluir() {
     if (!confirm('Excluir este contrato? Esta ação não pode ser desfeita.')) return;
     setProcessando(true);
@@ -210,6 +251,19 @@ export default function ContratoDetalhe() {
     showSuccess('Link copiado.');
   }
 
+  async function realizarLancamentoNovamente() {
+    setProcessando(true);
+    try {
+      await relancarLancamentoContrato(empresaId!, id!);
+      showSuccess('Lançamento de competência realizado novamente.');
+      carregar();
+    } catch (e: any) {
+      showError(e.message ?? 'Não foi possível realizar o lançamento');
+    } finally {
+      setProcessando(false);
+    }
+  }
+
   if (!empresaId) return null;
   if (carregando || !contrato) {
     return (
@@ -224,8 +278,10 @@ export default function ContratoDetalhe() {
   const badge = STATUS_BADGE[contrato.status] ?? { label: contrato.status, variant: 'secondary' };
   const podeGerarLink = contrato.status === 'rascunho' || contrato.status === 'pendente_assinatura';
   const podeExcluir = contrato.status === 'rascunho' || contrato.status === 'pendente_assinatura';
+  const podeEditar = contrato.status === 'rascunho' || contrato.status === 'pendente_assinatura';
   const podeBloquear = !['cancelado', 'concluido'].includes(contrato.status) && contrato.status !== 'bloqueado';
   const linkParaCompartilhar = linkAssinatura;
+  const semLancamento = contrato.temLancamentoAtivo === false;
 
   return (
     <LayoutPrincipal>
@@ -238,9 +294,19 @@ export default function ContratoDetalhe() {
           <div className="mt-1 flex items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
             {contrato.valorTotal != null && <span className="text-sm text-muted-foreground">{fmt(contrato.valorTotal)}</span>}
+            {semLancamento && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertTriangle className="h-3 w-3" /> Sem lançamento
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {semLancamento && contrato.contaReceberId && (
+            <Button variant="outline" onClick={realizarLancamentoNovamente} disabled={processando}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Realizar lançamento novamente
+            </Button>
+          )}
           {podeGerarLink && (
             <Button variant="outline" onClick={gerarLink} disabled={processando}>
               Gerar link de assinatura
@@ -252,6 +318,11 @@ export default function ContratoDetalhe() {
               {contrato.status === 'bloqueado' ? 'Desbloquear' : 'Bloquear'}
             </Button>
           ) : null}
+          {podeEditar && (
+            <Button variant="outline" onClick={abrirEdicao}>
+              <Edit className="mr-2 h-4 w-4" /> Editar
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setDialogAditivoAberto(true)}>
             <Plus className="mr-2 h-4 w-4" /> Aditivo
           </Button>
@@ -336,6 +407,33 @@ export default function ContratoDetalhe() {
       </div>
 
       <DialogAditivo aberto={dialogAditivoAberto} onOpenChange={setDialogAditivoAberto} empresaId={empresaId} contratoId={id} onSalvo={() => { setDialogAditivoAberto(false); carregar(); }} />
+
+      <Dialog open={dialogEditarAberto} onOpenChange={setDialogEditarAberto}>
+        <DialogContent className="max-w-md md:max-w-[70%]">
+          <DialogHeader>
+            <DialogTitle>Editar contrato</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Título *</Label>
+              <Input value={tituloEdicao} onChange={(e) => setTituloEdicao(e.target.value)} />
+            </div>
+            <EditorTemplateTags
+              conteudo={conteudoEdicao}
+              onConteudoChange={setConteudoEdicao}
+              tipoConteudo={tipoConteudoEdicao}
+              onTipoConteudoChange={setTipoConteudoEdicao}
+              tags={tagsEdicao}
+              label="Conteúdo do contrato"
+            />
+            {erroEdicao && <p className="text-sm text-destructive">{erroEdicao}</p>}
+            <Button className="w-full" disabled={salvandoEdicao} onClick={salvarEdicao}>
+              {salvandoEdicao && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </LayoutPrincipal>
   );
 }

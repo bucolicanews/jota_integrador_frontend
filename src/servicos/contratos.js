@@ -28,6 +28,8 @@ export const registrarAditivo = (empresaId, id, dados) => api.post(`${base(empre
 
 export const gerarLinkAssinatura = (empresaId, id) => api.post(`${base(empresaId)}/${id}/link-assinatura`);
 
+export const relancarLancamentoContrato = (empresaId, id) => api.post(`${base(empresaId)}/${id}/relancar-lancamento`);
+
 export const obterUrlSelfie = (empresaId, id) => api.get(`${base(empresaId)}/${id}/selfie-url`);
 
 // Superfície PÚBLICA -- sem empresaId, busca só por token opaco. Usada pela página de

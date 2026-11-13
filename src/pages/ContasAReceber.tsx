@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, PlusCircle, HandCoins } from 'lucide-react';
+import { AlertTriangle, Loader2, PlusCircle, HandCoins } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -125,7 +125,14 @@ export default function ContasAReceber() {
                             {pagas}/{c.parcelas.length}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={ROTULO_STATUS[c.status].variante}>{ROTULO_STATUS[c.status].texto}</Badge>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <Badge variant={ROTULO_STATUS[c.status].variante}>{ROTULO_STATUS[c.status].texto}</Badge>
+                              {c.temLancamentoAtivo === false && (
+                                <Badge variant="destructive" className="gap-1">
+                                  <AlertTriangle className="h-3 w-3" /> Sem lançamento
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

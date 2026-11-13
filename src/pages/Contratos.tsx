@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileSignature, ListTree, Loader2, PlusCircle } from 'lucide-react';
+import { FileSignature, ListTree, Loader2, PlusCircle, Settings2 } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -89,6 +89,11 @@ export default function Contratos() {
           <FileSignature className="mr-2 h-6 w-6" /> Contratos
         </h1>
         <div className="flex w-full gap-2 sm:w-auto">
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <Link to="/contratos/configuracao">
+              <Settings2 className="mr-2 h-4 w-4" /> Configuração
+            </Link>
+          </Button>
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link to="/contratos/modelos">
               <ListTree className="mr-2 h-4 w-4" /> Modelos

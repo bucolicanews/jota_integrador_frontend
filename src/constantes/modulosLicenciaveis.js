@@ -22,4 +22,5 @@ export const MODULOS_DISPONIVEIS = [
   { valor: 'contas_a_pagar', rotulo: 'Contas a Pagar' },
   { valor: 'contas_a_receber', rotulo: 'Contas a Receber' },
   { valor: 'plano_contas', rotulo: 'Plano de Contas' },
+  { valor: 'tarefas', rotulo: 'Tarefas (quadro Kanban)' },
 ];

@@ -35,7 +35,7 @@ export default function Bancos() {
   function carregar() {
     if (!empresaId) return;
     setCarregando(true);
-    listarBancos(empresaId, apenasAtivos)
+    listarBancos(empresaId, apenasAtivos, 'banco')
       .then(setBancos)
       .catch((erro) => showError(erro.message))
       .finally(() => setCarregando(false));
@@ -168,6 +168,7 @@ export default function Bancos() {
           <FormBanco
             empresaId={empresaId}
             contas={contasPlano}
+            tipo="banco"
             bancoInicial={bancoParaEditar}
             onSaveComplete={() => {
               setDialogAberto(false);

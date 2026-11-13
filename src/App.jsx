@@ -38,7 +38,10 @@ const Historicos = lazy(() => import('./pages/Historicos'));
 const Das = lazy(() => import('./pages/Das'));
 const CaixaPostal = lazy(() => import('./pages/CaixaPostal'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
+const Tarefas = lazy(() => import('./pages/Tarefas'));
 const Bancos = lazy(() => import('./pages/Bancos'));
+const Caixa = lazy(() => import('./pages/Caixa'));
+const ContasSaldos = lazy(() => import('./pages/ContasSaldos'));
 const PicklistsExtrato = lazy(() => import('./pages/PicklistsExtrato'));
 const Mapeamento = lazy(() => import('./pages/Mapeamento'));
 const Perfil = lazy(() => import('./pages/Perfil'));
@@ -47,6 +50,7 @@ const ContratoNovo = lazy(() => import('./pages/ContratoNovo'));
 const ContratoPreencher = lazy(() => import('./pages/ContratoPreencher'));
 const ContratoDetalhe = lazy(() => import('./pages/ContratoDetalhe'));
 const ContratoModelos = lazy(() => import('./pages/ContratoModelos'));
+const ContratoConfiguracao = lazy(() => import('./pages/ContratoConfiguracao'));
 const AssinarContrato = lazy(() => import('./pages/AssinarContrato'));
 const DocumentosSocietarios = lazy(() => import('./pages/DocumentosSocietarios'));
 const DocumentosSocietariosModelos = lazy(() => import('./pages/DocumentosSocietariosModelos'));
@@ -318,10 +322,34 @@ export default function App() {
           }
         />
         <Route
+          path="/tarefas"
+          element={
+            <RotaProtegida>
+              <Tarefas />
+            </RotaProtegida>
+          }
+        />
+        <Route
           path="/bancos"
           element={
             <RotaProtegida>
               <Bancos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/caixa"
+          element={
+            <RotaProtegida>
+              <Caixa />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contas-saldos"
+          element={
+            <RotaProtegida>
+              <ContasSaldos />
             </RotaProtegida>
           }
         />
@@ -418,6 +446,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <ContratoModelos />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/contratos/configuracao"
+          element={
+            <RotaProtegida>
+              <ContratoConfiguracao />
             </RotaProtegida>
           }
         />
