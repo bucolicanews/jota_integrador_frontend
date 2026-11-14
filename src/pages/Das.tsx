@@ -36,6 +36,11 @@ function mesInput(offsetMeses: number): string {
   return d.toISOString().slice(0, 7);
 }
 
+/** AAAA-01 (Janeiro) do ano corrente -- início do intervalo do botão "Atualizar ano todo". */
+function inicioAnoInput(): string {
+  return `${new Date().getFullYear()}-01`;
+}
+
 // null = SERPRO não devolveu valor estruturado nesta sincronização (ver comentário do backend em sincronizar-das-empresa.usecase.ts) -- mostra "—" em vez de fabricar R$ 0,00.
 const formatarMoeda = (valor: number | null) =>
   valor === null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
@@ -200,14 +205,27 @@ export default function Das() {
     return { competenciaInicio: `${competenciaInicio}-01`, competenciaFim: `${competenciaFim}-01` };
   }
 
-  function verCustoEstimado() {
+  function estimar(filtro: { competenciaInicio: string; competenciaFim: string }) {
     if (!empresaId) return;
     setEstimando(true);
     setEstimativa(null);
-    estimarSincronizacaoDas(empresaId, filtroAtual())
+    estimarSincronizacaoDas(empresaId, filtro)
       .then(setEstimativa)
       .catch((erro) => showError(erro.message))
       .finally(() => setEstimando(false));
+  }
+
+  function verCustoEstimado() {
+    estimar(filtroAtual());
+  }
+
+  /** Preenche o intervalo com o ano corrente inteiro (Jan até o mês atual) e já mostra o custo em crédito antes de confirmar. */
+  function atualizarAnoTodo() {
+    const inicio = inicioAnoInput();
+    const fim = mesInput(0);
+    setCompetenciaInicio(inicio);
+    setCompetenciaFim(fim);
+    estimar({ competenciaInicio: `${inicio}-01`, competenciaFim: `${fim}-01` });
   }
 
   async function sincronizar() {
@@ -367,6 +385,16 @@ export default function Das() {
               <Button variant="outline" onClick={verCustoEstimado} disabled={estimando} className="sm:w-auto">
                 {estimando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coins className="mr-2 h-4 w-4" />}
                 Ver custo estimado
+              </Button>
+              <Button
+                variant="outline"
+                onClick={atualizarAnoTodo}
+                disabled={estimando}
+                className="sm:w-auto"
+                title="Preenche o intervalo com o ano inteiro e mostra quanto crédito a sincronização vai gastar"
+              >
+                {estimando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Atualizar ano todo
               </Button>
             </div>
 

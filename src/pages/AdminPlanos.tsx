@@ -239,15 +239,38 @@ function FormPlano({ planoInicial, onSaveComplete }: { planoInicial?: any | null
 interface DadosNovaConsultaIncluida {
   idSistema: string;
   quantidadePorPeriodo: number;
-  periodo: 'semanal' | 'mensal' | 'trimestral' | 'anual';
+  periodo: 'semanal' | 'mensal' | 'trimestral' | 'semestral' | 'anual';
+  diaDoMes: number;
+  mesDoPeriodo: number;
 }
 
 const ROTULOS_PERIODO: Record<DadosNovaConsultaIncluida['periodo'], string> = {
   semanal: 'semana',
   mensal: 'mês',
   trimestral: 'trimestre',
+  semestral: 'semestre',
   anual: 'ano',
 };
+
+/** Quantos meses tem cada ciclo -- define a faixa válida de mesDoPeriodo (null = não se aplica). */
+const MESES_POR_CICLO: Record<DadosNovaConsultaIncluida['periodo'], number | null> = {
+  semanal: null,
+  mensal: null,
+  trimestral: 3,
+  semestral: 6,
+  anual: 12,
+};
+
+const NOMES_MES = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
+/** Rótulo amigável pro "mês N do ciclo" -- trimestral/semestral mostra posição relativa, anual mostra o mês do ano direto. */
+function rotuloMesDoPeriodo(periodo: DadosNovaConsultaIncluida['periodo'], posicao: number): string {
+  if (periodo === 'anual') return NOMES_MES[posicao - 1] ?? String(posicao);
+  return `${posicao}º mês do ${ROTULOS_PERIODO[periodo]}`;
+}
 
 /**
  * Cota de consultas SERPRO incluída "de graça" no plano, por id_sistema (ex: 1x PGDASD/mês)
@@ -263,8 +286,13 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { isSubmitting, errors },
-  } = useForm<DadosNovaConsultaIncluida>({ defaultValues: { idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal' } });
+  } = useForm<DadosNovaConsultaIncluida>({
+    defaultValues: { idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal', diaDoMes: 1, mesDoPeriodo: 1 },
+  });
+  const periodoEscolhido = watch('periodo');
+  const mesesPorCicloEscolhido = MESES_POR_CICLO[periodoEscolhido];
 
   function carregar() {
     setCarregando(true);
@@ -277,9 +305,17 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
 
   async function aoSalvar(dados: DadosNovaConsultaIncluida) {
     try {
-      await definirConsultaIncluida(planoId, dados.idSistema.trim().toUpperCase(), Number(dados.quantidadePorPeriodo), dados.periodo);
+      const mesesPorCiclo = MESES_POR_CICLO[dados.periodo];
+      await definirConsultaIncluida(
+        planoId,
+        dados.idSistema.trim().toUpperCase(),
+        Number(dados.quantidadePorPeriodo),
+        dados.periodo,
+        dados.periodo === 'semanal' ? undefined : Number(dados.diaDoMes),
+        mesesPorCiclo ? Number(dados.mesDoPeriodo) : undefined,
+      );
       showSuccess('Cota incluída salva com sucesso.');
-      reset({ idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal' });
+      reset({ idSistema: '', quantidadePorPeriodo: 1, periodo: 'mensal', diaDoMes: 1, mesDoPeriodo: 1 });
       carregar();
     } catch (e: any) {
       showError(e.message ?? 'Não foi possível salvar a cota incluída');
@@ -358,6 +394,7 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
                     <SelectItem value="semanal">Semanal</SelectItem>
                     <SelectItem value="mensal">Mensal</SelectItem>
                     <SelectItem value="trimestral">Trimestral</SelectItem>
+                    <SelectItem value="semestral">Semestral</SelectItem>
                     <SelectItem value="anual">Anual</SelectItem>
                   </SelectContent>
                 </Select>
@@ -365,6 +402,50 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
             />
           </div>
         </div>
+
+        {periodoEscolhido !== 'semanal' && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Dia do mês</Label>
+              <Input
+                type="number"
+                step="1"
+                min="1"
+                max="31"
+                {...register('diaDoMes', { required: true, valueAsNumber: true, min: 1, max: 31 })}
+              />
+              {errors.diaDoMes && <p className="text-xs text-destructive">Entre 1 e 31</p>}
+            </div>
+            {mesesPorCicloEscolhido && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">
+                  {periodoEscolhido === 'anual' ? 'Mês do ano' : `Mês do ${ROTULOS_PERIODO[periodoEscolhido]}`}
+                </Label>
+                <Controller
+                  control={control}
+                  name="mesDoPeriodo"
+                  rules={{ required: true, min: 1, max: mesesPorCicloEscolhido }}
+                  render={({ field }) => (
+                    <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: mesesPorCicloEscolhido }, (_, i) => i + 1).map((posicao) => (
+                          <SelectItem key={posicao} value={String(posicao)}>
+                            {rotuloMesDoPeriodo(periodoEscolhido, posicao)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.mesDoPeriodo && <p className="text-xs text-destructive">Obrigatório</p>}
+              </div>
+            )}
+          </div>
+        )}
+
         <Button type="submit" size="sm" disabled={isSubmitting} className="w-full sm:w-auto">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar
@@ -383,6 +464,12 @@ function SecaoConsultasIncluidas({ planoId }: { planoId: string }) {
             <li key={item.idSistema} className="flex items-center justify-between rounded-md border px-3 py-1.5 text-sm">
               <span>
                 <span className="font-mono">{item.idSistema}</span> -- {item.quantidadePorPeriodo}x por {ROTULOS_PERIODO[item.periodo as DadosNovaConsultaIncluida['periodo']] ?? item.periodo}
+                {item.diaDoMes && (
+                  <>
+                    {' '}-- dia {item.diaDoMes}
+                    {item.mesDoPeriodo && ` (${rotuloMesDoPeriodo(item.periodo, item.mesDoPeriodo)})`}
+                  </>
+                )}
               </span>
               <Button
                 size="sm"
