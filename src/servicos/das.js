@@ -6,6 +6,15 @@ export const listarDas = (empresaId) => api.get(base(empresaId));
 
 export const obterUrlPdfDas = (empresaId, dasId) => api.get(`${base(empresaId)}/${dasId}/url`);
 
+// Recibo de entrega da declaração, só Simples Nacional -- cacheado no sync (nunca
+// gasta crédito ao clicar, igual obterUrlPdfDas). 404 se o sync ainda não trouxe o
+// recibo dessa competência (ver docs do backend: shape de CONSDECREC15 não confirmado).
+export const obterUrlReciboDas = (empresaId, dasId) => api.get(`${base(empresaId)}/${dasId}/recibo-url`);
+
+// Declaração (Programa Gerador do DAS -- Declaratório), mesma chamada CONSDECREC15
+// do recibo -- mesmo padrão de cache/404 de obterUrlReciboDas.
+export const obterUrlDeclaracaoDas = (empresaId, dasId) => api.get(`${base(empresaId)}/${dasId}/declaracao-url`);
+
 // filtro = { competenciaInicio, competenciaFim } (AAAA-MM-DD, opcional) -- sem os dois, backend usa a janela padrão de 3 meses.
 export const sincronizarDas = (empresaId, filtro = {}) => api.post(`${base(empresaId)}/sincronizar`, filtro);
 

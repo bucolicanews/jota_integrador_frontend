@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Coins, Landmark, Loader2, ReceiptText, RefreshCw } from 'lucide-react';
+import { ArrowDown, Coins, DollarSign, Landmark, Loader2, ReceiptText, RefreshCw } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,7 +18,9 @@ import {
   listarDas,
   listarPendenciasBaixaDas,
   obterConfiguracaoLancamentosDas,
+  obterUrlDeclaracaoDas,
   obterUrlPdfDas,
+  obterUrlReciboDas,
   sincronizarDas,
 } from '../servicos/das';
 import { listarBancos } from '../servicos/bancos';
@@ -81,6 +83,8 @@ export default function Das() {
   const [estimando, setEstimando] = useState(false);
   const [estimativa, setEstimativa] = useState<any>(null);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
+  const [baixandoReciboId, setBaixandoReciboId] = useState<string | null>(null);
+  const [baixandoDeclaracaoId, setBaixandoDeclaracaoId] = useState<string | null>(null);
   const [gerandoSegundaViaId, setGerandoSegundaViaId] = useState<string | null>(null);
   const [dialogSegundaVia, setDialogSegundaVia] = useState<{ dasId: string; competencia: string } | null>(null);
   const [dataConsolidacao, setDataConsolidacao] = useState('');
@@ -234,6 +238,34 @@ export default function Das() {
       showError(erro.message ?? 'Não foi possível abrir o PDF do DAS');
     } finally {
       setBaixandoId(null);
+    }
+  }
+
+  async function baixarRecibo(dasId: string) {
+    if (!empresaId) return;
+    setBaixandoReciboId(dasId);
+    try {
+      const { url } = await obterUrlReciboDas(empresaId, dasId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (erro: any) {
+      showError(erro.status === 404 ? 'Recibo desta competência ainda não está disponível' : erro.message ?? 'Não foi possível abrir o recibo');
+    } finally {
+      setBaixandoReciboId(null);
+    }
+  }
+
+  async function baixarDeclaracao(dasId: string) {
+    if (!empresaId) return;
+    setBaixandoDeclaracaoId(dasId);
+    try {
+      const { url } = await obterUrlDeclaracaoDas(empresaId, dasId);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (erro: any) {
+      showError(
+        erro.status === 404 ? 'Declaração desta competência ainda não está disponível' : erro.message ?? 'Não foi possível abrir a declaração',
+      );
+    } finally {
+      setBaixandoDeclaracaoId(null);
     }
   }
 
@@ -472,17 +504,67 @@ export default function Das() {
                               </>
                             )}
                             <Button variant="outline" size="sm" disabled={baixandoId === item.id} onClick={() => baixar(item.id)}>
-                              {baixandoId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Relatório'}
+                              {baixandoId === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  {item.pdfStorageRef ? <ArrowDown className="mr-1 h-3 w-3" /> : <DollarSign className="mr-1 h-3 w-3" />}
+                                  Relatório
+                                </>
+                              )}
                             </Button>
+                            {item.regime === 'simples_nacional' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={baixandoReciboId === item.id || !item.reciboStorageRef}
+                                title={!item.reciboStorageRef ? 'Recibo ainda não disponível pra esta competência' : undefined}
+                                onClick={() => baixarRecibo(item.id)}
+                              >
+                                {baixandoReciboId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    {item.reciboStorageRef ? <ArrowDown className="mr-1 h-3 w-3" /> : <DollarSign className="mr-1 h-3 w-3" />}
+                                    Recibo
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {item.regime === 'simples_nacional' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={baixandoDeclaracaoId === item.id || !item.declaracaoStorageRef}
+                                title={!item.declaracaoStorageRef ? 'Declaração ainda não disponível pra esta competência' : undefined}
+                                onClick={() => baixarDeclaracao(item.id)}
+                              >
+                                {baixandoDeclaracaoId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    {item.declaracaoStorageRef ? <ArrowDown className="mr-1 h-3 w-3" /> : <DollarSign className="mr-1 h-3 w-3" />}
+                                    Declaração
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             {item.regime === 'simples_nacional' && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 disabled={gerandoSegundaViaId === item.id}
                                 onClick={() => abrirDialogSegundaVia(item)}
-                                title="Gera o boleto real (código de barras) com o valor atualizado -- inclui juros/multa se estiver vencido"
+                                title="Gera o boleto real (código de barras) com o valor atualizado -- inclui juros/multa se estiver vencido. Sempre gasta crédito de novo (valor muda com o tempo)."
                               >
-                                {gerandoSegundaViaId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : '2ª via'}
+                                {gerandoSegundaViaId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <DollarSign className="mr-1 h-3 w-3" />
+                                    2ª via
+                                  </>
+                                )}
                               </Button>
                             )}
                           </div>
