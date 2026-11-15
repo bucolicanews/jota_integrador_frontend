@@ -18,10 +18,11 @@ import { showError } from '../utils/toast';
 const formatarMoeda = (valor: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 const formatarData = (iso: string) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR') : '—');
 
+// Chaves espelham StatusContaReceber do backend (conta-receber.ts) -- 'recebida', nunca 'paga'.
 const ROTULO_STATUS: Record<string, { texto: string; variante: 'success' | 'warning' | 'secondary' | 'destructive' }> = {
   aberta: { texto: 'Aberta', variante: 'secondary' },
   parcial: { texto: 'Parcial', variante: 'warning' },
-  paga: { texto: 'Recebida', variante: 'success' },
+  recebida: { texto: 'Recebida', variante: 'success' },
   cancelada: { texto: 'Cancelada', variante: 'destructive' },
 };
 

@@ -15,6 +15,7 @@ const ROTULO_ORIGEM: Record<string, string> = {
   contrato: 'Contrato',
   conciliacao_bancaria: 'Conciliação bancária',
   das: 'DAS',
+  notas_fiscais: 'Nota fiscal',
   estorno: 'Estorno',
 };
 
