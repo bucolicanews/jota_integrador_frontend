@@ -36,6 +36,7 @@ const Clientes = lazy(() => import('./pages/Clientes'));
 const Fornecedores = lazy(() => import('./pages/Fornecedores'));
 const Historicos = lazy(() => import('./pages/Historicos'));
 const Das = lazy(() => import('./pages/Das'));
+const NotasFiscais = lazy(() => import('./pages/NotasFiscais'));
 const Ccmei = lazy(() => import('./pages/Ccmei'));
 const CaixaPostal = lazy(() => import('./pages/CaixaPostal'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
@@ -303,6 +304,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <Das />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/notas-fiscais"
+          element={
+            <RotaProtegida>
+              <NotasFiscais />
             </RotaProtegida>
           }
         />

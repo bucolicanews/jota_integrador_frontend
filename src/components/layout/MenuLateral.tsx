@@ -96,6 +96,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'DAS', caminho: '/das', icone: ReceiptText, modulo: 'fiscal', recurso: 'das' },
       { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal', recurso: 'caixa_postal' },
       { nome: 'CCMEI', caminho: '/ccmei', icone: FileCheck2, modulo: 'fiscal', recurso: 'ccmei' },
+      { nome: 'Notas Fiscais', caminho: '/notas-fiscais', icone: FileStack, recurso: 'notas_fiscais' },
     ],
   },
   {
