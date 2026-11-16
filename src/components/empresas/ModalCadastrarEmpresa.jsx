@@ -8,6 +8,8 @@ import { obterStatusPagbankConta } from '../../servicos/pagbankLicencas';
 import FormularioCheckoutPagbank from '../pagbank/FormularioCheckoutPagbank';
 import CartaoLinkAcesso from '../auth/CartaoLinkAcesso';
 import { validarCnpj } from '../../utils/validarCnpj';
+import { consultarCnpj } from '../../servicos/consultaCnpj';
+import { showError } from '../../utils/toast';
 
 const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor ?? 0);
 
@@ -29,6 +31,7 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
   const [erro, setErro] = useState(null);
   const [resultadoFinal, setResultadoFinal] = useState(null); // { empresa, pagamento, cobranca }
   const [modelosPlanoContas, setModelosPlanoContas] = useState([]);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
 
   useEffect(() => {
     listarModelosPlanoContas()
@@ -39,6 +42,8 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -51,6 +56,22 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
       planoContasModelo: '',
     },
   });
+
+  async function aoClicarBuscarCnpj() {
+    const digitos = (watch('cnpj') ?? '').replace(/\D/g, '');
+    if (digitos.length !== 14) return;
+
+    setBuscandoCnpj(true);
+    try {
+      const dados = await consultarCnpj(digitos);
+      setValue('razaoSocial', dados.razaoSocial.toUpperCase(), { shouldDirty: true });
+      if (dados.nomeFantasia) setValue('nomeFantasia', dados.nomeFantasia, { shouldDirty: true });
+    } catch (erro) {
+      showError(erro.message ?? 'Não foi possível consultar o CNPJ');
+    } finally {
+      setBuscandoCnpj(false);
+    }
+  }
 
   function aoConfirmarDados(dados) {
     setDadosEmpresa(dados);
@@ -156,11 +177,21 @@ export default function ModalCadastrarEmpresa({ contadores, ehSuperAdmin, meuCon
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">CNPJ *</label>
-              <input
-                {...register('cnpj', { required: 'Obrigatório', validate: (v) => validarCnpj(v) || 'CNPJ inválido' })}
-                placeholder="00.000.000/0000-00"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  {...register('cnpj', { required: 'Obrigatório', validate: (v) => validarCnpj(v) || 'CNPJ inválido' })}
+                  placeholder="00.000.000/0000-00"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={aoClicarBuscarCnpj}
+                  disabled={buscandoCnpj || (watch('cnpj') ?? '').replace(/\D/g, '').length !== 14}
+                  className="shrink-0 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {buscandoCnpj ? '...' : 'Buscar'}
+                </button>
+              </div>
               {errors.cnpj && <p className="mt-1 text-xs text-red-600">{errors.cnpj.message}</p>}
             </div>
             <div>

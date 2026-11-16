@@ -59,6 +59,7 @@ interface Conta {
   tipoCaixaBanco: 'caixa' | 'banco' | 'outra' | null;
   contaAReceber: boolean;
   contaAPagar: boolean;
+  contaFolhaPagamento: boolean;
   ativa: boolean;
 }
 
@@ -90,6 +91,7 @@ interface DadosFormulario {
   tipoCaixaBanco: 'caixa' | 'banco' | 'outra' | '';
   contaAReceber: boolean;
   contaAPagar: boolean;
+  contaFolhaPagamento: boolean;
 }
 
 function ModalConta({
@@ -125,6 +127,7 @@ function ModalConta({
       tipoCaixaBanco: conta?.tipoCaixaBanco ?? '',
       contaAReceber: conta?.contaAReceber ?? false,
       contaAPagar: conta?.contaAPagar ?? false,
+      contaFolhaPagamento: conta?.contaFolhaPagamento ?? false,
     },
   });
 
@@ -139,6 +142,7 @@ function ModalConta({
           tipoCaixaBanco,
           contaAReceber: dados.contaAReceber,
           contaAPagar: dados.contaAPagar,
+          contaFolhaPagamento: dados.contaFolhaPagamento,
         });
       } else {
         await aoSalvar(null, {
@@ -151,6 +155,7 @@ function ModalConta({
           tipoCaixaBanco,
           contaAReceber: dados.contaAReceber,
           contaAPagar: dados.contaAPagar,
+          contaFolhaPagamento: dados.contaFolhaPagamento,
         });
       }
     } catch (erro: any) {
@@ -248,6 +253,9 @@ function ModalConta({
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...register('contaAPagar')} /> Contas a pagar
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" {...register('contaFolhaPagamento')} /> Entra no Fator R (folha de pagamento/pró-labore)
             </label>
           </div>
         )}

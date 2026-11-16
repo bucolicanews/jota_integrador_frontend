@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import FiltroPeriodo from '../components/relatorios/FiltroPeriodo';
 import { useEmpresaAtiva } from '../hooks/useEmpresaAtiva';
 import { obterBalancete } from '../servicos/relatorios';
 import { listarPlanoContas } from '../servicos/planoContas';
@@ -61,16 +62,7 @@ export default function Balancete() {
 
       <Card className="mb-6">
         <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-center">
-          <div className="flex items-end gap-3">
-            <div>
-              <Label className="mb-1 block text-xs">De</Label>
-              <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm" />
-            </div>
-            <div>
-              <Label className="mb-1 block text-xs">Até</Label>
-              <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm" />
-            </div>
-          </div>
+          <FiltroPeriodo onChange={({ dataInicio: di, dataFim: df }) => { setDataInicio(di); setDataFim(df); }} />
           <div className="flex items-center gap-2 rounded-md border bg-secondary/40 p-3">
             <Checkbox checked={somenteComSaldo} onCheckedChange={(v) => setSomenteComSaldo(Boolean(v))} id="somente-saldo" />
             <Label htmlFor="somente-saldo" className="text-sm">Exibir somente contas com saldo final (≠ R$ 0,00)</Label>

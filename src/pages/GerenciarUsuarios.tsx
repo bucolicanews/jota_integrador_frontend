@@ -561,11 +561,15 @@ export default function GerenciarUsuarios() {
     }
   }, [papelAtual]);
 
+  // Busca no mount (alimenta o botão "Novo usuário" / estado vazio) E de novo sempre que um
+  // dos diálogos que usa o select de Papel abre -- senão um papel customizado criado em
+  // /admin/papeis depois do mount desta página nunca aparecia aqui (lista ficava presa no
+  // catálogo de quando a página carregou).
   useEffect(() => {
     listarPapeis()
       .then(setTodosOsPapeis)
       .catch((e) => showError(e.message));
-  }, []);
+  }, [dialogNovoAberto, usuarioParaEditar]);
 
   const ehFiltroPlataforma = contadorFiltro === FILTRO_PLATAFORMA;
   const contadorId = papelAtual === 'SUPER_ADMIN' && !ehFiltroPlataforma ? contadorFiltro : undefined;

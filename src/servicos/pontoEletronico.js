@@ -21,13 +21,15 @@ export const listarRegistros = (params) => api.get(`/ponto-eletronico/registros$
 
 export const obterResumoMensal = (params) => api.get(`/ponto-eletronico/resumo${montarQuery(params)}`);
 
-export const lancarFaltaOuAbono = ({ usuarioAlvoId, data, horasFalta, horasAbono, atestado }) => {
+export const lancarFaltaOuAbono = ({ usuarioAlvoId, data, horasFalta, horasAbono, atestado, atestadoStorageRefExistente, observacao }) => {
   const formData = new FormData();
   formData.append('usuarioAlvoId', usuarioAlvoId);
   formData.append('data', data);
   formData.append('horasFalta', String(horasFalta));
   formData.append('horasAbono', String(horasAbono));
   if (atestado) formData.append('atestado', atestado);
+  else if (atestadoStorageRefExistente) formData.append('atestadoStorageRefExistente', atestadoStorageRefExistente);
+  if (observacao) formData.append('observacao', observacao);
   return api.postFormData('/ponto-eletronico/falta-abono', formData);
 };
 

@@ -43,3 +43,9 @@ export const baixarDas = (empresaId, dasId, dados) => api.post(`${base(empresaId
 
 // Gatilho manual pra gerar a provisão de um DAS que ficou sem lançamento (geralmente porque a config não existia na hora do sync) -- nunca chama SERPRO, zero crédito.
 export const gerarProvisaoDas = (empresaId, dasId) => api.post(`${base(empresaId)}/${dasId}/provisao`);
+
+// Transmite a declaração PGDAS-D real pro SERPRO (TRANSDECLARACAO11) e encadeia a
+// geração do DAS -- AÇÃO IRREVERSÍVEL (declaração fiscal real, só desfaz com
+// retificação formal). competencia no formato AAAA-MM-01.
+export const transmitirDeclaracaoPgdasd = (empresaId, competencia, dados = {}) =>
+  api.post(`${base(empresaId)}/${competencia}/transmitir-declaracao`, dados);

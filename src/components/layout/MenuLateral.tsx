@@ -55,9 +55,9 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Painel', caminho: '/painel', icone: Home },
       { nome: 'Tarefas', caminho: '/tarefas', icone: ClipboardList, modulo: 'tarefas', recurso: 'tarefas' },
       { nome: 'Carteira de Empresas', caminho: '/contabil/empresas', icone: LayoutDashboard, papeis: PAPEIS_CARTEIRA, recurso: 'carteira_empresas' },
-      { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
-      { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
-      { nome: 'Minha Assinatura', caminho: '/minha-assinatura', icone: CreditCard, papeis: ['EMPRESARIO_DONO', 'OPERADOR_EMPRESA'] },
+      { nome: 'Minha Empresa', caminho: '/fiscal', icone: Building2, papeis: ['EMPRESARIO_DONO'] },
+      { nome: 'Créditos', caminho: '/creditos', icone: Coins, papeis: ['EMPRESARIO_DONO'] },
+      { nome: 'Minha Assinatura', caminho: '/minha-assinatura', icone: CreditCard, papeis: ['EMPRESARIO_DONO'] },
     ],
   },
   // Contabilidade reúne lançamento + todo relatório contábil (balancete/DRE/balanço/
@@ -97,6 +97,7 @@ const SECOES_MENU: SecaoMenu[] = [
       { nome: 'Caixa Postal', caminho: '/caixa-postal', icone: Inbox, modulo: 'fiscal', recurso: 'caixa_postal' },
       { nome: 'CCMEI', caminho: '/ccmei', icone: FileCheck2, modulo: 'fiscal', recurso: 'ccmei' },
       { nome: 'Notas Fiscais', caminho: '/notas-fiscais', icone: FileStack, recurso: 'notas_fiscais' },
+      { nome: 'Apuração Tributária', caminho: '/apuracao-tributaria', icone: Scale, recurso: 'notas_fiscais' },
     ],
   },
   {
@@ -184,6 +185,21 @@ const SECOES_MENU: SecaoMenu[] = [
     itens: [
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_CONTADOR'], recurso: 'ponto_eletronico' },
       { nome: 'Bater Ponto', caminho: '/ponto-eletronico', icone: Clock, papeis: ['OPERADOR_EMPRESA'], modulo: 'ponto_eletronico', recurso: 'ponto_eletronico' },
+      {
+        nome: 'Minha Folha de Ponto',
+        caminho: '/folha-ponto?mode=self',
+        icone: Clock,
+        papeis: ['OPERADOR_CONTADOR'],
+        recurso: 'ponto_eletronico',
+      },
+      {
+        nome: 'Minha Folha de Ponto',
+        caminho: '/folha-ponto?mode=self',
+        icone: Clock,
+        papeis: ['OPERADOR_EMPRESA'],
+        modulo: 'ponto_eletronico',
+        recurso: 'ponto_eletronico',
+      },
       {
         nome: 'Folha de Ponto',
         caminho: '/folha-ponto',

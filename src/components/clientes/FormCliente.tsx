@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { criarCliente, atualizarCliente } from '../../servicos/clientes';
-import { showSuccess } from '../../utils/toast';
+import { consultarCnpj } from '../../servicos/consultaCnpj';
+import { showError, showSuccess } from '../../utils/toast';
 import { buscarCep } from '../../utils/viaCep';
 import { validarCpfOuCnpj } from '../../utils/validarCpfOuCnpj';
 
@@ -56,11 +57,13 @@ export default function FormCliente({ empresaId, clienteInicial, onSaveComplete 
   const isEditing = !!clienteInicial;
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<DadosFormulario>({
     defaultValues: {
@@ -92,6 +95,30 @@ export default function FormCliente({ empresaId, clienteInicial, onSaveComplete 
     setValue('bairro', endereco.bairro, { shouldDirty: true });
     setValue('cidade', endereco.cidade, { shouldDirty: true });
     setValue('estado', endereco.estado, { shouldDirty: true });
+  }
+
+  async function aoClicarBuscarCnpj() {
+    const documento = watch('documento');
+    const digitos = (documento ?? '').replace(/\D/g, '');
+    if (digitos.length !== 14) return;
+
+    setBuscandoCnpj(true);
+    try {
+      const dados = await consultarCnpj(digitos);
+      setValue('razaoSocial', dados.razaoSocial, { shouldDirty: true });
+      if (dados.cep) setValue('cep', dados.cep, { shouldDirty: true });
+      if (dados.logradouro) setValue('endereco', dados.logradouro, { shouldDirty: true });
+      if (dados.numero) setValue('numero', dados.numero, { shouldDirty: true });
+      if (dados.complemento) setValue('complemento', dados.complemento, { shouldDirty: true });
+      if (dados.bairro) setValue('bairro', dados.bairro, { shouldDirty: true });
+      if (dados.cidade) setValue('cidade', dados.cidade, { shouldDirty: true });
+      if (dados.estado) setValue('estado', dados.estado, { shouldDirty: true });
+      if (dados.telefone) setValue('telefone', dados.telefone, { shouldDirty: true });
+    } catch (erro: any) {
+      showError(erro.message ?? 'Não foi possível consultar o CNPJ');
+    } finally {
+      setBuscandoCnpj(false);
+    }
   }
 
   async function aoSubmeter(dados: DadosFormulario) {
@@ -140,7 +167,18 @@ export default function FormCliente({ empresaId, clienteInicial, onSaveComplete 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label>CPF/CNPJ</Label>
-          <Input {...register('documento', { validate: (v) => !v || validarCpfOuCnpj(v) || 'CPF/CNPJ inválido' })} />
+          <div className="flex gap-2">
+            <Input {...register('documento', { validate: (v) => !v || validarCpfOuCnpj(v) || 'CPF/CNPJ inválido' })} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={buscandoCnpj || (watch('documento') ?? '').replace(/\D/g, '').length !== 14}
+              onClick={aoClicarBuscarCnpj}
+            >
+              {buscandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buscar'}
+            </Button>
+          </div>
           {errors.documento && <p className="text-xs text-destructive">{errors.documento.message}</p>}
         </div>
         <div className="space-y-1.5">

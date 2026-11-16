@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Loader2, Printer, TrendingUp, Umbrella } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Printer, Settings, TrendingUp, Umbrella } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import AjustarRegistrosDialog from './AjustarRegistrosDialog';
+import ConfigurarFuncionarioDialog from './ConfigurarFuncionarioDialog';
 import GerenciarFaltaAbonoDialog from './GerenciarFaltaAbonoDialog';
 import GerenciarFeriasDialog from './GerenciarFeriasDialog';
 import GerenciarFolgaTrabalhadaDialog from './GerenciarFolgaTrabalhadaDialog';
@@ -13,14 +13,53 @@ import { excluirRegistro, listarRegistros, obterResumoMensal } from '../../servi
 import { imprimirFolhaPonto } from '../../utils/imprimirFolhaPonto';
 import { showError, showSuccess } from '../../utils/toast';
 
-const ROTULO_TIPO: Record<string, string> = {
-  entrada: 'Entrada',
-  saida: 'Saída',
-  falta: 'Falta',
+const ROTULO_OBSERVACAO_PADRAO: Record<string, string> = {
+  falta: 'Falta Injustificada',
   abono: 'Abono',
   compensacao: 'Compensação',
   extra100: 'Extra 100%',
 };
+
+/** Primeiro e segundo período de entrada/saída do dia (formato padrão de folha) -- ignora
+ * eventuais batidas extras além do 2º período, mesma simplificação do jotaCaixa. */
+function periodosDoDia(registrosDoDia: any[]) {
+  const batidas = registrosDoDia
+    .filter((r) => r.tipo === 'entrada' || r.tipo === 'saida')
+    .sort((a, b) => new Date(a.horarioRegistro).getTime() - new Date(b.horarioRegistro).getTime());
+  const horaDe = (r: any) => (r ? { id: r.id, hora: new Date(r.horarioRegistro).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) } : null);
+  return {
+    periodo1: { entrada: horaDe(batidas[0]), saida: horaDe(batidas[1]) },
+    periodo2: { entrada: horaDe(batidas[2]), saida: horaDe(batidas[3]) },
+  };
+}
+
+/** Soma dos pares entrada-saída do dia + crédito de abono/compensação/extra100 -- mesma
+ * regra do cálculo mensal (obter-resumo-mensal.usecase.ts no backend), só que por dia. */
+function minutosTrabalhadosNoDia(registrosDoDia: any[]): number {
+  const batidas = registrosDoDia
+    .filter((r) => r.tipo === 'entrada' || r.tipo === 'saida')
+    .sort((a, b) => new Date(a.horarioRegistro).getTime() - new Date(b.horarioRegistro).getTime());
+
+  let minutos = 0;
+  for (let i = 0; i + 1 < batidas.length; i += 2) {
+    if (batidas[i].tipo === 'entrada' && batidas[i + 1].tipo === 'saida') {
+      minutos += (new Date(batidas[i + 1].horarioRegistro).getTime() - new Date(batidas[i].horarioRegistro).getTime()) / 60_000;
+    }
+  }
+  for (const registro of registrosDoDia) {
+    if (registro.tipo === 'abono' || registro.tipo === 'compensacao' || registro.tipo === 'extra100') {
+      minutos += registro.minutosCredito ?? 0;
+    }
+  }
+  return Math.round(minutos);
+}
+
+function observacaoPrincipal(registrosDoDia: any[]): { texto: string; ehFaltaOuAbono: boolean } {
+  const registro = registrosDoDia.find((r) => r.tipo === 'falta' || r.tipo === 'abono' || r.tipo === 'compensacao' || r.tipo === 'extra100');
+  if (!registro) return { texto: '', ehFaltaOuAbono: false };
+  const texto = registro.observacao || ROTULO_OBSERVACAO_PADRAO[registro.tipo] || registro.tipo;
+  return { texto, ehFaltaOuAbono: registro.tipo === 'falta' || registro.tipo === 'abono' };
+}
 
 function formatarMinutos(minutos: number): string {
   const sinal = minutos < 0 ? '-' : '';
@@ -51,8 +90,11 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [dialogFaltaAbono, setDialogFaltaAbono] = useState(false);
+  const [dialogFaltaAbono, setDialogFaltaAbono] = useState<{ aberto: boolean; data?: string; registrosExistentes?: { falta?: any; abono?: any } | null }>({
+    aberto: false,
+  });
   const [dialogFerias, setDialogFerias] = useState(false);
+  const [dialogConfiguracao, setDialogConfiguracao] = useState(false);
   const [dialogFolga, setDialogFolga] = useState<{ aberto: boolean; data?: string }>({ aberto: false });
   const [dialogAjuste, setDialogAjuste] = useState<{ aberto: boolean; data: string; batidas: any[] }>({ aberto: false, data: '', batidas: [] });
 
@@ -99,6 +141,13 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
       .filter((r) => r.tipo === 'entrada' || r.tipo === 'saida')
       .map((r) => ({ tipo: r.tipo, horarioLocal: new Date(r.horarioRegistro).toISOString().slice(0, 16) }));
     setDialogAjuste({ aberto: true, data: dia, batidas: batidasDoDia });
+  }
+
+  function abrirEdicaoFaltaAbono(dia: string) {
+    const registrosDoDia = porDia[dia] ?? [];
+    const falta = registrosDoDia.find((r) => r.tipo === 'falta');
+    const abono = registrosDoDia.find((r) => r.tipo === 'abono');
+    setDialogFaltaAbono({ aberto: true, data: dia, registrosExistentes: { falta, abono } });
   }
 
   async function excluir(id: string) {
@@ -184,7 +233,7 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
           <div className="mb-4 flex flex-wrap gap-2">
             {!somenteLeitura && (
               <>
-                <Button size="sm" variant="outline" onClick={() => setDialogFaltaAbono(true)}>
+                <Button size="sm" variant="outline" onClick={() => setDialogFaltaAbono({ aberto: true })}>
                   Falta / Abono
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setDialogFolga({ aberto: true })}>
@@ -192,6 +241,9 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setDialogFerias(true)}>
                   Férias
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDialogConfiguracao(true)}>
+                  <Settings className="mr-2 h-3.5 w-3.5" /> Configurar
                 </Button>
               </>
             )}
@@ -207,45 +259,70 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Registros{!somenteLeitura && ' (clique pra excluir um)'}</TableHead>
+                      <TableHead>1º Período</TableHead>
+                      <TableHead>2º Período</TableHead>
+                      <TableHead>Observação</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                       {!somenteLeitura && <TableHead className="w-[100px] text-right">Ação</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {diasOrdenados.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={somenteLeitura ? 2 : 3} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={somenteLeitura ? 5 : 6} className="h-24 text-center text-muted-foreground">
                           Nenhum registro neste mês.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      diasOrdenados.map((dia) => (
-                        <TableRow key={dia}>
-                          <TableCell className="text-sm font-medium">{new Date(`${dia}T00:00:00`).toLocaleDateString('pt-BR')}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {porDia[dia].map((r: any) => (
-                                <Badge
-                                  key={r.id}
-                                  variant={r.tipo === 'entrada' ? 'success' : r.tipo === 'saida' ? 'secondary' : 'outline'}
-                                  className={somenteLeitura ? undefined : 'cursor-pointer'}
-                                  onClick={somenteLeitura ? undefined : () => excluir(r.id)}
-                                  title={somenteLeitura ? undefined : 'Clique pra excluir'}
-                                >
-                                  {ROTULO_TIPO[r.tipo] ?? r.tipo} {new Date(r.horarioRegistro).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          {!somenteLeitura && (
-                            <TableCell className="text-right">
-                              <Button size="sm" variant="ghost" onClick={() => abrirAjusteDoDia(dia)}>
-                                Ajustar
-                              </Button>
+                      diasOrdenados.map((dia) => {
+                        const registrosDoDia = porDia[dia];
+                        const { periodo1, periodo2 } = periodosDoDia(registrosDoDia);
+                        const { texto: textoObservacao, ehFaltaOuAbono } = observacaoPrincipal(registrosDoDia);
+                        const renderPeriodo = (periodo: { entrada: { id: string; hora: string } | null; saida: { id: string; hora: string } | null }) =>
+                          !periodo.entrada && !periodo.saida ? (
+                            <span className="text-muted-foreground">--</span>
+                          ) : (
+                            <span className="font-mono text-xs">
+                              <span
+                                className={cn(periodo.entrada && !somenteLeitura && 'cursor-pointer hover:underline')}
+                                onClick={periodo.entrada && !somenteLeitura ? () => excluir(periodo.entrada!.id) : undefined}
+                                title={periodo.entrada && !somenteLeitura ? 'Clique pra excluir' : undefined}
+                              >
+                                {periodo.entrada?.hora ?? '--'}
+                              </span>
+                              {' - '}
+                              <span
+                                className={cn(periodo.saida && !somenteLeitura && 'cursor-pointer hover:underline')}
+                                onClick={periodo.saida && !somenteLeitura ? () => excluir(periodo.saida!.id) : undefined}
+                                title={periodo.saida && !somenteLeitura ? 'Clique pra excluir' : undefined}
+                              >
+                                {periodo.saida?.hora ?? '--'}
+                              </span>
+                            </span>
+                          );
+                        return (
+                          <TableRow key={dia}>
+                            <TableCell className="text-sm font-medium">{new Date(`${dia}T00:00:00`).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{renderPeriodo(periodo1)}</TableCell>
+                            <TableCell>{renderPeriodo(periodo2)}</TableCell>
+                            <TableCell
+                              className={cn('text-sm', !somenteLeitura && 'cursor-pointer hover:underline')}
+                              onClick={!somenteLeitura ? () => abrirEdicaoFaltaAbono(dia) : undefined}
+                              title={!somenteLeitura ? (ehFaltaOuAbono ? 'Clique pra editar' : 'Clique pra lançar falta/abono') : undefined}
+                            >
+                              {textoObservacao || <span className="text-muted-foreground">--</span>}
                             </TableCell>
-                          )}
-                        </TableRow>
-                      ))
+                            <TableCell className="text-right font-mono text-sm">{formatarMinutos(minutosTrabalhadosNoDia(registrosDoDia))}</TableCell>
+                            {!somenteLeitura && (
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="ghost" onClick={() => abrirAjusteDoDia(dia)}>
+                                  Ajustar
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -257,7 +334,14 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
 
       {!somenteLeitura && (
         <>
-          <GerenciarFaltaAbonoDialog funcionarioId={funcionario.id} open={dialogFaltaAbono} onOpenChange={setDialogFaltaAbono} onSalvo={carregar} />
+          <GerenciarFaltaAbonoDialog
+            funcionarioId={funcionario.id}
+            open={dialogFaltaAbono.aberto}
+            dataFixa={dialogFaltaAbono.data}
+            registrosExistentes={dialogFaltaAbono.registrosExistentes}
+            onOpenChange={(aberto) => setDialogFaltaAbono((s) => ({ ...s, aberto }))}
+            onSalvo={carregar}
+          />
           <GerenciarFolgaTrabalhadaDialog
             funcionarioId={funcionario.id}
             data={dialogFolga.data}
@@ -266,6 +350,7 @@ export default function DetalheFolhaPonto({ funcionario, somenteLeitura = false 
             onSalvo={carregar}
           />
           <GerenciarFeriasDialog funcionarioId={funcionario.id} open={dialogFerias} onOpenChange={setDialogFerias} onSalvo={carregar} />
+          <ConfigurarFuncionarioDialog funcionarioId={funcionario.id} open={dialogConfiguracao} onOpenChange={setDialogConfiguracao} onSalvo={carregar} />
           <AjustarRegistrosDialog
             funcionarioId={funcionario.id}
             data={dialogAjuste.data}

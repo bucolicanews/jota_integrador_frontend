@@ -77,6 +77,7 @@ export default function ContabilEmpresaDetalhe() {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isDirty } } = useForm();
   const tipoPessoaForm = watch('tipoPessoa');
+  const regimeTributarioForm = watch('regimeTributario');
   const { selecionarEmpresa, empresaAtiva } = useEmpresaAtiva();
 
   // Seletor do Header e esta tela leem "qual empresa" de fontes diferentes de propósito
@@ -109,6 +110,7 @@ export default function ContabilEmpresaDetalhe() {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia ?? '',
         regimeTributario: dados.regimeTributario ?? '',
+        apuracaoIbsCbsHibrida: dados.apuracaoIbsCbsHibrida ?? false,
         cnpj: dados.cnpj,
         tipoPessoa: dados.tipoPessoa ?? 'juridica',
         crc: dados.crc ?? '',
@@ -183,6 +185,7 @@ export default function ContabilEmpresaDetalhe() {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia || null,
         regimeTributario: dados.regimeTributario || null,
+        apuracaoIbsCbsHibrida: dados.regimeTributario === 'simples_nacional' ? dados.apuracaoIbsCbsHibrida : false,
         ...(empresa.tipo === 'interna_contador' ? { tipoPessoa: dados.tipoPessoa, crc: dados.crc || null } : {}),
       });
       await carregar();
@@ -441,6 +444,20 @@ export default function ContabilEmpresaDetalhe() {
                   ))}
                 </select>
               </div>
+              {regimeTributarioForm === 'simples_nacional' && (
+                <div className="flex items-start gap-2">
+                  <input
+                    id="apuracaoIbsCbsHibrida"
+                    type="checkbox"
+                    {...register('apuracaoIbsCbsHibrida')}
+                    className="mt-1 h-4 w-4 rounded border-gray-300"
+                  />
+                  <label htmlFor="apuracaoIbsCbsHibrida" className="text-sm text-gray-700">
+                    <span className="font-medium">Simples Híbrido</span> -- apura CBS e IBS separadamente (débito das vendas menos crédito
+                    das compras, igual lucro presumido) em vez de deixar embutido no DAS único. DAS/anexos continuam normais.
+                  </label>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
                   type="submit"

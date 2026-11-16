@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { ArrowLeft, Loader2, Users } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Clock, Loader2, Users } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +21,8 @@ export default function FolhaPonto() {
   const { usuario } = useSelector((state: any) => state.autenticacao);
   const papelAtual = usuario?.papel;
   const podeGerenciar = ['SUPER_ADMIN', 'CONTADOR_DONO', 'EMPRESARIO_DONO'].includes(papelAtual);
+  const [searchParams] = useSearchParams();
+  const modoProprio = searchParams.get('mode') === 'self';
 
   const [contadores, setContadores] = useState<any[]>([]);
   const [contadorFiltro, setContadorFiltro] = useState('');
@@ -57,6 +60,20 @@ export default function FolhaPonto() {
   }, [funcionarios, busca]);
 
   if (!papelAtual) return null;
+
+  // Tela própria (?mode=self) -- o próprio funcionário (OPERADOR_CONTADOR/OPERADOR_EMPRESA)
+  // vendo a PRÓPRIA folha, nunca a lista de colegas. Ignora `podeGerenciar` de propósito --
+  // essa checagem é só pra quem vai gerenciar a folha de outra pessoa.
+  if (modoProprio) {
+    return (
+      <LayoutPrincipal>
+        <h1 className="mb-6 flex items-center text-2xl font-bold md:text-3xl">
+          <Clock className="mr-2 h-6 w-6" /> Minha Folha de Ponto
+        </h1>
+        <DetalheFolhaPonto funcionario={{ id: usuario.id, nome: usuario.nome, email: usuario.email }} somenteLeitura />
+      </LayoutPrincipal>
+    );
+  }
 
   if (!podeGerenciar) {
     return (

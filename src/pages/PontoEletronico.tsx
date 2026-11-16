@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import CameraCapture from '../components/ponto/CameraCapture';
 import DetalheFolhaPonto from '../components/ponto/DetalheFolhaPonto';
 import { useGeolocation, type Coordenadas } from '../hooks/useGeolocation';
 import { listarRegistros, registrarBatida } from '../servicos/pontoEletronico';
@@ -101,12 +102,12 @@ export default function PontoEletronico() {
 
   return (
     <LayoutPrincipal>
-      <h1 className="mb-6 flex items-center text-2xl font-bold md:text-3xl">
+      <h1 className="mb-6 flex items-center justify-center text-2xl font-bold md:text-3xl">
         <Clock className="mr-2 h-6 w-6" /> Bater Ponto
       </h1>
 
-      <div className="space-y-6">
-        <Card className="max-w-xl">
+      <div className="mx-auto max-w-xl">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Registrar {ROTULO_TIPO[proximaAcao]}</CardTitle>
           </CardHeader>
@@ -120,8 +121,7 @@ export default function PontoEletronico() {
 
             <div className="space-y-1.5">
               <Label>1. Selfie *</Label>
-              <Input type="file" accept="image/*" capture="user" onChange={(e) => setSelfie(e.target.files?.[0] ?? null)} />
-              {selfie && <p className="text-xs text-muted-foreground">Selecionada: {selfie.name}</p>}
+              <CameraCapture capturedFile={selfie} onCapture={setSelfie} onReset={() => setSelfie(null)} />
             </div>
 
             <div className="space-y-1.5">
@@ -133,9 +133,14 @@ export default function PontoEletronico() {
                     Obter localização
                   </Button>
                   {geo.coordenadas && (
-                    <span className="text-xs text-muted-foreground">
-                      {geo.coordenadas.latitude.toFixed(5)}, {geo.coordenadas.longitude.toFixed(5)}
-                    </span>
+                    <a
+                      href={`https://www.google.com/maps?q=${geo.coordenadas.latitude},${geo.coordenadas.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {geo.coordenadas.latitude.toFixed(5)}, {geo.coordenadas.longitude.toFixed(5)} -- ver no mapa
+                    </a>
                   )}
                 </div>
               )}
@@ -161,16 +166,16 @@ export default function PontoEletronico() {
             </Button>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Minha folha de ponto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DetalheFolhaPonto key={refreshKey} funcionario={{ id: usuario.id, nome: usuario.nome, email: usuario.email }} somenteLeitura />
-          </CardContent>
-        </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base">Minha folha de ponto</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DetalheFolhaPonto key={refreshKey} funcionario={{ id: usuario.id, nome: usuario.nome, email: usuario.email }} somenteLeitura />
+        </CardContent>
+      </Card>
 
       <Dialog open={confirmAberto} onOpenChange={setConfirmAberto}>
         <DialogContent className="max-w-sm">
@@ -183,7 +188,15 @@ export default function PontoEletronico() {
             </p>
             {coordenadasConfirmacao ? (
               <p className="text-xs text-muted-foreground">
-                Localização: {coordenadasConfirmacao.latitude.toFixed(5)}, {coordenadasConfirmacao.longitude.toFixed(5)}
+                Localização:{' '}
+                <a
+                  href={`https://www.google.com/maps?q=${coordenadasConfirmacao.latitude},${coordenadasConfirmacao.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {coordenadasConfirmacao.latitude.toFixed(5)}, {coordenadasConfirmacao.longitude.toFixed(5)} -- ver no mapa
+                </a>
               </p>
             ) : (
               <p className="flex items-center gap-1 text-xs text-amber-600">
