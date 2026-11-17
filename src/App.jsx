@@ -38,6 +38,7 @@ const Historicos = lazy(() => import('./pages/Historicos'));
 const Das = lazy(() => import('./pages/Das'));
 const NotasFiscais = lazy(() => import('./pages/NotasFiscais'));
 const ApuracaoTributaria = lazy(() => import('./pages/ApuracaoTributaria'));
+const Esocial = lazy(() => import('./pages/Esocial'));
 const Ccmei = lazy(() => import('./pages/Ccmei'));
 const CaixaPostal = lazy(() => import('./pages/CaixaPostal'));
 const Protocolos = lazy(() => import('./pages/Protocolos'));
@@ -321,6 +322,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <ApuracaoTributaria />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/esocial"
+          element={
+            <RotaProtegida>
+              <Esocial />
             </RotaProtegida>
           }
         />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileCheck2, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, PiggyBank, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, UserCog, Users, Wallet } from 'lucide-react';
+import { BarChart3, Banknote, BookOpen, Building2, ClipboardList, Clock, Coins, CreditCard, DollarSign, FileCheck2, FileSignature, FileStack, FileTextIcon, HandCoins, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LifeBuoy, Link2, ListChecks, ListPlus, PiggyBank, Receipt, ReceiptText, Scale, Settings, ShieldCheck, TrendingUp, Truck, Upload, UserCog, Users, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useModulosLicenciados } from '../../hooks/useModulosLicenciados';
 import { listarPermissoesUsuario } from '../../servicos/usuarios';
@@ -68,6 +68,7 @@ const SECOES_MENU: SecaoMenu[] = [
     titulo: 'Contabilidade',
     itens: [
       { nome: 'Lançamentos', caminho: '/lancamentos', icone: DollarSign, modulo: 'lancamentos', recurso: 'lancamentos' },
+      { nome: 'eSocial (Folha)', caminho: '/esocial', icone: Upload, modulo: 'lancamentos', recurso: 'esocial' },
       { nome: 'Balancete', caminho: '/relatorios/balancete', icone: FileTextIcon, modulo: 'relatorios', recurso: 'relatorios' },
       { nome: 'DRE', caminho: '/relatorios/dre', icone: BarChart3, modulo: 'relatorios', recurso: 'relatorios' },
       { nome: 'Balanço Patrimonial', caminho: '/relatorios/balanco', icone: Scale, modulo: 'relatorios', recurso: 'relatorios' },
