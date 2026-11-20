@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, ExternalLink, Loader2, Scale, Send } from 'lucide-react';
 import LayoutPrincipal from '../components/layout/LayoutPrincipal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   calcularApuracaoSimples,
   calcularFatorR,
   calcularRbt12,
+  consultarApuracaoRtc,
   definirReceitaMensal,
   listarCatalogoAtividadesServico,
 } from '../servicos/apuracaoSimples';
@@ -175,6 +176,8 @@ export default function ApuracaoTributaria() {
   const [rbt12, setRbt12] = useState<any>(null);
   const [fatorR, setFatorR] = useState<any>(null);
   const [apuracaoSimples, setApuracaoSimples] = useState<any>(null);
+  const [apuracaoRtc, setApuracaoRtc] = useState<any>(null);
+  const [erroApuracaoRtc, setErroApuracaoRtc] = useState<string | null>(null);
   const [precisaAtividadeServico, setPrecisaAtividadeServico] = useState(false);
   const [catalogoAtividades, setCatalogoAtividades] = useState<any[]>([]);
   const [chaveAtividadeServico, setChaveAtividadeServico] = useState('');
@@ -186,6 +189,12 @@ export default function ApuracaoTributaria() {
   const [confirmacaoCompetencia, setConfirmacaoCompetencia] = useState('');
   const [transmitindo, setTransmitindo] = useState(false);
   const [resultadoTransmissao, setResultadoTransmissao] = useState<any | null>(null);
+  // Resumo do dialog de transmissão é sempre da competência do MÊS SENDO TRANSMITIDO, não de
+  // competenciaFim -- um mês do RBT12 em atraso pode ser transmitido sem ser o mês "atual"
+  // selecionado no topo da tela.
+  const [apuracaoTransmissao, setApuracaoTransmissao] = useState<any>(null);
+  const [fatorRTransmissao, setFatorRTransmissao] = useState<any>(null);
+  const [carregandoResumoTransmissao, setCarregandoResumoTransmissao] = useState(false);
 
   useEffect(() => {
     if (!empresaId) return;
@@ -211,6 +220,14 @@ export default function ApuracaoTributaria() {
           showError(erro.message);
         }
       });
+    // Calculadores RTC da RFB rodam em container local (docker-compose) -- indisponível é
+    // esperado em quem não subiu os containers ainda, por isso erro vai pro card (inline),
+    // não pro toast de erro padrão.
+    setApuracaoRtc(null);
+    setErroApuracaoRtc(null);
+    consultarApuracaoRtc(empresaId, competenciaReferencia)
+      .then(setApuracaoRtc)
+      .catch((erro) => setErroApuracaoRtc(erro.message ?? 'Calculadora RTC indisponível'));
   }
 
   function carregar() {
@@ -270,6 +287,31 @@ export default function ApuracaoTributaria() {
     setMesTransmitindo(mes);
     setConfirmacaoCompetencia('');
     setResultadoTransmissao(null);
+    setApuracaoTransmissao(null);
+    setFatorRTransmissao(null);
+    if (!empresaId) return;
+
+    setCarregandoResumoTransmissao(true);
+    const competenciaReferencia = `${mes.competencia}-01`;
+    Promise.all([
+      calcularApuracaoSimples(empresaId, competenciaReferencia, chaveAtividadeServico || undefined).catch(() => null),
+      calcularFatorR(empresaId, competenciaReferencia).catch(() => null),
+    ])
+      .then(([apuracao, fator]) => {
+        setApuracaoTransmissao(apuracao);
+        setFatorRTransmissao(fator);
+      })
+      .finally(() => setCarregandoResumoTransmissao(false));
+
+    // Segregação por CFOP reaproveita o mesmo cache de "Ver detalhamento por CFOP" --
+    // busca só se ainda não tiver sido carregado pra esse mês.
+    if (!itensPorMes[mes.competencia] && mes.origemComercioIndustria === 'notas_fiscais') {
+      setCarregandoMes(mes.competencia);
+      listarApuracaoTributaria(empresaId, mes.competencia, ultimoDiaDoMes(mes.competencia))
+        .then((lista: any[]) => setItensPorMes((prev) => ({ ...prev, [mes.competencia]: lista })))
+        .catch((erro: any) => showError(erro.message))
+        .finally(() => setCarregandoMes(null));
+    }
   }
 
   async function confirmarTransmissao() {
@@ -441,6 +483,7 @@ export default function ApuracaoTributaria() {
         </CardContent>
       </Card>
 
+
       {carregando ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -505,73 +548,175 @@ export default function ApuracaoTributaria() {
 
           <Card className="mb-6">
             <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                CBS/IBS -- Reforma Tributária (cálculo oficial RTC)
+                {apuracaoRtc && (
+                  <Badge variant={apuracaoRtc.calculador === 'regime_regular' ? 'info' : 'secondary'}>
+                    {apuracaoRtc.calculador === 'regime_regular' ? 'Regime Regular (débito-crédito)' : 'Simples Nacional (embutido no DAS)'}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {erroApuracaoRtc && (
+                <p className="rounded-md border border-amber-400/40 bg-amber-50 p-2 text-sm text-amber-700">
+                  Calculadora RTC indisponível: {erroApuracaoRtc}. Confira se os containers locais (docker-compose) estão de pé.
+                </p>
+              )}
+              {!erroApuracaoRtc && !apuracaoRtc && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+              )}
+              {apuracaoRtc && (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {apuracaoRtc.resultado.notas.length} nota(s) com classificação tributária RTC processada(s) nesta competência
+                    {apuracaoRtc.resultado.itensSemClassificacaoTributariaRtc > 0 && (
+                      <>
+                        {' '}-- <strong>{apuracaoRtc.resultado.itensSemClassificacaoTributariaRtc}</strong> item(ns) sem cClassTrib/CST-IBS-CBS
+                        no XML (fase de transição da reforma, não é erro)
+                      </>
+                    )}
+                    .
+                  </p>
+                  {apuracaoRtc.resultado.notas.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma nota com classificação tributária RTC neste mês -- a maioria das notas reais em 2026 ainda não traz esse
+                      dado no XML.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Chave de acesso</TableHead>
+                            {apuracaoRtc.calculador === 'simples_nacional' && (
+                              <>
+                                <TableHead className="text-right">IBS</TableHead>
+                                <TableHead className="text-right">CBS</TableHead>
+                                <TableHead className="text-right">Total tributos</TableHead>
+                              </>
+                            )}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {apuracaoRtc.resultado.notas.map((nota: any) => {
+                            const total = nota.resultado?.total ?? {};
+                            return (
+                              <TableRow key={nota.notaFiscalId}>
+                                <TableCell className="font-mono text-xs">{nota.chaveAcesso}</TableCell>
+                                {apuracaoRtc.calculador === 'simples_nacional' && (
+                                  <>
+                                    <TableCell className="text-right font-mono text-xs">{total.vIBSSNtot ?? '—'}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{total.vCBSSNtot ?? '—'}</TableCell>
+                                    <TableCell className="text-right font-mono text-xs">{total.totalTributos ?? '—'}</TableCell>
+                                  </>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      {apuracaoRtc.calculador === 'regime_regular' && (
+                        <p className="p-2 text-xs text-muted-foreground">
+                          Detalhamento por tributo do Regime Regular ainda não padronizado nesta tela (resposta da calculadora tem
+                          dezenas de subgrupos não mapeados) -- confirme valor exato direto na resposta bruta se precisar.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
               <CardTitle className="text-lg">Apuração oficial do Simples Nacional -- competência {competenciaFim}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {rbt12 && (
                 <div>
                   <p className="mb-2 text-sm font-medium">RBT12 (receita bruta dos 12 meses anteriores)</p>
-                  <div className="space-y-2">
-                    {rbt12.meses.map((mes: any) => {
-                      const expandido = mesExpandido === mes.competencia;
-                      return (
-                        <div key={mes.competencia} className="rounded-lg border p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-semibold">{formatarCompetencia(mes.competencia)}</span>
-                            <Badge variant={mes.origemComercioIndustria === 'ausente' ? 'destructive' : mes.origemComercioIndustria === 'manual' ? 'warning' : 'success'}>
-                              {ROTULO_ORIGEM[mes.origemComercioIndustria]}
-                            </Badge>
-                          </div>
-                          <div className="mt-3 grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Comércio/Indústria</Label>
-                              <Input
-                                type="number"
-                                defaultValue={mes.comercioIndustria}
-                                className="h-9"
-                                disabled={salvandoReceita === `${mes.competencia}:comercio_industria`}
-                                onBlur={(e) => {
-                                  const novoValor = Number(e.target.value);
-                                  if (novoValor !== mes.comercioIndustria) salvarReceitaManual(mes.competencia, 'comercio_industria', novoValor);
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Serviço</Label>
-                              <Input
-                                type="number"
-                                defaultValue={mes.servico}
-                                className="h-9"
-                                disabled={salvandoReceita === `${mes.competencia}:servico`}
-                                onBlur={(e) => {
-                                  const novoValor = Number(e.target.value);
-                                  if (novoValor !== mes.servico) salvarReceitaManual(mes.competencia, 'servico', novoValor);
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-3">
-                            <button
-                              type="button"
-                              aria-expanded={expandido}
-                              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                              onClick={() => alternarMesExpandido(mes)}
-                            >
-                              {expandido ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                              {expandido ? 'Ocultar detalhamento por CFOP' : 'Ver detalhamento por CFOP'}
-                            </button>
-                            <Button type="button" size="sm" variant="destructive" className="h-7 text-xs" onClick={() => abrirDialogTransmissao(mes)}>
-                              <Send className="mr-1 h-3.5 w-3.5" /> Transmitir declaração e gerar DAS
-                            </Button>
-                          </div>
-                          {expandido && (
-                            <div className="mt-2 border-t pt-2">
-                              <DetalheMesRbt12 mes={mes} itens={itensPorMes[mes.competencia]} carregando={carregandoMes === mes.competencia} />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Competência</TableHead>
+                          <TableHead>Comércio/Indústria</TableHead>
+                          <TableHead>Serviço</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rbt12.meses.map((mes: any) => {
+                          const expandido = mesExpandido === mes.competencia;
+                          return (
+                            <Fragment key={mes.competencia}>
+                              <TableRow>
+                                <TableCell className="text-sm font-semibold">{formatarCompetencia(mes.competencia)}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    defaultValue={mes.comercioIndustria}
+                                    className="h-8 w-32"
+                                    disabled={salvandoReceita === `${mes.competencia}:comercio_industria`}
+                                    onBlur={(e) => {
+                                      const novoValor = Number(e.target.value);
+                                      if (novoValor !== mes.comercioIndustria) salvarReceitaManual(mes.competencia, 'comercio_industria', novoValor);
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    defaultValue={mes.servico}
+                                    className="h-8 w-32"
+                                    disabled={salvandoReceita === `${mes.competencia}:servico`}
+                                    onBlur={(e) => {
+                                      const novoValor = Number(e.target.value);
+                                      if (novoValor !== mes.servico) salvarReceitaManual(mes.competencia, 'servico', novoValor);
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={mes.origemComercioIndustria === 'ausente' ? 'destructive' : mes.origemComercioIndustria === 'manual' ? 'warning' : 'success'}>
+                                    {ROTULO_ORIGEM[mes.origemComercioIndustria]}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 w-8 p-0"
+                                      title={expandido ? 'Ocultar detalhamento por CFOP' : 'Ver detalhamento por CFOP'}
+                                      aria-expanded={expandido}
+                                      onClick={() => alternarMesExpandido(mes)}
+                                    >
+                                      {expandido ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                    </Button>
+                                    <Button type="button" size="sm" variant="destructive" className="h-8 text-xs" onClick={() => abrirDialogTransmissao(mes)}>
+                                      <Send className="mr-1 h-3.5 w-3.5" /> Transmitir
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {expandido && (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="border-t bg-muted/20">
+                                    <DetalheMesRbt12 mes={mes} itens={itensPorMes[mes.competencia]} carregando={carregandoMes === mes.competencia} />
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Meses "faltando" não têm nota capturada nem valor manual -- edite o campo e saia do campo (Tab/clique fora) pra salvar.
@@ -819,16 +964,90 @@ export default function ApuracaoTributaria() {
             <div className="space-y-3">
               <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
                 <AlertTriangle className="mr-1 inline h-4 w-4" /> Isso transmite a declaração oficial do Simples Nacional pra Receita Federal
-                via SERPRO e gera o DAS do mês. Não há como desfazer -- só retificação formal depois. Confira os números abaixo antes de
-                prosseguir.
+                e gera o DAS do mês. Não há como desfazer -- só retificação formal depois. Confira o resumo abaixo antes de prosseguir.
               </p>
-              <div className="rounded-md border p-3 text-sm">
-                <p>Comércio/Indústria: <span className="font-mono">{formatarMoeda(mesTransmitindo.comercioIndustria)}</span></p>
-                <p>Serviço: <span className="font-mono">{formatarMoeda(mesTransmitindo.servico)}</span></p>
-                {apuracaoSimples?.competencia === `${mesTransmitindo.competencia.slice(0, 7)}-01` && (
-                  <p className="mt-1 font-bold">DAS calculado: {formatarMoeda(apuracaoSimples.dasTotalCalculado)}</p>
-                )}
-              </div>
+
+              {carregandoResumoTransmissao ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-md border p-3 text-sm">
+                    <p className="font-medium">Faturamento total do mês</p>
+                    <p className="font-mono text-lg">
+                      {formatarMoeda((apuracaoTransmissao?.comercioIndustria?.receitaDoMes ?? mesTransmitindo.comercioIndustria) + (apuracaoTransmissao?.servico?.receitaDoMes ?? mesTransmitindo.servico))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Comércio/Indústria {formatarMoeda(apuracaoTransmissao?.comercioIndustria?.receitaDoMes ?? mesTransmitindo.comercioIndustria)} -- Serviço{' '}
+                      {formatarMoeda(apuracaoTransmissao?.servico?.receitaDoMes ?? mesTransmitindo.servico)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-sm font-medium">Faturamento segregado por CFOP</p>
+                    {mesTransmitindo.origemComercioIndustria !== 'notas_fiscais' ? (
+                      <p className="text-sm text-muted-foreground">Sem nota fiscal nesse mês -- valor é lançamento manual, sem CFOP pra segregar.</p>
+                    ) : carregandoMes === mesTransmitindo.competencia ? (
+                      <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Carregando notas do mês...
+                      </div>
+                    ) : (
+                      (() => {
+                        const porCfopDoMes = agruparPorCfop(itensPorMes[mesTransmitindo.competencia] ?? []);
+                        if (porCfopDoMes.length === 0) return <p className="text-sm text-muted-foreground">Nenhuma nota de saída aprovada encontrada pra este mês.</p>;
+                        return (
+                          <div className="overflow-x-auto rounded-md border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>CFOP</TableHead>
+                                  <TableHead>Tributação</TableHead>
+                                  <TableHead className="text-right">Valor</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {porCfopDoMes.map((linha) => (
+                                  <TableRow key={linha.cfop}>
+                                    <TableCell className="font-mono text-sm">{linha.cfop}</TableCell>
+                                    <TableCell>
+                                      {linha.categorias.size > 1 ? (
+                                        <Badge variant="destructive">Misto</Badge>
+                                      ) : (
+                                        <Badge variant={VARIANTE_CATEGORIA_TRIBUTACAO[[...linha.categorias][0]]}>{ROTULO_CATEGORIA_TRIBUTACAO[[...linha.categorias][0]]}</Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono text-sm">{formatarMoeda(linha.valorTotal)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+
+                  <div className="rounded-md border p-3 text-sm">
+                    <p className="font-medium">Fator R</p>
+                    {fatorRTransmissao?.temContaConfigurada ? (
+                      <p>
+                        Folha de pagamento (12 meses): <span className="font-mono">{formatarMoeda(fatorRTransmissao.folhaPagamento12Meses)}</span> -- Fator R:{' '}
+                        <span className="font-mono">{((fatorRTransmissao.fatorR ?? 0) * 100).toFixed(2)}%</span>
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">Nenhuma conta marcada "conta de folha de pagamento" -- Fator R em 0%.</p>
+                    )}
+                  </div>
+
+                  {apuracaoTransmissao && (
+                    <div className="rounded-md border p-3 text-sm">
+                      <p className="font-medium">DAS calculado</p>
+                      <p className="font-mono text-lg font-bold">{formatarMoeda(apuracaoTransmissao.dasTotalCalculado)}</p>
+                    </div>
+                  )}
+                </>
+              )}
 
               {!resultadoTransmissao && (
                 <>
@@ -838,15 +1057,30 @@ export default function ApuracaoTributaria() {
                     </Label>
                     <Input value={confirmacaoCompetencia} onChange={(e) => setConfirmacaoCompetencia(e.target.value)} placeholder="ex: 11/2026" />
                   </div>
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    disabled={confirmacaoCompetencia.trim() !== formatarCompetencia(mesTransmitindo.competencia) || transmitindo}
-                    onClick={confirmarTransmissao}
-                  >
-                    {transmitindo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Confirmar transmissão
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      disabled={confirmacaoCompetencia.trim() !== formatarCompetencia(mesTransmitindo.competencia) || transmitindo}
+                      onClick={confirmarTransmissao}
+                    >
+                      {transmitindo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                      Transmitir SERPRO
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      disabled={confirmacaoCompetencia.trim() !== formatarCompetencia(mesTransmitindo.competencia)}
+                      onClick={() => window.open(URL_PORTAL_SIMPLES_NACIONAL, '_blank', 'noopener,noreferrer')}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" /> Transmitir site
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    "Transmitir site" só abre o Portal do Simples Nacional numa aba nova, pra você preencher à mão -- preenchimento
+                    automático não funcionou de forma confiável (abandonado, ver sessão 2026-11-17).
+                  </p>
                 </>
               )}
 

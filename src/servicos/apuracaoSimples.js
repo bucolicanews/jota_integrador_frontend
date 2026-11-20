@@ -17,3 +17,7 @@ export const calcularApuracaoSimples = (empresaId, competencia, chaveAtividadeSe
 };
 
 export const definirReceitaMensal = (empresaId, dados) => api.put(`${base(empresaId)}/receita-mensal`, dados);
+
+/** Decide sozinho Simples Nacional vs Regime Regular por empresa (reforma tributária -- CBS/IBS). */
+export const consultarApuracaoRtc = (empresaId, competenciaReferencia) =>
+  api.get(`${base(empresaId)}/apuracao-rtc?competencia=${competenciaReferencia}`);

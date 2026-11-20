@@ -37,6 +37,7 @@ const Fornecedores = lazy(() => import('./pages/Fornecedores'));
 const Historicos = lazy(() => import('./pages/Historicos'));
 const Das = lazy(() => import('./pages/Das'));
 const NotasFiscais = lazy(() => import('./pages/NotasFiscais'));
+const NotasServico = lazy(() => import('./pages/NotasServico'));
 const ApuracaoTributaria = lazy(() => import('./pages/ApuracaoTributaria'));
 const Esocial = lazy(() => import('./pages/Esocial'));
 const Ccmei = lazy(() => import('./pages/Ccmei'));
@@ -314,6 +315,14 @@ export default function App() {
           element={
             <RotaProtegida>
               <NotasFiscais />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="/notas-servico"
+          element={
+            <RotaProtegida>
+              <NotasServico />
             </RotaProtegida>
           }
         />
